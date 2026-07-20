@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+  <springProperty scope="context" name="service" source="spring.application.name" defaultValue="gt-platform"/>
+  <springProperty scope="context" name="environment" source="spring.profiles.active" defaultValue="default"/>
+
+  <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder>
+      <pattern>{"timestamp":"%date{ISO8601}","level":"%level","service":"${service}","environment":"${environment}","thread":"%thread","logger":"%logger{36}","correlationId":"%X{correlationId:-}","tenantId":"%X{tenantId:-}","traceId":"%X{traceId:-}","spanId":"%X{spanId:-}","message":"%replace(%msg){'([\\"\\n\\r\\t])','\\$1'}"}%n</pattern>
+    </encoder>
+  </appender>
+
+  <root level="INFO">
+    <appender-ref ref="CONSOLE"/>
+  </root>
+</configuration>

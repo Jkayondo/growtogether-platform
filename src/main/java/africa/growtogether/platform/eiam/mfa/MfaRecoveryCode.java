@@ -1,0 +1,4 @@
+package africa.growtogether.platform.eiam.mfa;
+import africa.growtogether.platform.common.persistence.AuditedTenantEntity; import jakarta.persistence.*; import java.time.Instant; import java.util.UUID;
+@Entity @Table(name="eiam_mfa_recovery_code",uniqueConstraints=@UniqueConstraint(name="uq_mfa_recovery_hash",columnNames={"tenant_id","code_hash"}))
+public class MfaRecoveryCode extends AuditedTenantEntity { @Column(name="user_id",nullable=false) private UUID userId; @Column(name="code_hash",nullable=false,length=64) private String codeHash; @Column(name="used_at") private Instant usedAt; protected MfaRecoveryCode(){} public MfaRecoveryCode(UUID userId,String hash){this.userId=userId;this.codeHash=hash;} public boolean use(Instant now){if(usedAt!=null)return false;usedAt=now;return true;} public UUID getUserId(){return userId;} public String getCodeHash(){return codeHash;} public Instant getUsedAt(){return usedAt;} }

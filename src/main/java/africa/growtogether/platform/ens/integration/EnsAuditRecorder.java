@@ -1,0 +1,6 @@
+package africa.growtogether.platform.ens.integration;
+import africa.growtogether.platform.eiam.audit.*; import africa.growtogether.platform.ens.NotificationRequest; import java.util.Map; import org.springframework.stereotype.Component;
+@Component public class EnsAuditRecorder { private final AuditEventService audit; public EnsAuditRecorder(AuditEventService a){audit=a;}
+ private void record(String type, NotificationRequest n, AuditOutcome outcome, SecuritySeverity severity){audit.record(new RecordAuditEventCommand(type,AuditEventCategory.AUTHORIZATION,outcome,severity,"NOTIFICATION",n.id().toString(),type,Map.of("channel",n.channel().name(),"status",n.notificationStatus().name(),"sourceService",n.sourceService())));}
+ public void requested(NotificationRequest n){record("ENS.NOTIFICATION.REQUESTED",n,AuditOutcome.SUCCESS,SecuritySeverity.INFO);} public void processing(NotificationRequest n){record("ENS.NOTIFICATION.PROCESSING",n,AuditOutcome.SUCCESS,SecuritySeverity.INFO);} public void sent(NotificationRequest n){record("ENS.NOTIFICATION.SENT",n,AuditOutcome.SUCCESS,SecuritySeverity.INFO);} public void delivered(NotificationRequest n){record("ENS.NOTIFICATION.DELIVERED",n,AuditOutcome.SUCCESS,SecuritySeverity.INFO);} public void failed(NotificationRequest n){record("ENS.NOTIFICATION.FAILED",n,AuditOutcome.FAILURE,SecuritySeverity.MEDIUM);}
+}

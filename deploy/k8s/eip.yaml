@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: gt-eip}
+spec:
+  replicas: 2
+  selector: {matchLabels: {app: gt-eip}}
+  template:
+    metadata: {labels: {app: gt-eip}}
+    spec:
+      containers:
+      - name: eip
+        image: growtogether/eip:0.34.0
+        ports: [{containerPort: 8080}]
+        readinessProbe: {httpGet: {path: /actuator/health/readiness, port: 8080}}
+        livenessProbe: {httpGet: {path: /actuator/health/liveness, port: 8080}}
+        resources: {requests: {cpu: 250m, memory: 512Mi}, limits: {cpu: "1", memory: 1Gi}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: gt-eip}
+spec: {selector: {app: gt-eip}, ports: [{port: 80, targetPort: 8080}]}

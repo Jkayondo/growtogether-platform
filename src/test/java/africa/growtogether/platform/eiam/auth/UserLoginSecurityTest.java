@@ -1,0 +1,3 @@
+package africa.growtogether.platform.eiam.auth;
+import static org.junit.jupiter.api.Assertions.*; import africa.growtogether.platform.eiam.user.UserAccount; import java.time.*; import org.junit.jupiter.api.Test;
+class UserLoginSecurityTest { @Test void locksAfterConfiguredFailuresAndResetsAfterExpiry(){Instant now=Instant.parse("2026-07-17T12:00:00Z");UserAccount u=new UserAccount("john","john@example.com","John","hash");u.activate();for(int i=0;i<5;i++)u.recordFailedLogin(now,5,900);assertFalse(u.canAuthenticateAt(now.plusSeconds(1)));assertTrue(u.canAuthenticateAt(now.plusSeconds(901)));u.recordSuccessfulLogin(now.plusSeconds(902));assertEquals(0,u.getFailedLoginAttempts());assertNull(u.getLockedUntil());}}

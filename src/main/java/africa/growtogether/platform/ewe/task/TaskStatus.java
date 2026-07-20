@@ -1,0 +1,1 @@
+package africa.growtogether.platform.ewe.task; public enum TaskStatus { CREATED, ASSIGNED, CLAIMED, IN_PROGRESS, COMPLETED, REJECTED, CANCELLED, ESCALATED, EXPIRED }

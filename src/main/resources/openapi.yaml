@@ -1,0 +1,295 @@
+openapi: 3.1.0
+info:
+  title: GrowTogether Platform API
+  version: 0.6.0
+paths:
+  /api/v1/eiam/tenants/provision:
+    post:
+      summary: Provision an organization, tenant and bootstrap administrator
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: Tenant provisioned
+  /api/v1/eiam/tenants/{id}:
+    get:
+      summary: Get tenant
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Tenant retrieved }
+  /api/v1/eiam/tenants/{id}/status/{status}:
+    patch:
+      summary: Change tenant lifecycle status
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+        - in: path
+          name: status
+          required: true
+          schema: { type: string, enum: [ACTIVE, SUSPENDED, DEACTIVATED] }
+      responses:
+        '200': { description: Tenant status updated }
+  /api/v1/eiam/users:
+    post:
+      summary: Create a tenant-scoped user account
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: User created
+        '400':
+          description: Validation failure
+        '401':
+          description: Authentication required
+        '409':
+          description: Username or email conflict
+  /api/v1/eiam/users/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Retrieve a tenant-scoped user account
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User retrieved
+        '404':
+          description: User not found
+    put:
+      summary: Update a tenant-scoped user account profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserCommand'
+      responses:
+        '200':
+          description: User updated
+        '400':
+          description: Validation failure
+        '404':
+          description: User not found
+        '409':
+          description: Username or email conflict
+  /api/v1/eiam/users/{id}/activation:
+    patch:
+      summary: Activate a pending or suspended user account
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User activated
+        '404':
+          description: User not found
+        '409':
+          description: Invalid lifecycle transition
+  /api/v1/eiam/users/{id}/suspension:
+    patch:
+      summary: Suspend an active user account
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User suspended
+        '404':
+          description: User not found
+        '409':
+          description: Invalid lifecycle transition
+  /api/v1/eiam/users/{id}/deactivation:
+    patch:
+      summary: Permanently deactivate a user account
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User deactivated
+        '404':
+          description: User not found
+  /api/v1/system/status:
+    get:
+      operationId: getSystemStatus
+      summary: Returns platform operational status
+      parameters:
+        - in: header
+          name: X-Correlation-ID
+          required: false
+          schema:
+            type: string
+            maxLength: 128
+        - in: header
+          name: X-Tenant-ID
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Platform is operational
+          headers:
+            X-Correlation-ID:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemStatusResponse'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    UpdateUserCommand:
+      type: object
+      required: [username, email, displayName]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 100
+          pattern: '^[A-Za-z0-9._-]+$'
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        displayName:
+          type: string
+          maxLength: 200
+    ApiMetadata:
+      type: object
+      required: [correlationId, timestamp]
+      properties:
+        correlationId:
+          type: string
+        tenantId:
+          type: [string, 'null']
+          format: uuid
+        timestamp:
+          type: string
+          format: date-time
+    SystemStatus:
+      type: object
+      required: [service, status, timestamp]
+      properties:
+        service:
+          type: string
+        status:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+    SystemStatusResponse:
+      type: object
+      required: [success, code, message, data, errors, metadata]
+      properties:
+        success:
+          type: boolean
+          const: true
+        code:
+          type: string
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/SystemStatus'
+        errors:
+          type: array
+          items:
+            type: object
+        metadata:
+          $ref: '#/components/schemas/ApiMetadata'
+
+# Commit 0008 EIAM role endpoints:
+# POST/GET /api/v1/eiam/roles
+# GET/PUT/DELETE /api/v1/eiam/roles/{id}
+# PUT/GET /api/v1/eiam/users/{userId}/roles
+# DELETE /api/v1/eiam/users/{userId}/roles/{roleId}
+
+# Commit 0009 EIAM permission endpoints:
+# POST/GET /api/v1/eiam/permissions
+# GET/PUT/DELETE /api/v1/eiam/permissions/{id}
+# PUT/GET /api/v1/eiam/roles/{roleId}/permissions
+# DELETE /api/v1/eiam/roles/{roleId}/permissions/{permissionId}
+
+# Commit 0015 endpoint: GET /api/v1/eiam/audit-events
+  /api/v1/configuration/values/{valueId}/history:
+    get:
+      summary: Retrieve immutable configuration value history
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: valueId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Configuration history retrieved }
+  /api/v1/configuration/values/{valueId}/rollback:
+    post:
+      summary: Roll a configuration value back by creating a new version
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: valueId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Configuration rolled back }
+
+# EWE Set 2 endpoints are implemented under /api/v1/workflows:
+# POST /definitions
+# GET /definitions
+# POST /definitions/{id}/versions
+# GET /definitions/{id}/versions
+# POST /instances
+# GET /instances/{id}
+# POST /instances/{id}/advance
+# POST /instances/{id}/resume
+# POST /instances/{id}/complete
+# POST /instances/{id}/fail
+# POST /instances/{id}/retry
+# POST /instances/{id}/cancel
+# POST /instances/{id}/restart
+# PUT /instances/{id}/variables
+# GET /instances/{id}/variables
+# GET /instances/{id}/history

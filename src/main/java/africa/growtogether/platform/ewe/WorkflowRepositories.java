@@ -1,0 +1,7 @@
+package africa.growtogether.platform.ewe;
+import java.util.*; import org.springframework.data.jpa.repository.JpaRepository;
+interface WorkflowDefinitionRepository extends JpaRepository<WorkflowDefinition,UUID>{Optional<WorkflowDefinition> findByIdAndTenantId(UUID id,UUID tenantId);Optional<WorkflowDefinition> findByTenantIdAndCode(UUID tenantId,String code);List<WorkflowDefinition> findAllByTenantIdOrderByCode(UUID tenantId);}
+interface WorkflowVersionRepository extends JpaRepository<WorkflowVersion,UUID>{Optional<WorkflowVersion> findByDefinitionIdAndTenantIdAndVersionNumber(UUID definitionId,UUID tenantId,int version);List<WorkflowVersion> findAllByDefinitionIdAndTenantIdOrderByVersionNumberDesc(UUID definitionId,UUID tenantId);long countByDefinitionIdAndTenantId(UUID definitionId,UUID tenantId);}
+interface WorkflowInstanceRepository extends JpaRepository<WorkflowInstance,UUID>{Optional<WorkflowInstance> findByIdAndTenantId(UUID id,UUID tenantId);List<WorkflowInstance> findAllByTenantIdOrderByCreatedAtDesc(UUID tenantId);}
+interface WorkflowVariableRepository extends JpaRepository<WorkflowVariable,UUID>{Optional<WorkflowVariable> findByInstanceIdAndTenantIdAndKey(UUID instanceId,UUID tenantId,String key);List<WorkflowVariable> findAllByInstanceIdAndTenantIdOrderByKey(UUID instanceId,UUID tenantId);}
+interface WorkflowExecutionEventRepository extends JpaRepository<WorkflowExecutionEvent,UUID>{List<WorkflowExecutionEvent> findAllByInstanceIdAndTenantIdOrderByOccurredAtAsc(UUID instanceId,UUID tenantId);}

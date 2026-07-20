@@ -1,0 +1,26 @@
+package africa.growtogether.platform.eds;
+import africa.growtogether.platform.common.security.EnterpriseIdentityContext;
+import java.nio.charset.StandardCharsets;
+import java.security.*;
+import java.time.*;
+import java.util.*;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+@Service
+public class DocumentSecurityService {
+ private final DocumentRepository documents; private final DocumentVersionRepository versions; private final DocumentSearchRepository search; private final DocumentShareRepository shares; private final DocumentCollaborationEventRepository events; private final EnterpriseIdentityContext identity;
+ public DocumentSecurityService(DocumentRepository documents,DocumentVersionRepository versions,DocumentSearchRepository search,DocumentShareRepository shares,DocumentCollaborationEventRepository events,EnterpriseIdentityContext identity){this.documents=documents;this.versions=versions;this.search=search;this.shares=shares;this.events=events;this.identity=identity;}
+ @Transactional(readOnly=true) public List<DocumentSecurityDtos.SearchResult> search(String q){String term=q==null?"":q.trim();return search.search(identity.requireTenantId(),term).stream().filter(this::canRead).map(d->new DocumentSecurityDtos.SearchResult(d.id(),d.documentNumber(),d.title(),d.documentStatus(),d.classification(),d.currentVersion())).toList();}
+ @Transactional public DocumentDtos.LifecycleView classify(UUID id,DocumentClassification classification){Document d=get(id);d.changeClassification(classification);record(d,"CLASSIFICATION_CHANGED",classification.name());return new DocumentDtos.LifecycleView(d.id(),d.documentNumber(),d.title(),d.documentStatus(),d.currentVersion(),d.retentionUntil(),d.legalHold(),d.checkedOutBy());}
+ @Transactional public DocumentSecurityDtos.ShareView createShare(UUID id,DocumentSecurityDtos.ShareRequest request){Document d=get(id);requireShareAllowed(d);if(request.expiresAt()==null||!request.expiresAt().isAfter(Instant.now()))throw new IllegalArgumentException("Share expiry must be in the future");String token=Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes(32));DocumentShare share=new DocumentShare(identity.requireTenantId(),id,request.recipientUserId(),request.recipientEmail(),request.accessLevel()==null?DocumentAccessLevel.READ:request.accessLevel(),sha256(token),request.expiresAt(),request.maxDownloads());shares.save(share);record(d,"SHARE_CREATED","share="+share.id());return view(share,token);}
+ @Transactional(readOnly=true) public List<DocumentSecurityDtos.ShareView> shares(UUID id){Document d=get(id);requireShareAllowed(d);return shares.findByDocumentIdAndTenantIdOrderByExpiresAtDesc(id,identity.requireTenantId()).stream().map(s->view(s,null)).toList();}
+ @Transactional public void revoke(UUID documentId,UUID shareId){Document d=get(documentId);DocumentShare share=shares.findByIdAndTenantId(shareId,identity.requireTenantId()).orElseThrow(()->new NoSuchElementException("Share not found"));if(!share.documentId().equals(documentId))throw new NoSuchElementException("Share not found");share.revoke(Instant.now());record(d,"SHARE_REVOKED","share="+shareId);}
+ @Transactional public DocumentSecurityDtos.Preview preview(UUID id){Document d=get(id);if(!canRead(d))throw new SecurityException("Document access denied");DocumentVersion v=versions.findByDocumentIdAndTenantIdOrderByVersionNumberDesc(id,identity.requireTenantId()).stream().findFirst().orElseThrow();boolean inline=v.mimeType().startsWith("image/")||v.mimeType().equals("application/pdf")||v.mimeType().startsWith("text/");record(d,"PREVIEW_REQUESTED",v.mimeType());return new DocumentSecurityDtos.Preview(id,v.versionNumber(),v.mimeType(),v.sizeBytes(),v.storageKey(),inline,inline?"inline":"attachment");}
+ private Document get(UUID id){return documents.findByIdAndTenantId(id,identity.requireTenantId()).orElseThrow(()->new NoSuchElementException("Document not found"));}
+ private boolean canRead(Document d){return d.classification()!=DocumentClassification.RESTRICTED||identity.roles().contains("DOCUMENT_SECURITY_ADMIN")||identity.permissions().contains("document.restricted.read");}
+ private void requireShareAllowed(Document d){if(d.classification()==DocumentClassification.RESTRICTED&&!identity.permissions().contains("document.restricted.share"))throw new SecurityException("Restricted documents require elevated sharing permission");}
+ private void record(Document d,String type,String details){events.save(new DocumentCollaborationEvent(identity.requireTenantId(),d.id(),type,identity.requireUserId(),details));}
+ private static DocumentSecurityDtos.ShareView view(DocumentShare s,String token){return new DocumentSecurityDtos.ShareView(s.id(),s.documentId(),s.recipientUserId(),s.recipientEmail(),s.accessLevel(),s.expiresAt(),s.revokedAt(),s.downloadCount(),token);}
+ private static byte[] randomBytes(int n){byte[] b=new byte[n];new SecureRandom().nextBytes(b);return b;}
+ private static String sha256(String v){try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(v.getBytes(StandardCharsets.UTF_8)));}catch(NoSuchAlgorithmException e){throw new IllegalStateException(e);}}
+}

@@ -1,0 +1,3 @@
+package africa.growtogether.platform.eiam.auth;
+import static org.junit.jupiter.api.Assertions.*; import java.time.*; import java.util.UUID; import org.junit.jupiter.api.Test;
+class UserSessionTest { @Test void rotatesAndRevokes(){Instant now=Instant.parse("2026-07-17T12:00:00Z");UserSession s=new UserSession(UUID.randomUUID(),"a",now.plusSeconds(60),now);assertTrue(s.usableAt(now));s.rotate("b",now.plusSeconds(120),now.plusSeconds(1));assertEquals("b",s.getRefreshTokenHash());s.revoke("LOGOUT",now.plusSeconds(2));assertFalse(s.usableAt(now.plusSeconds(3)));assertThrows(AuthenticationException.class,()->s.rotate("c",now.plusSeconds(200),now.plusSeconds(4)));}}

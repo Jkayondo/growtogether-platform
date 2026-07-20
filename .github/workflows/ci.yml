@@ -1,0 +1,111 @@
+name: GrowTogether Platform CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: gt-platform-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Compile and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: gt_platform
+          POSTGRES_USER: gt
+          POSTGRES_PASSWORD: gt
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U gt -d gt_platform"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/gt_platform
+      SPRING_DATASOURCE_USERNAME: gt
+      SPRING_DATASOURCE_PASSWORD: gt
+      SPRING_DATA_REDIS_HOST: localhost
+      SPRING_DATA_REDIS_PORT: 6379
+      GT_JWT_SECRET: ci-only-jwt-secret-change-before-production-000000000000000000
+      GT_ECS_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      GT_MFA_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      GT_EIP_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Make Maven wrapper executable
+        run: chmod +x mvnw
+
+      - name: Verify Maven wrapper
+        run: ./mvnw -B -ntp --version
+
+      - name: Compile
+        run: ./mvnw -B -ntp -DskipTests compile
+
+      - name: Run tests and package
+        run: ./mvnw -B -ntp verify
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            target/surefire-reports/**
+            target/failsafe-reports/**
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload application artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gt-platform-jar
+          path: target/*.jar
+          if-no-files-found: error
+          retention-days: 14
+
+  container:
+    name: Build container image
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build --tag gt-platform:${{ github.sha }} .

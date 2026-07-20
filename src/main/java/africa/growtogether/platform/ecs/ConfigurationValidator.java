@@ -1,0 +1,5 @@
+package africa.growtogether.platform.ecs;
+import com.fasterxml.jackson.databind.ObjectMapper; import java.math.BigDecimal; import java.time.*; import java.util.UUID;
+final class ConfigurationValidator { private static final ObjectMapper JSON=new ObjectMapper(); private ConfigurationValidator(){}
+ static String validate(ConfigurationDefinition d,String raw){if((raw==null||raw.isBlank())&&d.isRequired())throw new ConfigurationException("A value is required for "+d.getCode()+".");if(raw==null)return null;String v=raw.trim();try{switch(d.getDataType()){case INTEGER->Long.parseLong(v);case DECIMAL->new BigDecimal(v);case BOOLEAN->{if(!v.equalsIgnoreCase("true")&&!v.equalsIgnoreCase("false"))throw new IllegalArgumentException();}case DATE->LocalDate.parse(v);case DATETIME->Instant.parse(v);case TIME->LocalTime.parse(v);case UUID->UUID.fromString(v);case JSON,LIST,MAP->JSON.readTree(v);default->{}}}catch(Exception e){throw new ConfigurationException("Invalid "+d.getDataType()+" value for "+d.getCode()+".");}return v;}
+}

@@ -1,0 +1,1 @@
+package africa.growtogether.platform.ewe.task; public enum TaskType { HUMAN, SYSTEM, APPROVAL, REVIEW }

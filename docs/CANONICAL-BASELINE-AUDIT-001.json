@@ -1,0 +1,11 @@
+{
+  "java_main_files": 311,
+  "java_test_files": 38,
+  "migration_count": 31,
+  "migration_first": 1,
+  "migration_last": 31,
+  "migration_missing": [],
+  "internal_import_errors": [],
+  "duplicate_endpoint_mappings": {},
+  "duplicate_fqcn": {}
+}

@@ -1,0 +1,1 @@
+package africa.growtogether.platform.ewe.task; public enum ApprovalDecision { APPROVE, REJECT, RETURN }

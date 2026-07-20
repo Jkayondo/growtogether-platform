@@ -1,0 +1,80 @@
+spring:
+  application:
+    name: gt-platform
+
+  datasource:
+    url: ${GT_DB_URL:jdbc:postgresql://localhost:5432/growtogether}
+    username: ${GT_DB_USER:growtogether}
+    password: ${GT_DB_PASSWORD:growtogether}
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+
+  flyway:
+    enabled: true
+
+  data:
+    redis:
+      host: ${GT_REDIS_HOST:localhost}
+      port: ${GT_REDIS_PORT:6379}
+
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+
+  health:
+    readinessstate:
+      enabled: true
+    livenessstate:
+      enabled: true
+
+  metrics:
+    tags:
+      service: growtogether-platform
+
+info:
+  app:
+    name: GrowTogether Platform
+    version: 0.38.0-SNAPSHOT
+
+gt:
+  security:
+    jwt:
+      issuer: ${GT_JWT_ISSUER:growtogether-platform}
+      secret: ${GT_JWT_SECRET:change-this-development-secret-before-production-123456}
+      access-token-seconds: ${GT_JWT_ACCESS_TOKEN_SECONDS:900}
+
+    mfa:
+      encryption-key: ${GT_MFA_ENCRYPTION_KEY:change-this-mfa-encryption-key-before-production-123456}
+      challenge-seconds: ${GT_MFA_CHALLENGE_SECONDS:300}
+      trusted-device-seconds: ${GT_TRUSTED_DEVICE_SECONDS:2592000}
+      totp-window: ${GT_MFA_TOTP_WINDOW:1}
+
+    auth:
+      refresh-token-seconds: ${GT_REFRESH_TOKEN_SECONDS:2592000}
+      max-failed-attempts: ${GT_MAX_FAILED_ATTEMPTS:5}
+      lock-seconds: ${GT_ACCOUNT_LOCK_SECONDS:900}
+
+  eiam:
+    recovery:
+      password-reset-seconds: ${GT_PASSWORD_RESET_SECONDS:1800}
+      email-verification-seconds: ${GT_EMAIL_VERIFICATION_SECONDS:86400}
+
+  ecs:
+    encryption:
+      key: ${GT_ECS_ENCRYPTION_KEY:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
+      key-id: ${GT_ECS_ENCRYPTION_KEY_ID:ecs-development-key}

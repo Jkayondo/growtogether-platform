@@ -1,0 +1,7 @@
+package africa.growtogether.platform.eap.advanced;
+import africa.growtogether.platform.common.persistence.AuditedTenantEntity; import jakarta.persistence.*;
+@Entity @Table(name="eap_data_sources",uniqueConstraints=@UniqueConstraint(name="uq_eap_data_source_code",columnNames={"tenant_id","source_code"}))
+public class AnalyticsDataSource extends AuditedTenantEntity {
+ @Column(name="source_code",nullable=false,length=120) private String sourceCode; @Column(name="source_name",nullable=false,length=180) private String sourceName; @Enumerated(EnumType.STRING) @Column(name="source_type",nullable=false,length=30) private AdvancedAnalyticsEnums.DataSourceType sourceType; @Column(name="source_service",length=100) private String sourceService; @Column(name="configuration_reference",length=240) private String configurationReference; @Column(name="schema_json",columnDefinition="text") private String schemaJson; @Column(name="active",nullable=false) private boolean active=true;
+ protected AnalyticsDataSource(){} public AnalyticsDataSource(java.util.UUID tenant,String code,String name,AdvancedAnalyticsEnums.DataSourceType type,String service,String configRef,String schema){setTenantId(tenant);sourceCode=req(code).toUpperCase(java.util.Locale.ROOT);sourceName=req(name);sourceType=type==null?AdvancedAnalyticsEnums.DataSourceType.PLATFORM_EVENT:type;sourceService=service;configurationReference=configRef;schemaJson=schema;} private static String req(String v){if(v==null||v.isBlank())throw new IllegalArgumentException("value is required");return v.trim();}
+}
