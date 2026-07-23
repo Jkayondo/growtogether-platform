@@ -21,11 +21,13 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @SpringBootTest
 @Transactional
 class AuditedTenantEntityIntegrationTest {
+
     @Container
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:17-alpine")
-        .withDatabaseName("growtogether_test")
-        .withUsername("growtogether")
-        .withPassword("growtogether");
+    static final PostgreSQLContainer<?> POSTGRES =
+        new PostgreSQLContainer<>("postgres:17-alpine")
+            .withDatabaseName("growtogether_test")
+            .withUsername("growtogether")
+            .withPassword("growtogether");
 
     @DynamicPropertySource
     static void databaseProperties(DynamicPropertyRegistry registry) {
@@ -46,16 +48,24 @@ class AuditedTenantEntityIntegrationTest {
     @Test
     void assignsTenantAndAuditFieldsFromActiveContext() {
         UUID tenantId = UUID.randomUUID();
-        RequestContextHolder.set(new RequestContext("test-correlation", tenantId.toString()));
 
-        PlatformTenantRecord saved = repository.saveAndFlush(new PlatformTenantRecord("locale", "en-UG"));
+        RequestContextHolder.set(
+            new RequestContext("test-correlation", tenantId.toString())
+        );
+
+        PlatformTenantRecord saved =
+            repository.saveAndFlush(
+                new PlatformTenantRecord("locale", "en-UG")
+            );
 
         assertThat(saved.getId()).isNotNull();
         assertThat(saved.getTenantId()).isEqualTo(tenantId);
         assertThat(saved.getCreatedAt()).isNotNull();
         assertThat(saved.getUpdatedAt()).isNotNull();
-        assertThat(saved.getCreatedBy()).isEqualTo(RequestContextAuditorAware.SYSTEM_AUDITOR);
-        assertThat(saved.getUpdatedBy()).isEqualTo(RequestContextAuditorAware.SYSTEM_AUDITOR);
+        assertThat(saved.getCreatedBy())
+            .isEqualTo(RequestContextAuditorAware.SYSTEM_AUDITOR);
+        assertThat(saved.getUpdatedBy())
+            .isEqualTo(RequestContextAuditorAware.SYSTEM_AUDITOR);
         assertThat(saved.getStatus()).isEqualTo(EntityStatus.ACTIVE);
         assertThat(saved.getVersion()).isZero();
     }
@@ -63,34 +73,70 @@ class AuditedTenantEntityIntegrationTest {
     @Test
     void incrementsVersionAndUpdatesAuditTimestamp() {
         UUID tenantId = UUID.randomUUID();
-        RequestContextHolder.set(new RequestContext("test-correlation", tenantId.toString()));
-        PlatformTenantRecord saved = repository.saveAndFlush(new PlatformTenantRecord("timezone", "Africa/Kampala"));
+
+        RequestContextHolder.set(
+            new RequestContext("test-correlation", tenantId.toString())
+        );
+
+        PlatformTenantRecord saved =
+            repository.saveAndFlush(
+                new PlatformTenantRecord(
+                    "timezone",
+                    "Africa/Kampala"
+                )
+            );
+
         var initialUpdatedAt = saved.getUpdatedAt();
 
         saved.setRecordValue("UTC");
-        PlatformTenantRecord updated = repository.saveAndFlush(saved);
+
+        PlatformTenantRecord updated =
+            repository.saveAndFlush(saved);
 
         assertThat(updated.getVersion()).isEqualTo(1L);
-        assertThat(updated.getUpdatedAt()).isAfterOrEqualTo(initialUpdatedAt);
+        assertThat(updated.getUpdatedAt())
+            .isAfterOrEqualTo(initialUpdatedAt);
     }
 
     @Test
     void rejectsPersistenceWithoutTenantContext() {
-        assertThatThrownBy(() -> repository.saveAndFlush(new PlatformTenantRecord("currency", "UGX")))
-            .hasRootCauseInstanceOf(TenantScopeViolationException.class)
-            .hasRootCauseMessage("A tenant context is required for tenant-scoped persistence.");
+        assertThatThrownBy(
+            () -> repository.saveAndFlush(
+                new PlatformTenantRecord("currency", "UGX")
+            )
+        )
+            .isInstanceOf(TenantScopeViolationException.class)
+            .hasMessage(
+                "A tenant context is required for tenant-scoped persistence."
+            );
     }
 
     @Test
     void rejectsEntityBelongingToAnotherTenant() {
         UUID activeTenant = UUID.randomUUID();
         UUID otherTenant = UUID.randomUUID();
-        RequestContextHolder.set(new RequestContext("test-correlation", activeTenant.toString()));
-        PlatformTenantRecord record = new PlatformTenantRecord("language", "English");
+
+        RequestContextHolder.set(
+            new RequestContext(
+                "test-correlation",
+                activeTenant.toString()
+            )
+        );
+
+        PlatformTenantRecord record =
+            new PlatformTenantRecord(
+                "language",
+                "English"
+            );
+
         record.setTenantId(otherTenant);
 
-        assertThatThrownBy(() -> repository.saveAndFlush(record))
-            .hasRootCauseInstanceOf(TenantScopeViolationException.class)
-            .hasRootCauseMessage("Entity tenant does not match the active tenant context.");
+        assertThatThrownBy(
+            () -> repository.saveAndFlush(record)
+        )
+            .isInstanceOf(TenantScopeViolationException.class)
+            .hasMessage(
+                "Entity tenant does not match the active tenant context."
+            );
     }
 }
