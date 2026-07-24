@@ -5,7 +5,7 @@
 
   <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
-      <pattern>{"timestamp":"%date{ISO8601}","level":"%level","service":"${service}","environment":"${environment}","thread":"%thread","logger":"%logger{36}","correlationId":"%X{correlationId:-}","tenantId":"%X{tenantId:-}","traceId":"%X{traceId:-}","spanId":"%X{spanId:-}","message":"%replace(%msg){'([\\"\\n\\r\\t])','\\$1'}"}%n</pattern>
+      <pattern>{"timestamp":"%date{ISO8601}","level":"%level","service":"${service}","environment":"${environment}","thread":"%thread","logger":"%logger{36}","correlationId":"%X{correlationId:-}","tenantId":"%X{tenantId:-}","traceId":"%X{traceId:-}","spanId":"%X{spanId:-}","message":"%msg"}%n</pattern>
     </encoder>
   </appender>
 

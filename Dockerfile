@@ -1,8 +1,10 @@
 FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /workspace
+COPY mvnw .
+COPY .mvn .mvn
 COPY pom.xml .
 COPY src src
-RUN ./mvnw -B -ntp clean package -DskipTests
+RUN chmod +x mvnw && ./mvnw -B -ntp clean package -DskipTests
 
 FROM eclipse-temurin:21-jre-alpine
 RUN addgroup -S gt && adduser -S gt -G gt
