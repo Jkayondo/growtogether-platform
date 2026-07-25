@@ -132,4 +132,28 @@ public class EaifExecutionAudit extends AuditedTenantEntity {
     public String promptCode() {
         return promptCode;
     }
+    
+    public String sourceService() {
+    return sourceService;
+    }
+
+    public AiEnums.RiskLevel riskLevel() {
+    return riskLevel;
+    }
+
+    public UUID actorUserId() {
+    return actorUserId;
+    }
+
+    public Instant startedAt() {
+    return startedAt;
+    }
+
+    public Instant completedAt() {
+    return completedAt;
+    }
+
+    public String outputReference() {
+    return outputReference;
+    }
 }
