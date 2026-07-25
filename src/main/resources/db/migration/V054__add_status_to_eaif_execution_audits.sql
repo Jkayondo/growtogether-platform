@@ -1,0 +1,2 @@
+ALTER TABLE eaif_execution_audits
+ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE';
