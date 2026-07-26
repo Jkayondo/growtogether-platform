@@ -141,6 +141,41 @@ private String requireText(String value, String field) {
         );
     }
     return value.trim();
+  }
+public UUID getAdmissionApplicationId() {
+    return admissionApplicationId;
+}
+
+public String getStudentNumber() {
+    return studentNumber;
+}
+
+public String getPermanentLearnerNumber() {
+    return permanentLearnerNumber;
+}
+
+public String getFirstName() {
+    return firstName;
+}
+
+public String getMiddleName() {
+    return middleName;
+}
+
+public String getLastName() {
+    return lastName;
+}
+
+public String getPreferredName() {
+    return preferredName;
+}
+
+public LocalDate getDateOfBirth() {
+    return dateOfBirth;
+}
+
+public String getStudentStatus() {
+    return studentStatus;
 }
 
 }
