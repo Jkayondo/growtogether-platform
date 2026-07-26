@@ -1,5 +1,7 @@
 package africa.growtogether.platform.school.learner;
 
+import africa.growtogether.platform.school.enrollment.StudentEnrollment;
+import africa.growtogether.platform.school.enrollment.StudentEnrollmentRepository;
 import africa.growtogether.platform.school.student.Student;
 import africa.growtogether.platform.school.student.StudentRepository;
 import africa.growtogether.platform.school.relationship.StudentGuardianRelationship;
@@ -20,13 +22,18 @@ public class Learner360Service {
 
     private final StudentGuardianRelationshipRepository relationshipRepository;
 
+    private final StudentEnrollmentRepository enrollmentRepository;
+
 
     public Learner360Service(
-            StudentRepository studentRepository,
-            StudentGuardianRelationshipRepository relationshipRepository
-    ) {
+        StudentRepository studentRepository,
+        StudentGuardianRelationshipRepository relationshipRepository,
+        StudentEnrollmentRepository enrollmentRepository
+    )      
+    {
         this.studentRepository = studentRepository;
         this.relationshipRepository = relationshipRepository;
+        this.enrollmentRepository = enrollmentRepository;
     }
 
 
@@ -51,11 +58,20 @@ public class Learner360Service {
                 );
 
 
+        StudentEnrollment enrollment =
+                enrollmentRepository
+                        .findFirstByStudentIdAndEnrollmentStatusOrderByEnrollmentDateDesc(
+                                learnerId,
+                                "ACTIVE"
+                )
+                .orElse(null);
+
+
         Learner360View.GuardianSummary guardianSummary =
                 new Learner360View.GuardianSummary(
                         relationships.size(),
                         null,
-                        !relationships.isEmpty()
+                !relationships.isEmpty()
                 );
 
 
