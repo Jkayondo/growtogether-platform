@@ -129,4 +129,18 @@ public class Curriculum extends AuditedTenantEntity {
     public String getCurriculumStatus() {
         return curriculumStatus;
     }
+
+public void activate() {
+
+    if (!"APPROVED".equals(this.curriculumStatus)
+            && !"DRAFT".equals(this.curriculumStatus)) {
+
+        throw new IllegalStateException(
+                "Only draft or approved curriculum can be activated"
+        );
+    }
+
+    this.curriculumStatus = "ACTIVE";
+}
+
 }
