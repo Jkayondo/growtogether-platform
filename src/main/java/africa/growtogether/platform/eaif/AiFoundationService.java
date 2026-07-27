@@ -194,7 +194,9 @@ if (!decision.allowed()) {
                 request.riskLevel(),
                 null,
                 "DEFAULT_AI_POLICY",
-                decision.allowed()
+                requiresApproval
+                        ? "APPROVAL_REQUIRED"
+                        : decision.allowed()
                         ? "ALLOWED"
                         : "REJECTED",
                 decision.reason()
