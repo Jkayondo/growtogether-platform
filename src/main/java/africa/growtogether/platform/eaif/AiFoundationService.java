@@ -3,6 +3,7 @@ package africa.growtogether.platform.eaif;
 import africa.growtogether.platform.eaif.governance.policy.AiGovernancePolicyService;
 import africa.growtogether.platform.eaif.integration.EaifAuditRecorder;
 import africa.growtogether.platform.eaif.integration.EaifPlatformIntegrationGateway;
+import africa.growtogether.platform.eaif.audit.EaifAuditService;
 
 import java.util.Map;
 import java.util.UUID;
@@ -20,6 +21,7 @@ public class AiFoundationService {
     private final AiRequestRepository requests;
     private final AiSafetyPolicy safety;
     private final EaifAuditRecorder audit;
+    private final EaifAuditService auditService;
     private final EaifPlatformIntegrationGateway platform;
     private final AiGovernancePolicyService governance;
 
@@ -32,7 +34,8 @@ public class AiFoundationService {
             AiSafetyPolicy safety,
             EaifAuditRecorder audit,
             EaifPlatformIntegrationGateway platform,
-            AiGovernancePolicyService governance
+            AiGovernancePolicyService governance,
+            EaifAuditService auditService
     ) {
         this.providers = providers;
         this.models = models;
@@ -42,6 +45,7 @@ public class AiFoundationService {
         this.audit = audit;
         this.platform = platform;
         this.governance = governance;
+	this.auditService = auditService;
     }
 
 
