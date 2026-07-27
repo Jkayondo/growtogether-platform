@@ -71,4 +71,44 @@ public class AiGovernancePolicyService {
 
         return policy.approvalRequired();
     }
+@Transactional(readOnly = true)
+    public AiGovernanceDecision evaluate(
+            UUID tenantId,
+            String policyCode,
+            AiEnums.RiskLevel riskLevel
+    ) {
+
+        AiGovernancePolicy policy =
+                getPolicy(
+                        tenantId,
+                        policyCode
+                );
+
+
+        boolean allowed =
+                policy.allows(riskLevel);
+
+
+        boolean approvalRequired =
+                policy.approvalRequired();
+
+
+        String reason;
+
+        if (allowed) {
+            reason = "Risk level permitted by governance policy";
+        } else {
+            reason = "Risk level rejected by governance policy";
+        }
+
+
+        return new AiGovernanceDecision(
+                policyCode,
+                riskLevel,
+                allowed,
+                approvalRequired,
+                reason
+        );
+    }
 }
+

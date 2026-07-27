@@ -2,9 +2,12 @@ package africa.growtogether.platform.eaif.audit;
 
 import africa.growtogether.platform.common.persistence.AuditedTenantEntity;
 import africa.growtogether.platform.eaif.AiEnums;
+
 import jakarta.persistence.*;
+
 import java.time.Instant;
 import java.util.UUID;
+
 
 @Entity
 @Table(
@@ -26,39 +29,64 @@ import java.util.UUID;
 )
 public class EaifExecutionAudit extends AuditedTenantEntity {
 
+
     @Column(name = "ai_request_id", nullable = false)
     private UUID aiRequestId;
+
 
     @Column(name = "source_service", nullable = false, length = 100)
     private String sourceService;
 
+
     @Column(name = "model_code", nullable = false, length = 100)
     private String modelCode;
 
+
     @Column(name = "prompt_code", length = 100)
     private String promptCode;
+
 
     @Enumerated(EnumType.STRING)
     @Column(name = "risk_level", nullable = false, length = 20)
     private AiEnums.RiskLevel riskLevel;
 
+
     @Column(name = "actor_user_id")
     private UUID actorUserId;
+
 
     @Enumerated(EnumType.STRING)
     @Column(name = "execution_status", nullable = false, length = 30)
     private ExecutionStatus executionStatus;
 
+
     @Column(name = "started_at")
     private Instant startedAt;
+
 
     @Column(name = "completed_at")
     private Instant completedAt;
 
+
     @Column(name = "output_reference", length = 500)
     private String outputReference;
 
-    protected EaifExecutionAudit() {}
+
+    @Column(name = "governance_policy_code", length = 100)
+    private String governancePolicyCode;
+
+
+    @Column(name = "governance_decision", length = 30)
+    private String governanceDecision;
+
+
+    @Column(name = "governance_reason", length = 500)
+    private String governanceReason;
+
+
+    protected EaifExecutionAudit() {
+    }
+
 
     public EaifExecutionAudit(
             UUID tenantId,
@@ -69,7 +97,9 @@ public class EaifExecutionAudit extends AuditedTenantEntity {
             AiEnums.RiskLevel riskLevel,
             UUID actorUserId
     ) {
+
         setTenantId(tenantId);
+
         this.aiRequestId = aiRequestId;
         this.sourceService = sourceService;
         this.modelCode = modelCode;
@@ -79,20 +109,36 @@ public class EaifExecutionAudit extends AuditedTenantEntity {
         this.executionStatus = ExecutionStatus.RECEIVED;
     }
 
-   public void approve() {
-       if (executionStatus != ExecutionStatus.RECEIVED) {
-           throw new IllegalStateException(
-               "Audit cannot be approved from " + executionStatus
-           );
-       }
 
-    executionStatus = ExecutionStatus.APPROVED;
-   }
+    public void recordGovernanceEvidence(
+            String policyCode,
+            String decision,
+            String reason
+    ) {
+
+        this.governancePolicyCode = policyCode;
+        this.governanceDecision = decision;
+        this.governanceReason = reason;
+    }
+
+
+    public void approve() {
+
+        if (executionStatus != ExecutionStatus.RECEIVED) {
+            throw new IllegalStateException(
+                    "Audit cannot be approved from " + executionStatus
+            );
+        }
+
+        executionStatus = ExecutionStatus.APPROVED;
+    }
+
 
     public void startProcessing() {
+
         if (executionStatus != ExecutionStatus.APPROVED) {
             throw new IllegalStateException(
-                "Audit cannot start processing from " + executionStatus
+                    "Audit cannot start processing from " + executionStatus
             );
         }
 
@@ -100,10 +146,14 @@ public class EaifExecutionAudit extends AuditedTenantEntity {
         startedAt = Instant.now();
     }
 
-    public void complete(String outputReference) {
+
+    public void complete(
+            String outputReference
+    ) {
+
         if (executionStatus != ExecutionStatus.PROCESSING) {
             throw new IllegalStateException(
-                "Audit is not processing"
+                    "Audit is not processing"
             );
         }
 
@@ -112,48 +162,75 @@ public class EaifExecutionAudit extends AuditedTenantEntity {
         completedAt = Instant.now();
     }
 
+
     public void fail() {
+
         executionStatus = ExecutionStatus.FAILED;
         completedAt = Instant.now();
     }
+
 
     public UUID aiRequestId() {
         return aiRequestId;
     }
 
+
     public ExecutionStatus executionStatus() {
         return executionStatus;
     }
+
 
     public String modelCode() {
         return modelCode;
     }
 
+
     public String promptCode() {
         return promptCode;
     }
-    
+
+
     public String sourceService() {
-    return sourceService;
+        return sourceService;
     }
+
 
     public AiEnums.RiskLevel riskLevel() {
-    return riskLevel;
+        return riskLevel;
     }
+
 
     public UUID actorUserId() {
-    return actorUserId;
+        return actorUserId;
     }
+
+
+    public String governancePolicyCode() {
+        return governancePolicyCode;
+    }
+
+
+    public String governanceDecision() {
+        return governanceDecision;
+    }
+
+
+    public String governanceReason() {
+        return governanceReason;
+    }
+
 
     public Instant startedAt() {
-    return startedAt;
+        return startedAt;
     }
+
 
     public Instant completedAt() {
-    return completedAt;
+        return completedAt;
     }
 
+
     public String outputReference() {
-    return outputReference;
+        return outputReference;
     }
 }

@@ -1,5 +1,6 @@
 package africa.growtogether.platform.eaif;
 
+import africa.growtogether.platform.eaif.governance.policy.AiGovernanceDecision;
 import africa.growtogether.platform.eaif.governance.policy.AiGovernancePolicyService;
 import africa.growtogether.platform.eaif.integration.EaifAuditRecorder;
 import africa.growtogether.platform.eaif.integration.EaifPlatformIntegrationGateway;
@@ -142,24 +143,39 @@ public class AiFoundationService {
         safety.validate(request);
 
 
-        boolean allowed = governance.allows(
+AiGovernanceDecision decision =
+        governance.evaluate(
                 tenantId,
                 "DEFAULT_AI_POLICY",
                 request.riskLevel()
         );
 
 
-        if (!allowed) {
-            throw new IllegalStateException(
-                    "AI request rejected by governance policy"
-            );
-        }
-
+if (!decision.allowed()) {
+    throw new IllegalStateException(
+            "AI request rejected by governance policy: "
+                    + decision.reason()
+    );
+}
 
         request.approve();
 
         request = requests.save(request);
 
+        auditService.create(
+                tenantId,
+                request.getId(),
+                request.sourceService(),
+                request.modelCode(),
+                null,
+                request.riskLevel(),
+                null,
+                "DEFAULT_AI_POLICY",
+                decision.allowed()
+                        ? "ALLOWED"
+                        : "REJECTED",
+                decision.reason()
+        );
 
         audit.success(
                 "EAIF.REQUEST.SUBMITTED",

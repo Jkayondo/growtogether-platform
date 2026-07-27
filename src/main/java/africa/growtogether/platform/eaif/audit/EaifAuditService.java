@@ -1,18 +1,26 @@
 package africa.growtogether.platform.eaif.audit;
 
 import africa.growtogether.platform.eaif.AiEnums;
+
 import java.util.UUID;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 
 @Service
 public class EaifAuditService {
 
+
     private final EaifExecutionAuditRepository audits;
 
-    public EaifAuditService(EaifExecutionAuditRepository audits) {
+
+    public EaifAuditService(
+            EaifExecutionAuditRepository audits
+    ) {
         this.audits = audits;
     }
+
 
     @Transactional
     public EaifExecutionAudit create(
@@ -22,28 +30,53 @@ public class EaifAuditService {
             String modelCode,
             String promptCode,
             AiEnums.RiskLevel riskLevel,
-            UUID actorUserId
+            UUID actorUserId,
+            String governancePolicyCode,
+            String governanceDecision,
+            String governanceReason
     ) {
-        return audits.save(
-            new EaifExecutionAudit(
-                tenantId,
-                requestId,
-                sourceService,
-                modelCode,
-                promptCode,
-                riskLevel,
-                actorUserId
-            )
+
+        EaifExecutionAudit audit =
+                new EaifExecutionAudit(
+                        tenantId,
+                        requestId,
+                        sourceService,
+                        modelCode,
+                        promptCode,
+                        riskLevel,
+                        actorUserId
+                );
+
+
+        audit.recordGovernanceEvidence(
+                governancePolicyCode,
+                governanceDecision,
+                governanceReason
         );
+
+
+        return audits.save(audit);
     }
 
+
     @Transactional
-    public EaifExecutionAudit start(UUID tenantId, UUID requestId) {
-        EaifExecutionAudit audit = get(tenantId, requestId);
+    public EaifExecutionAudit start(
+            UUID tenantId,
+            UUID requestId
+    ) {
+
+        EaifExecutionAudit audit =
+                get(
+                        tenantId,
+                        requestId
+                );
+
         audit.approve();
         audit.startProcessing();
+
         return audit;
     }
+
 
     @Transactional
     public EaifExecutionAudit complete(
@@ -51,33 +84,52 @@ public class EaifAuditService {
             UUID requestId,
             String outputReference
     ) {
-        EaifExecutionAudit audit = get(tenantId, requestId);
+
+        EaifExecutionAudit audit =
+                get(
+                        tenantId,
+                        requestId
+                );
+
         audit.complete(outputReference);
+
         return audit;
     }
+
 
     @Transactional
     public EaifExecutionAudit fail(
             UUID tenantId,
             UUID requestId
     ) {
-        EaifExecutionAudit audit = get(tenantId, requestId);
+
+        EaifExecutionAudit audit =
+                get(
+                        tenantId,
+                        requestId
+                );
+
         audit.fail();
+
         return audit;
     }
+
 
     @Transactional(readOnly = true)
     public EaifExecutionAudit get(
             UUID tenantId,
             UUID requestId
     ) {
-        return audits.findByTenantIdAndAiRequestId(
-                tenantId,
-                requestId
-        ).orElseThrow(
-                () -> new IllegalArgumentException(
-                        "AI execution audit not found"
+
+        return audits
+                .findByTenantIdAndAiRequestId(
+                        tenantId,
+                        requestId
                 )
-        );
+                .orElseThrow(
+                        () -> new IllegalArgumentException(
+                                "AI execution audit not found"
+                        )
+                );
     }
 }
