@@ -1,5 +1,6 @@
 package africa.growtogether.platform.eaif;
 
+import africa.growtogether.platform.eaif.approval.EaifApprovalService;
 import africa.growtogether.platform.eaif.governance.policy.AiGovernanceDecision;
 import africa.growtogether.platform.eaif.governance.policy.AiGovernancePolicyService;
 import africa.growtogether.platform.eaif.integration.EaifAuditRecorder;
@@ -25,6 +26,7 @@ public class AiFoundationService {
     private final EaifAuditService auditService;
     private final EaifPlatformIntegrationGateway platform;
     private final AiGovernancePolicyService governance;
+    private final EaifApprovalService approvalService;
 
 
     public AiFoundationService(
@@ -36,7 +38,8 @@ public class AiFoundationService {
             EaifAuditRecorder audit,
             EaifPlatformIntegrationGateway platform,
             AiGovernancePolicyService governance,
-            EaifAuditService auditService
+            EaifAuditService auditService,
+            EaifApprovalService approvalService
     ) {
         this.providers = providers;
         this.models = models;
@@ -46,6 +49,7 @@ public class AiFoundationService {
         this.audit = audit;
         this.platform = platform;
         this.governance = governance;
+        this.approvalService = approvalService;
 	this.auditService = auditService;
     }
 
@@ -158,9 +162,28 @@ if (!decision.allowed()) {
     );
 }
 
-        request.approve();
+        boolean requiresApproval =
+ 	        governance.requiresApproval(
+               	 	tenantId,
+               	 	"DEFAULT_AI_POLICY"
+        	);
 
-        request = requests.save(request);
+
+	if (requiresApproval) {
+
+    		request = requests.save(request);
+
+    		approvalService.requestApproval(
+            		tenantId,
+            		request.getId()
+   		 );
+
+	} else {
+
+    	    request.approve();
+
+    	    request = requests.save(request);
+	}
 
         auditService.create(
                 tenantId,
