@@ -192,4 +192,66 @@ public class AcademicCalendarEvent extends AuditedTenantEntity {
     public String getEventStatus() {
         return eventStatus;
     }
+
+public void updateStatus(
+        String newStatus
+) {
+
+    if (!isValidTransition(
+            this.eventStatus,
+            newStatus
+    )) {
+
+        throw new IllegalArgumentException(
+                "Invalid academic calendar event status transition from "
+                        + this.eventStatus
+                        + " to "
+                        + newStatus
+        );
+    }
+
+
+    this.eventStatus = newStatus;
+}
+
+
+private boolean isValidTransition(
+        String current,
+        String next
+) {
+
+    return switch (current) {
+
+        case "DRAFT" ->
+                next.equals("SCHEDULED")
+                || next.equals("CANCELLED");
+
+        case "SCHEDULED" ->
+                next.equals("CONFIRMED")
+                || next.equals("POSTPONED")
+                || next.equals("CANCELLED");
+
+        case "CONFIRMED" ->
+                next.equals("IN_PROGRESS")
+                || next.equals("CANCELLED")
+                || next.equals("POSTPONED");
+
+        case "IN_PROGRESS" ->
+                next.equals("COMPLETED");
+
+        case "COMPLETED" ->
+                next.equals("ARCHIVED");
+
+        case "POSTPONED" ->
+                next.equals("SCHEDULED")
+                || next.equals("CANCELLED");
+
+        case "CANCELLED" ->
+                next.equals("ARCHIVED");
+
+        default ->
+                false;
+    };
+}
+
 }
