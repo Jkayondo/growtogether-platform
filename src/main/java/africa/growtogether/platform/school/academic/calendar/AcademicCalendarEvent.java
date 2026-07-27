@@ -193,6 +193,10 @@ public class AcademicCalendarEvent extends AuditedTenantEntity {
         return eventStatus;
     }
 
+    public boolean isNotificationRequired() {
+        return notificationRequired;
+    }
+
 public void updateStatus(
         String newStatus
 ) {

@@ -1,6 +1,8 @@
 package africa.growtogether.platform.school.academic.calendar;
 
 
+import africa.growtogether.platform.common.events.EventPublisher;
+import africa.growtogether.platform.school.academic.calendar.events.AcademicCalendarEventCreatedEvent;
 import africa.growtogether.platform.school.academic.term.AcademicTerm;
 import africa.growtogether.platform.school.academic.year.AcademicYear;
 
@@ -17,13 +19,16 @@ public class AcademicCalendarEventService {
 
 
     private final AcademicCalendarEventRepository repository;
+    private final EventPublisher eventPublisher;
 
 
     public AcademicCalendarEventService(
-            AcademicCalendarEventRepository repository
+            AcademicCalendarEventRepository repository,
+            EventPublisher eventPublisher
     ) {
-        this.repository = repository;
-    }
+         this.repository = repository;
+         this.eventPublisher = eventPublisher;
+     }
 
 
     @Transactional
@@ -61,9 +66,25 @@ public class AcademicCalendarEventService {
         );
 
 
-        return repository.save(event);
-    }
+        AcademicCalendarEvent saved =
+                repository.save(event);
 
+
+        eventPublisher.publish(
+                new AcademicCalendarEventCreatedEvent(
+                        saved.getId(),
+                        tenantId,
+                        saved.getEventType(),
+                        saved.getEventName(),
+                        saved.getStartAt(),
+                        saved.isNotificationRequired(),
+                        Instant.now()
+                )
+        );
+
+
+        return saved;
+    }
 
     @Transactional(readOnly = true)
     public List<AcademicCalendarEvent> findByAcademicYear(
