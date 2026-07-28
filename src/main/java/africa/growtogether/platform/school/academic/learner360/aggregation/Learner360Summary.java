@@ -73,6 +73,7 @@ public class Learner360Summary extends AuditedTenantEntity {
 
 
     protected Learner360Summary() {
+
     }
 
 
@@ -84,51 +85,139 @@ public class Learner360Summary extends AuditedTenantEntity {
         this.learnerId = learnerId;
         this.learner360ProfileId = learner360ProfileId;
         this.calculatedAt = Instant.now();
+
     }
 
 
     public UUID getLearnerId() {
+
         return learnerId;
+
     }
 
 
     public UUID getLearner360ProfileId() {
+
         return learner360ProfileId;
+
     }
 
 
     public Double getOverallScore() {
+
         return overallScore;
+
     }
 
 
     public Double getCompetencyCompletionPercentage() {
+
         return competencyCompletionPercentage;
+
     }
 
 
     public Integer getAssessmentCount() {
+
         return assessmentCount;
+
     }
 
 
     public Boolean getSupportRequired() {
+
         return supportRequired;
+
     }
 
 
     public String getRiskLevel() {
+
         return riskLevel;
+
     }
 
 
     public String getRecommendationSummary() {
+
         return recommendationSummary;
+
     }
 
 
     public Instant getCalculatedAt() {
+
         return calculatedAt;
+
+    }
+
+
+    public void updatePerformance(
+            Double score,
+            Integer count
+    ) {
+
+        this.overallScore = score;
+        this.assessmentCount = count;
+
+    }
+
+
+    public void updateCompetencyCompletion(
+            Double percentage
+    ) {
+
+        this.competencyCompletionPercentage = percentage;
+
+    }
+
+
+    public void calculateRisk() {
+
+        if (overallScore == null) {
+
+            this.riskLevel = "UNKNOWN";
+            this.supportRequired = true;
+            return;
+
+        }
+
+
+        if (overallScore < 50) {
+
+            this.riskLevel = "HIGH";
+            this.supportRequired = true;
+
+        } else if (overallScore < 80) {
+
+            this.riskLevel = "MEDIUM";
+            this.supportRequired = true;
+
+        } else {
+
+            this.riskLevel = "LOW";
+            this.supportRequired = false;
+
+        }
+
+    }
+
+
+    public void updateRecommendationSummary(
+            String summary
+    ) {
+
+        this.recommendationSummary = summary;
+
+    }
+
+
+    public void setCalculatedAt(
+            Instant calculatedAt
+    ) {
+
+        this.calculatedAt = calculatedAt;
+
     }
 
 }
