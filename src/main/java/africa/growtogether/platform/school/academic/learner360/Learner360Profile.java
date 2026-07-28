@@ -124,8 +124,24 @@ public class Learner360Profile extends AuditedTenantEntity {
         return growthSummary;
     }
 
+    public void updateLearningRiskLevel(
+            String riskLevel
+    ) {
 
-    public void archive() {
+        this.learningRiskLevel = riskLevel;
+
+    }
+
+
+    public void updateGrowthSummary(
+            String summary
+    ) {
+
+         this.growthSummary = summary;
+
+     }    
+
+     public void archive() {
 
         this.setStatus(
                 africa.growtogether.platform.common.persistence.EntityStatus.ARCHIVED
