@@ -47,16 +47,18 @@ public class RecommendationGenerationService {
 
         return rules.stream()
                 .filter(
-                        rule -> rule.appliesTo(
-                                achievementStatus,
-                                riskLevel
-                        )
+                        rule ->
+                                rule.appliesTo(
+                                        achievementStatus,
+                                        riskLevel
+                                )
                 )
                 .findFirst()
                 .orElseThrow(
-                        () -> new IllegalArgumentException(
-                                "No recommendation rule matches learner profile."
-                        )
+                        () ->
+                                new IllegalArgumentException(
+                                        "No recommendation rule matches learner profile."
+                                )
                 );
 
     }
