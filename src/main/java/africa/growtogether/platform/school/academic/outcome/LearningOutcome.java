@@ -153,4 +153,12 @@ public class LearningOutcome extends AuditedTenantEntity {
         return sequenceNumber;
     }
 
+    public void archive() {
+
+        this.setStatus(
+                africa.growtogether.platform.common.persistence.EntityStatus.ARCHIVED
+        );
+
+}
+
 }
