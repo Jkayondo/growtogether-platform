@@ -129,6 +129,27 @@ public class LearnerProgress extends AuditedTenantEntity {
     }
 
 
+    public void recordScore(
+            Double score,
+            Double maximumScore
+    ) {
+
+        this.score = score;
+        this.maximumScore = maximumScore;
+
+        this.percentageScore =
+                (score / maximumScore) * 100;
+    }
+
+
+    public void updateAchievementStatus(
+            String achievementStatus
+    ) {
+
+        this.achievementStatus = achievementStatus;
+    }
+
+
     public void archive() {
 
         this.setStatus(
