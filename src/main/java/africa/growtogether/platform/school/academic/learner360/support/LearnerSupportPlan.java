@@ -136,6 +136,11 @@ public class LearnerSupportPlan extends AuditedTenantEntity {
     }
 
 
+    public void setSupportStatus(String supportStatus) {
+    this.supportStatus = supportStatus;
+    }
+    
+
     public Instant getCreatedAt() {
         return createdAt;
     }
