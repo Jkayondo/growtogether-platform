@@ -1,7 +1,10 @@
 package africa.growtogether.platform.school.onboarding;
 
+
+import africa.growtogether.platform.school.onboarding.dto.SchoolOnboardingWorkflowResponse;
+import africa.growtogether.platform.school.onboarding.dto.StartSchoolOnboardingRequest;
+
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
@@ -16,56 +19,62 @@ public class SchoolOnboardingWorkflowService {
     public SchoolOnboardingWorkflowService(
             SchoolOnboardingWorkflowRepository repository
     ) {
+
         this.repository = repository;
     }
 
 
-    @Transactional
-    public SchoolOnboardingWorkflow create(
+    public SchoolOnboardingWorkflowResponse start(
             UUID tenantId,
-            UUID schoolConfigurationId
+            StartSchoolOnboardingRequest request
     ) {
-
-        if (repository.existsByTenantId(tenantId)) {
-            throw new IllegalStateException(
-                    "School onboarding workflow already exists."
-            );
-        }
 
 
         SchoolOnboardingWorkflow workflow =
                 new SchoolOnboardingWorkflow(
                         tenantId,
-                        schoolConfigurationId
+                        request.schoolConfigurationId()
                 );
 
 
-        return repository.save(workflow);
+        SchoolOnboardingWorkflow saved =
+                repository.save(workflow);
+
+
+        return map(saved);
     }
 
 
-    @Transactional(readOnly = true)
-    public SchoolOnboardingWorkflow getByTenant(
-            UUID tenantId
+    public SchoolOnboardingWorkflowResponse activate(
+            UUID workflowId
     ) {
 
-        return repository.findByTenantId(tenantId)
-                .orElseThrow(
-                        () -> new IllegalStateException(
-                                "School onboarding workflow not found."
-                        )
-                );
+        SchoolOnboardingWorkflow workflow =
+                repository.findById(workflowId)
+                        .orElseThrow();
+
+
+        workflow.updateOnboardingStatus(
+                SchoolOnboardingStatus.ACTIVE
+        );
+
+
+        return map(
+                repository.save(workflow)
+        );
     }
 
 
-    @Transactional
-    public SchoolOnboardingWorkflow advance(
-            SchoolOnboardingWorkflow workflow,
-            SchoolOnboardingStatus nextStatus
+    private SchoolOnboardingWorkflowResponse map(
+            SchoolOnboardingWorkflow workflow
     ) {
 
-        workflow.updateOnboardingStatus(nextStatus);
-
-        return repository.save(workflow);
+        return new SchoolOnboardingWorkflowResponse(
+                workflow.getId(),
+                workflow.getSchoolConfigurationId(),
+                workflow.getOnboardingStatus(),
+                workflow.getStartedAt(),
+                workflow.getCompletedAt()
+        );
     }
 }
