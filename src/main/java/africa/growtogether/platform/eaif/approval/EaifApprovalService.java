@@ -23,8 +23,10 @@ public class EaifApprovalService {
             EaifApprovalRecordRepository repository,
             AiRequestRepository requests
     ) {
+
         this.repository = repository;
         this.requests = requests;
+
     }
 
 
@@ -40,6 +42,7 @@ public class EaifApprovalService {
                 );
 
         return repository.save(record);
+
     }
 
 
@@ -62,6 +65,7 @@ public class EaifApprovalService {
         );
 
         return record;
+
     }
 
 
@@ -84,6 +88,7 @@ public class EaifApprovalService {
         );
 
         return record;
+
     }
 
 
@@ -119,6 +124,7 @@ public class EaifApprovalService {
 
 
         return record;
+
     }
 
 
@@ -154,6 +160,7 @@ public class EaifApprovalService {
 
 
         return record;
+
     }
 
 
@@ -173,5 +180,7 @@ public class EaifApprovalService {
                                 "AI approval record not found"
                         )
                 );
+
     }
+
 }

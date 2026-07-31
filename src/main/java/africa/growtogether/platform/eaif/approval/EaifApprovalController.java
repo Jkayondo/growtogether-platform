@@ -17,16 +17,23 @@ public class EaifApprovalController {
     public EaifApprovalController(
             EaifApprovalService service
     ) {
+
         this.service = service;
+
     }
 
 
     @PostMapping("/{requestId}/approve")
     public EaifApprovalRecord approve(
+
             @PathVariable UUID requestId,
+
             @RequestParam UUID tenantId,
+
             @RequestParam UUID approvedBy,
+
             @RequestParam String reason
+
     ) {
 
         return service.approveAndRelease(
@@ -35,15 +42,21 @@ public class EaifApprovalController {
                 approvedBy,
                 reason
         );
+
     }
 
 
     @PostMapping("/{requestId}/reject")
     public EaifApprovalRecord reject(
+
             @PathVariable UUID requestId,
+
             @RequestParam UUID tenantId,
+
             @RequestParam UUID rejectedBy,
+
             @RequestParam String reason
+
     ) {
 
         return service.rejectAndBlock(
@@ -52,5 +65,7 @@ public class EaifApprovalController {
                 rejectedBy,
                 reason
         );
+
     }
+
 }
