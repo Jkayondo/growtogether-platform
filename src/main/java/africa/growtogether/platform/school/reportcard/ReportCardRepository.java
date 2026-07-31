@@ -11,6 +11,11 @@ public interface ReportCardRepository
         extends JpaRepository<ReportCard, UUID> {
 
 
+    List<ReportCard> findByLearnerId(
+            UUID learnerId
+    );
+
+
     List<ReportCard> findByLearnerIdOrderByCreatedAtDesc(
             UUID learnerId
     );
@@ -20,8 +25,4 @@ public interface ReportCardRepository
             UUID academicPeriodId
     );
 
-
-    List<ReportCard> findByTenantId(
-            UUID tenantId
-    );
 }

@@ -11,20 +11,13 @@ public interface ReportCardDocumentRepository
         extends JpaRepository<ReportCardDocument, UUID> {
 
 
-    List<ReportCardDocument>
-    findByReportCardId(
+    List<ReportCardDocument> findByReportCardId(
             UUID reportCardId
     );
 
 
-    List<ReportCardDocument>
-    findByDocumentStatus(
-            ReportCardDocumentStatus status
-    );
-
-
-    List<ReportCardDocument>
-    findByTenantId(
+    List<ReportCardDocument> findByTenantId(
             UUID tenantId
     );
+
 }

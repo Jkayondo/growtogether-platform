@@ -1,10 +1,11 @@
 package africa.growtogether.platform.school.reportcard;
 
 
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import africa.growtogether.platform.school.reportcard.dto.CreateReportCardRequest;
+import africa.growtogether.platform.school.reportcard.dto.ReportCardResponse;
 
-import java.util.List;
+import org.springframework.stereotype.Service;
+
 import java.util.UUID;
 
 
@@ -18,71 +19,42 @@ public class ReportCardService {
     public ReportCardService(
             ReportCardRepository repository
     ) {
+
         this.repository = repository;
     }
 
 
-    @Transactional
-    public ReportCard create(
+    public ReportCardResponse create(
             UUID tenantId,
-            UUID learnerId,
-            UUID academicPeriodId
+            CreateReportCardRequest request
     ) {
+
 
         ReportCard reportCard =
                 new ReportCard(
                         tenantId,
-                        learnerId,
-                        academicPeriodId
+                        request.learnerId(),
+                        request.academicPeriodId()
                 );
 
 
-        return repository.save(reportCard);
+        ReportCard saved =
+                repository.save(reportCard);
+
+
+        return map(saved);
     }
 
 
-    @Transactional
-    public ReportCard addComment(
-            ReportCard reportCard,
-            String comment
+    private ReportCardResponse map(
+            ReportCard reportCard
     ) {
 
-        reportCard.addComment(comment);
-
-        return repository.save(reportCard);
-    }
-
-
-    @Transactional(readOnly = true)
-    public List<ReportCard> getLearnerReports(
-            UUID learnerId
-    ) {
-
-        return repository
-                .findByLearnerIdOrderByCreatedAtDesc(
-                        learnerId
-                );
-    }
-
-
-    @Transactional(readOnly = true)
-    public List<ReportCard> getPeriodReports(
-            UUID academicPeriodId
-    ) {
-
-        return repository.findByAcademicPeriodId(
-                academicPeriodId
-        );
-    }
-
-
-    @Transactional(readOnly = true)
-    public List<ReportCard> getSchoolReports(
-            UUID tenantId
-    ) {
-
-        return repository.findByTenantId(
-                tenantId
+        return new ReportCardResponse(
+                reportCard.getId(),
+                reportCard.getLearnerId(),
+                reportCard.getAcademicPeriodId(),
+                reportCard.getOverallComment()
         );
     }
 }
