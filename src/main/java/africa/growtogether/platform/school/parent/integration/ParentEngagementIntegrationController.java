@@ -7,6 +7,7 @@ import africa.growtogether.platform.school.parent.notification.ParentAcademicNot
 import africa.growtogether.platform.school.parent.notification.rules.ParentNotificationRuleType;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -29,6 +30,7 @@ public class ParentEngagementIntegrationController {
 
 
     @PostMapping("/notification")
+    @PreAuthorize("hasAuthority('school.parent.communication.manage')")
     public ResponseEntity<ParentNotificationResponse> sendNotification(
             @RequestParam UUID tenantId,
             @RequestParam UUID parentId,
