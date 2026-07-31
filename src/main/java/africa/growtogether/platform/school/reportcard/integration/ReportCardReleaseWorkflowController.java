@@ -4,6 +4,7 @@ package africa.growtogether.platform.school.reportcard.integration;
 import africa.growtogether.platform.school.reportcard.document.ReportCardDocument;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -26,6 +27,7 @@ public class ReportCardReleaseWorkflowController {
 
 
     @PostMapping("/{documentId}/release")
+    @PreAuthorize("hasAuthority('school.reportcard.release')")
     public ResponseEntity<ReportCardDocument> release(
             @PathVariable UUID documentId
     ) {
