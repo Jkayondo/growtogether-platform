@@ -1,6 +1,8 @@
 package africa.growtogether.platform.school.parent.integration;
 
 
+import africa.growtogether.platform.school.parent.audit.ParentEngagementAuditRecorder;
+import africa.growtogether.platform.school.parent.audit.ParentEngagementAuditEventType;
 import africa.growtogether.platform.school.parent.notification.ParentAcademicNotification;
 import africa.growtogether.platform.school.parent.notification.ParentAcademicNotificationService;
 import africa.growtogether.platform.school.parent.notification.ParentAcademicNotificationType;
@@ -13,6 +15,7 @@ import africa.growtogether.platform.school.parent.notification.rules.ParentNotif
 
 import org.springframework.stereotype.Service;
 
+import java.util.Map;
 import java.util.UUID;
 
 
@@ -26,16 +29,20 @@ public class ParentEngagementIntegrationService {
 
     private final ParentNotificationWorkflowService workflowService;
 
+    private final ParentEngagementAuditRecorder auditRecorder;
+
 
     public ParentEngagementIntegrationService(
             ParentNotificationRuleEngineService ruleEngine,
             ParentAcademicNotificationService academicNotificationService,
-            ParentNotificationWorkflowService workflowService
+            ParentNotificationWorkflowService workflowService,
+            ParentEngagementAuditRecorder auditRecorder
     ) {
 
         this.ruleEngine = ruleEngine;
         this.academicNotificationService = academicNotificationService;
         this.workflowService = workflowService;
+        this.auditRecorder = auditRecorder;
     }
 
 
@@ -72,13 +79,34 @@ public class ParentEngagementIntegrationService {
                 );
 
 
-        return workflowService.send(
-                new SendParentNotificationRequest(
-                        parentId,
-                        destination,
-                        message,
-                        channel
+        ParentNotificationResponse response =
+                workflowService.send(
+                        new SendParentNotificationRequest(
+                                parentId,
+                                destination,
+                                message,
+                                channel
+                        )
+                );
+
+
+        auditRecorder.success(
+                ParentEngagementAuditEventType.PARENT_NOTIFICATION_SENT.name(),
+                parentId.toString(),
+                "Parent notification sent",
+                Map.of(
+                        "learnerId",
+                        learnerId.toString(),
+                        "notificationType",
+                        notificationType.name(),
+                        "channel",
+                        channel.name(),
+                        "providerReference",
+                        response.providerReference()
                 )
         );
+
+
+        return response;
     }
 }
