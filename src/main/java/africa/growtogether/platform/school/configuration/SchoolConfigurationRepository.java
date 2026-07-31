@@ -1,5 +1,6 @@
 package africa.growtogether.platform.school.configuration;
 
+
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
@@ -14,8 +15,4 @@ public interface SchoolConfigurationRepository
             UUID tenantId
     );
 
-
-    boolean existsByTenantId(
-            UUID tenantId
-    );
 }

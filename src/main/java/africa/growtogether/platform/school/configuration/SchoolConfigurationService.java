@@ -1,7 +1,10 @@
 package africa.growtogether.platform.school.configuration;
 
+
+import africa.growtogether.platform.school.configuration.dto.CreateSchoolConfigurationRequest;
+import africa.growtogether.platform.school.configuration.dto.SchoolConfigurationResponse;
+
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
@@ -16,48 +19,35 @@ public class SchoolConfigurationService {
     public SchoolConfigurationService(
             SchoolConfigurationRepository repository
     ) {
+
         this.repository = repository;
     }
 
 
-    @Transactional
-    public SchoolConfiguration create(
+    public SchoolConfigurationResponse create(
             UUID tenantId,
-            String schoolName,
-            String countryCode,
-            String schoolType
+            CreateSchoolConfigurationRequest request
     ) {
-
-        if (repository.existsByTenantId(tenantId)) {
-            throw new IllegalStateException(
-                    "School configuration already exists."
-            );
-        }
 
 
         SchoolConfiguration configuration =
                 new SchoolConfiguration(
                         tenantId,
-                        schoolName,
-                        countryCode,
-                        schoolType
+                        request.schoolName(),
+                        request.countryCode(),
+                        request.schoolType()
                 );
 
 
-        return repository.save(configuration);
-    }
+        SchoolConfiguration saved =
+                repository.save(configuration);
 
 
-    @Transactional(readOnly = true)
-    public SchoolConfiguration getByTenant(
-            UUID tenantId
-    ) {
-
-        return repository.findByTenantId(tenantId)
-                .orElseThrow(
-                        () -> new IllegalStateException(
-                                "School configuration not found."
-                        )
-                );
+        return new SchoolConfigurationResponse(
+                saved.getId(),
+                saved.getSchoolName(),
+                saved.getCountryCode(),
+                saved.getSchoolType()
+        );
     }
 }
