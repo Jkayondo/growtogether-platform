@@ -1,8 +1,10 @@
 package africa.growtogether.platform.school.subject;
 
 
+import africa.growtogether.platform.school.subject.dto.CreateSubjectConfigurationRequest;
+import africa.growtogether.platform.school.subject.dto.SubjectConfigurationResponse;
+
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
@@ -18,63 +20,58 @@ public class SubjectConfigurationService {
     public SubjectConfigurationService(
             SubjectConfigurationRepository repository
     ) {
+
         this.repository = repository;
     }
 
 
-    @Transactional
-    public SubjectConfiguration create(
+    public SubjectConfigurationResponse create(
             UUID tenantId,
-            UUID academicGradeId,
-            String subjectName,
-            String subjectCode,
-            boolean mandatory
+            CreateSubjectConfigurationRequest request
     ) {
-
-
-        if (repository
-                .existsByAcademicGradeIdAndSubjectName(
-                        academicGradeId,
-                        subjectName
-                )) {
-
-            throw new IllegalStateException(
-                    "Subject already exists for this grade."
-            );
-        }
 
 
         SubjectConfiguration subject =
                 new SubjectConfiguration(
                         tenantId,
-                        academicGradeId,
-                        subjectName,
-                        subjectCode,
-                        mandatory
+                        request.academicGradeId(),
+                        request.subjectName(),
+                        request.subjectCode(),
+                        request.mandatory()
                 );
 
 
-        return repository.save(subject);
+        SubjectConfiguration saved =
+                repository.save(subject);
+
+
+        return new SubjectConfigurationResponse(
+                saved.getId(),
+                saved.getAcademicGradeId(),
+                saved.getSubjectName(),
+                saved.getSubjectCode(),
+                saved.isMandatory()
+        );
     }
 
 
-    @Transactional(readOnly = true)
-    public List<SubjectConfiguration> getByGrade(
+    public List<SubjectConfigurationResponse> findByGrade(
             UUID academicGradeId
     ) {
 
-        return repository
-                .findByAcademicGradeIdOrderBySubjectNameAsc(
-                        academicGradeId
-                );
-    }
-
-
-    @Transactional(readOnly = true)
-    public List<SubjectConfiguration> getByTenant(
-            UUID tenantId
-    ) {
-
-        return repository.findByTenantId(tenantId);
+        return repository.findByAcademicGradeId(
+                academicGradeId
+        )
+        .stream()
+        .map(subject ->
+                new SubjectConfigurationResponse(
+                        subject.getId(),
+                        subject.getAcademicGradeId(),
+                        subject.getSubjectName(),
+                        subject.getSubjectCode(),
+                        subject.isMandatory()
+                )
+        )
+        .toList();
     }
 }

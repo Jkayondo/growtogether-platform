@@ -11,18 +11,13 @@ public interface SubjectConfigurationRepository
         extends JpaRepository<SubjectConfiguration, UUID> {
 
 
-    List<SubjectConfiguration>
-    findByAcademicGradeIdOrderBySubjectNameAsc(
+    List<SubjectConfiguration> findByTenantId(
+            UUID tenantId
+    );
+
+
+    List<SubjectConfiguration> findByAcademicGradeId(
             UUID academicGradeId
     );
 
-
-    boolean existsByAcademicGradeIdAndSubjectName(
-            UUID academicGradeId,
-            String subjectName
-    );
-
-
-    List<SubjectConfiguration>
-    findByTenantId(UUID tenantId);
 }
