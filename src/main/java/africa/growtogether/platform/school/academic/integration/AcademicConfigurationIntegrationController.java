@@ -4,6 +4,7 @@ package africa.growtogether.platform.school.academic.integration;
 import africa.growtogether.platform.school.academic.curriculum.Curriculum;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
@@ -26,6 +27,7 @@ public class AcademicConfigurationIntegrationController {
 
 
     @PostMapping("/curriculum")
+    @PreAuthorize("hasAuthority('school.academic.configuration.manage')")
     public ResponseEntity<Curriculum> configureCurriculum(
             @RequestParam UUID tenantId,
             @RequestParam String curriculumCode,
@@ -45,6 +47,7 @@ public class AcademicConfigurationIntegrationController {
 
 
     @PostMapping("/level")
+    @PreAuthorize("hasAuthority('school.academic.configuration.manage')")
     public ResponseEntity<Void> configureLevel(
             @RequestParam UUID tenantId,
             @RequestParam UUID curriculumConfigurationId,
@@ -64,6 +67,7 @@ public class AcademicConfigurationIntegrationController {
 
 
     @PostMapping("/grade")
+    @PreAuthorize("hasAuthority('school.academic.configuration.manage')")
     public ResponseEntity<Void> configureGrade(
             @RequestParam UUID tenantId,
             @RequestParam UUID academicLevelId,
