@@ -1,0 +1,19 @@
+{
+  "name": "@growtogether/frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GrowTogether Enterprise Experience Platform Frontend",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "echo \"Frontend tests will be added\""
+  },
+  "keywords": [
+    "growtogether",
+    "gt-xp",
+    "enterprise-platform"
+  ],
+  "license": "UNLICENSED"
+}

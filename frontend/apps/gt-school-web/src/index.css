@@ -1,0 +1,47 @@
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #f5f7fa;
+  color: #1f2937;
+}
+
+.gt-layout {
+  min-height: 100vh;
+}
+
+.gt-header {
+  background: #ffffff;
+  padding: 20px;
+  border-bottom: 1px solid #ddd;
+}
+
+.gt-header h1 {
+  margin: 0;
+}
+
+.gt-header span {
+  color: #666;
+}
+
+.gt-body {
+  display: flex;
+}
+
+.gt-sidebar {
+  width: 240px;
+  min-height: calc(100vh - 90px);
+  background: #1f2937;
+  color: white;
+  padding: 20px;
+}
+
+.gt-menu-item {
+  padding: 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.gt-content {
+  flex: 1;
+  padding: 30px;
+}

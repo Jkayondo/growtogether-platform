@@ -1,0 +1,33 @@
+.gt-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.gt-card h3 {
+  margin-top: 0;
+}
+
+.gt-button {
+  background: #1f2937;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.gt-button:hover {
+  opacity: 0.85;
+}
+
+.gt-section {
+  margin-bottom: 30px;
+}
+
+.gt-section h2 {
+  margin-bottom: 20px;
+}

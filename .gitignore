@@ -10,3 +10,12 @@ backups/
 *.dump
 *.sha256
 scripts/*.log
+
+# Frontend dependencies
+node_modules/
+
+# Frontend build output
+dist/
+
+# Frontend tooling
+.npm/
