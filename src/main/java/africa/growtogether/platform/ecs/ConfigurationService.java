@@ -1,5 +1,6 @@
 package africa.growtogether.platform.ecs;
 
+import africa.growtogether.platform.common.security.GtPrincipal;
 import africa.growtogether.platform.common.web.RequestContextHolder;
 import java.util.*;
 import org.springframework.security.core.Authentication;
@@ -26,7 +27,54 @@ public class ConfigurationService {
  private ResolvedValue view(ConfigurationDefinition d,ConfigurationValue v,boolean reveal){String value=v.getStoredValue();if(v.isEncrypted())value=reveal?crypto.decrypt(v.getStoredValue(),v.getEncryptionIv()):"***";return new ResolvedValue(d.getCode(),d.getDataType(),value,v.getScope(),d.getVersion(),d.isSecret());}
  private String maskOrDefault(ConfigurationDefinition d,String value){return d.isSecret()?"***":value;}
  private boolean canReadSecret(){Authentication a=SecurityContextHolder.getContext().getAuthentication();return a!=null&&a.getAuthorities().stream().anyMatch(x->x.getAuthority().equals("platform.configuration.secret.read"));}
- private String actor(){Authentication a=SecurityContextHolder.getContext().getAuthentication();return a==null||a.getName()==null?"system":a.getName();}
+ private String actor(){
+  return auditActor(
+   SecurityContextHolder.getContext().getAuthentication()
+  );
+ }
+
+ static String auditActor(Authentication authentication){
+  if(authentication==null||!authentication.isAuthenticated()){
+   return "system";
+  }
+
+  Object principal=authentication.getPrincipal();
+
+  if(principal instanceof GtPrincipal gtPrincipal){
+   String username=gtPrincipal.username();
+
+   if(username!=null){
+    username=username.trim();
+
+    /*
+     * EIAM usernames are contractually <= 100 characters.
+     * ECS changed_by allows 160. A longer value is therefore
+     * not a valid canonical GT username and must not be persisted.
+     */
+    if(!username.isBlank()&&username.length()<=160){
+     return username;
+    }
+   }
+
+   if(gtPrincipal.userId()!=null){
+    return gtPrincipal.userId().toString();
+   }
+
+   return "authenticated-user";
+  }
+
+  String name=authentication.getName();
+
+  if(name!=null){
+   name=name.trim();
+
+   if(!name.isBlank()&&name.length()<=160){
+    return name;
+   }
+  }
+
+  return "authenticated-user";
+ }
  private String correlation(){return RequestContextHolder.current().map(c->c.correlationId()).orElse(null);}
  private void rejectSecretDefault(UpsertDefinition c){if((c.secret()||c.dataType()==ConfigurationDataType.SECRET)&&c.defaultValue()!=null&&!c.defaultValue().isBlank())throw new ConfigurationException("Secret definitions cannot contain plaintext default values.");}
  private ConfigurationDefinition require(UUID id){return definitions.findById(id).orElseThrow(()->new ConfigurationException("Configuration definition was not found."));}

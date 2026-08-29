@@ -78,3 +78,15 @@ gt:
     encryption:
       key: ${GT_ECS_ENCRYPTION_KEY:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
       key-id: ${GT_ECS_ENCRYPTION_KEY_ID:ecs-development-key}
+
+  ens:
+    secure-payload:
+      enabled: ${GT_ENS_SECURE_PAYLOAD_ENABLED:false}
+      encryption-key: ${GT_ENS_SECURE_PAYLOAD_ENCRYPTION_KEY:}
+      key-id: ${GT_ENS_SECURE_PAYLOAD_ENCRYPTION_KEY_ID:}
+
+
+  school:
+    admission:
+      parent-activation:
+        phone-channel: ${GT_SCHOOL_PARENT_ACTIVATION_PHONE_CHANNEL:SMS}

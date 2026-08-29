@@ -1,9 +1,12 @@
 package africa.growtogether.platform.eiam.role;
 
+import africa.growtogether.platform.common.events.EventPublisher;
 import africa.growtogether.platform.common.web.RequestContextHolder;
+import africa.growtogether.platform.eiam.role.events.UserRolesChangedEvent;
 import africa.growtogether.platform.eiam.user.UserAccount;
 import africa.growtogether.platform.eiam.user.UserAccountRepository;
 import africa.growtogether.platform.eiam.user.UserNotFoundException;
+import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -16,9 +19,18 @@ public class RoleService {
     private final RoleRepository roles;
     private final UserRoleRepository userRoles;
     private final UserAccountRepository users;
+    private final EventPublisher eventPublisher;
 
-    public RoleService(RoleRepository roles, UserRoleRepository userRoles, UserAccountRepository users) {
-        this.roles = roles; this.userRoles = userRoles; this.users = users;
+    public RoleService(
+            RoleRepository roles,
+            UserRoleRepository userRoles,
+            UserAccountRepository users,
+            EventPublisher eventPublisher
+    ) {
+        this.roles = roles;
+        this.userRoles = userRoles;
+        this.users = users;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -58,6 +70,12 @@ public class RoleService {
         userRoles.deleteAllByTenantIdAndUserId(tenant, userId);
         selected.forEach(role -> userRoles.save(new UserRole(userId, role.getId())));
         userRoles.flush();
+
+        publishUserRolesChanged(
+                tenant,
+                userId
+        );
+
         return selected.stream().map(RoleView::from).toList();
     }
 
@@ -71,7 +89,34 @@ public class RoleService {
     @Transactional
     public void removeUserRole(UUID userId, UUID roleId) {
         UUID tenant = activeTenant(); requiredUser(userId, tenant); requiredRole(roleId, tenant);
-        userRoles.deleteByTenantIdAndUserIdAndRoleId(tenant, userId, roleId);
+
+        userRoles.deleteByTenantIdAndUserIdAndRoleId(
+                tenant,
+                userId,
+                roleId
+        );
+
+        userRoles.flush();
+
+        publishUserRolesChanged(
+                tenant,
+                userId
+        );
+    }
+
+    private void publishUserRolesChanged(
+            UUID tenantId,
+            UUID userId
+    ) {
+
+        eventPublisher.publish(
+                new UserRolesChangedEvent(
+                        UUID.randomUUID(),
+                        tenantId,
+                        userId,
+                        Instant.now()
+                )
+        );
     }
 
     private void assertUnique(UUID tenant, UUID currentId, String code, String name) {

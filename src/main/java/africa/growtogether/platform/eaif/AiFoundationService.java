@@ -118,6 +118,40 @@ public class AiFoundationService {
     }
 
 
+    /*
+     * Public application-module bridge.
+     *
+     * CreateAiRequest is intentionally package-local to the EAIF HTTP
+     * implementation. Other GT products should not need to construct
+     * that internal DTO merely to submit a governed AI request.
+     *
+     * This overload keeps all safety, governance, approval, audit and
+     * lifecycle processing inside the authoritative EAIF service.
+     */
+    public AiRequest submit(
+            UUID tenantId,
+            String sourceService,
+            String useCase,
+            String modelCode,
+            String inputHash,
+            AiEnums.RiskLevel riskLevel,
+            String correlationId
+    ) {
+
+        return submit(
+                tenantId,
+                new CreateAiRequest(
+                        sourceService,
+                        useCase,
+                        modelCode,
+                        inputHash,
+                        riskLevel,
+                        correlationId
+                )
+        );
+    }
+
+
     public AiRequest submit(
             UUID tenantId,
             CreateAiRequest q

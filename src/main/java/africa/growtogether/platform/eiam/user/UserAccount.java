@@ -13,8 +13,15 @@ import java.time.Instant;
 public class UserAccount extends AuditedTenantEntity {
     @Column(name = "username", nullable = false, length = 100)
     private String username;
-    @Column(name = "email", nullable = false, length = 255)
+    @Column(name = "email", length = 255)
     private String email;
+
+    @Column(name = "primary_phone_number", length = 32)
+    private String primaryPhoneNumber;
+
+    @Column(name = "phone_verified_at")
+    private Instant phoneVerifiedAt;
+
     @Column(name = "display_name", nullable = false, length = 200)
     private String displayName;
     @Column(name = "password_hash", nullable = false, length = 100)
@@ -34,17 +41,72 @@ public class UserAccount extends AuditedTenantEntity {
     protected UserAccount() {}
 
     public UserAccount(String username, String email, String displayName, String passwordHash) {
+        this(
+                username,
+                email,
+                null,
+                displayName,
+                passwordHash
+        );
+    }
+
+    public UserAccount(
+            String username,
+            String email,
+            String primaryPhoneNumber,
+            String displayName,
+            String passwordHash
+    ) {
         this.username = normalizeUsername(username);
-        this.email = normalizeEmail(email);
-        this.displayName = displayName.trim();
-        this.passwordHash = passwordHash;
+        this.email = normalizeOptionalEmail(email);
+        this.primaryPhoneNumber = normalizeOptionalPhone(primaryPhoneNumber);
+        requireContactIdentity(this.email, this.primaryPhoneNumber);
+        this.displayName = requireText(displayName, "displayName");
+        this.passwordHash = requireText(passwordHash, "passwordHash");
     }
 
     public void updateProfile(String username, String email, String displayName) {
-        ensureNotDeactivated(UserLifecycleAction.UPDATE, "A deactivated account cannot be updated.");
+        updateProfile(
+                username,
+                email,
+                this.primaryPhoneNumber,
+                displayName
+        );
+    }
+
+    public void updateProfile(
+            String username,
+            String email,
+            String primaryPhoneNumber,
+            String displayName
+    ) {
+        ensureNotDeactivated(
+                UserLifecycleAction.UPDATE,
+                "A deactivated account cannot be updated."
+        );
+
+        String normalizedEmail =
+                normalizeOptionalEmail(email);
+
+        String normalizedPhone =
+                normalizeOptionalPhone(primaryPhoneNumber);
+
+        requireContactIdentity(
+                normalizedEmail,
+                normalizedPhone
+        );
+
+        if (!java.util.Objects.equals(
+                this.primaryPhoneNumber,
+                normalizedPhone
+        )) {
+            this.phoneVerifiedAt = null;
+        }
+
         this.username = normalizeUsername(username);
-        this.email = normalizeEmail(email);
-        this.displayName = displayName.trim();
+        this.email = normalizedEmail;
+        this.primaryPhoneNumber = normalizedPhone;
+        this.displayName = requireText(displayName, "displayName");
     }
 
     public void activate() {
@@ -87,12 +149,49 @@ public class UserAccount extends AuditedTenantEntity {
     public Instant getLastLoginAt() { return lastLoginAt; }
     public void changePasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
     public void clearLoginSecurity() { failedLoginAttempts = 0; lockedUntil = null; }
-    public void verifyEmail(Instant now) { if (emailVerifiedAt == null) emailVerifiedAt = now; }
-    public boolean isEmailVerified() { return emailVerifiedAt != null; }
-    public Instant getEmailVerifiedAt() { return emailVerifiedAt; }
+    public void verifyEmail(Instant now) {
+        if (email == null) {
+            throw new IllegalStateException(
+                    "An account without an email address cannot verify email."
+            );
+        }
+
+        if (emailVerifiedAt == null) {
+            emailVerifiedAt = requireInstant(now, "now");
+        }
+    }
+
+    public boolean isEmailVerified() {
+        return emailVerifiedAt != null;
+    }
+
+    public Instant getEmailVerifiedAt() {
+        return emailVerifiedAt;
+    }
+
+    public void verifyPhone(Instant now) {
+        if (primaryPhoneNumber == null) {
+            throw new IllegalStateException(
+                    "An account without a phone number cannot verify phone."
+            );
+        }
+
+        if (phoneVerifiedAt == null) {
+            phoneVerifiedAt = requireInstant(now, "now");
+        }
+    }
+
+    public boolean isPhoneVerified() {
+        return phoneVerifiedAt != null;
+    }
+
+    public Instant getPhoneVerifiedAt() {
+        return phoneVerifiedAt;
+    }
     public void recoverAccount() { clearLoginSecurity(); if (accountStatus == UserAccountStatus.LOCKED || accountStatus == UserAccountStatus.SUSPENDED) accountStatus = UserAccountStatus.ACTIVE; }
     public String getUsername() { return username; }
     public String getEmail() { return email; }
+    public String getPrimaryPhoneNumber() { return primaryPhoneNumber; }
     public String getDisplayName() { return displayName; }
     public String getPasswordHash() { return passwordHash; }
     public UserAccountStatus getAccountStatus() { return accountStatus; }
@@ -105,6 +204,70 @@ public class UserAccount extends AuditedTenantEntity {
         return new UserLifecycleException(accountStatus, action, message);
     }
 
-    private static String normalizeUsername(String value) { return value.trim().toLowerCase(); }
-    private static String normalizeEmail(String value) { return value.trim().toLowerCase(); }
+    private static String normalizeUsername(String value) {
+        return requireText(value, "username")
+                .toLowerCase(java.util.Locale.ROOT);
+    }
+
+    private static String normalizeOptionalEmail(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        return value.trim()
+                .toLowerCase(java.util.Locale.ROOT);
+    }
+
+    private static String normalizeOptionalPhone(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        String phone = value.trim();
+
+        if (!phone.matches("^\\+[1-9][0-9]{5,14}$")) {
+            throw new IllegalArgumentException(
+                    "primaryPhoneNumber must use canonical international format."
+            );
+        }
+
+        return phone;
+    }
+
+    private static void requireContactIdentity(
+            String email,
+            String phone
+    ) {
+        if (email == null && phone == null) {
+            throw new IllegalArgumentException(
+                    "At least one contact identity is required."
+            );
+        }
+    }
+
+    private static String requireText(
+            String value,
+            String field
+    ) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(
+                    field + " is required."
+            );
+        }
+
+        return value.trim();
+    }
+
+    private static Instant requireInstant(
+            Instant value,
+            String field
+    ) {
+        if (value == null) {
+            throw new IllegalArgumentException(
+                    field + " is required."
+            );
+        }
+
+        return value;
+    }
 }

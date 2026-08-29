@@ -8,6 +8,13 @@ import africa.growtogether.platform.common.security.EnterpriseIdentityContext; i
  @Transactional(readOnly=true) public List<WebhookView> listWebhooks(){return webhooks.findByTenantIdOrderBySubscriptionCode(identity.tenantId()).stream().map(WebhookView::from).toList();}
  @Transactional public TransformationView createTransform(TransformCommand c){return TransformationView.from(transforms.save(new TransformationRule(identity.tenantId(),c.ruleCode(),c.sourceContentType(),c.targetContentType(),c.mappingExpression())));}
  @Transactional(readOnly=true) public List<TransformationView> listTransforms(){return transforms.findByTenantIdOrderByRuleCode(identity.tenantId()).stream().map(TransformationView::from).toList();}
- @Transactional public ConnectorView createConnector(ConnectorCommand c){String cipher=crypto.encrypt(c.credential());return ConnectorView.from(connectors.save(new ExternalConnector(identity.tenantId(),c.connectorCode(),c.connectorType(),c.baseUrl(),c.authType(),cipher,cipher==null?null:crypto.keyId())));}
+ @Transactional public ConnectorView createConnector(ConnectorCommand c){String cipher=crypto.encrypt(c.credential());return ConnectorView.from(connectors.save(new ExternalConnector(identity.tenantId(),c.connectorCode(),c.connectorType(),c.baseUrl(),c.authType(),cipher,cipher==null?null:crypto.keyId(),c.providerConfiguration())));}
+ @Transactional public ConnectorView rotateConnectorCredential(UUID connectorId,CredentialRotationCommand c){
+  if(c==null||c.credential()==null||c.credential().isBlank())throw new IllegalArgumentException("Credential is required");
+  ExternalConnector connector=connectors.findByTenantIdAndId(identity.tenantId(),connectorId).orElseThrow(()->new IllegalArgumentException("External connector was not found"));
+  String cipher=crypto.encrypt(c.credential());
+  connector.replaceCredential(cipher,crypto.keyId());
+  return ConnectorView.from(connectors.save(connector));
+ }
  @Transactional(readOnly=true) public List<ConnectorView> listConnectors(){return connectors.findByTenantIdOrderByConnectorCode(identity.tenantId()).stream().map(ConnectorView::from).toList();}
 }

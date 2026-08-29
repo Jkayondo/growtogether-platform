@@ -1,6 +1,7 @@
 package africa.growtogether.platform.school.student;
 
 import java.util.UUID;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,21 +18,43 @@ public class StudentService {
 
     @Transactional
     public Student create(
+            UUID tenantId,
             CreateStudentCommand command
     ) {
 
-        if (repository.existsByStudentNumber(command.studentNumber())) {
+        if (repository.existsByTenantIdAndStudentNumber(
+                tenantId,
+                command.studentNumber()
+        )) {
             throw new IllegalArgumentException(
-                    "Student number already exists"
+                    "Student number already exists for tenant"
             );
         }
 
+        /*
+         * Permanent learner number is intentionally globally unique
+         * according to V034 and must NOT be tenant-scoped.
+         */
         if (repository.existsByPermanentLearnerNumber(
                 command.permanentLearnerNumber()
         )) {
             throw new IllegalArgumentException(
                     "Permanent learner number already exists"
             );
+        }
+
+        if (command.admissionApplicationId() != null) {
+
+            repository
+                    .findByTenantIdAndAdmissionApplicationId(
+                            tenantId,
+                            command.admissionApplicationId()
+                    )
+                    .ifPresent(existing -> {
+                        throw new IllegalArgumentException(
+                                "Admission application already has a student profile"
+                        );
+                    });
         }
 
         Student student =
@@ -60,13 +83,26 @@ public class StudentService {
                         command.completionDate()
                 );
 
-        return repository.save(student);
+        student.setTenantId(
+                tenantId
+        );
+
+        return repository.save(
+                student
+        );
     }
 
     @Transactional(readOnly = true)
-    public Student get(UUID id) {
+    public Student get(
+            UUID tenantId,
+            UUID id
+    ) {
 
-        return repository.findById(id)
+        return repository
+                .findByTenantIdAndId(
+                        tenantId,
+                        id
+                )
                 .orElseThrow(
                         () -> new IllegalArgumentException(
                                 "Student not found"

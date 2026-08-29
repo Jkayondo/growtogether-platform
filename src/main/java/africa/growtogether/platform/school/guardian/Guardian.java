@@ -1,16 +1,27 @@
 package africa.growtogether.platform.school.guardian;
 
 import africa.growtogether.platform.common.persistence.AuditedTenantEntity;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
 @Table(name = "gts_guardian")
 public class Guardian extends AuditedTenantEntity {
+
+    private static final Set<String> ALLOWED_GENDERS =
+            Set.of(
+                    "FEMALE",
+                    "MALE",
+                    "OTHER",
+                    "NOT_DECLARED"
+            );
 
     @Column(name = "guardian_number", nullable = false, length = 80)
     private String guardianNumber;
@@ -75,13 +86,17 @@ public class Guardian extends AuditedTenantEntity {
     @Column(name = "verification_status", nullable = false, length = 30)
     private String verificationStatus = "UNVERIFIED";
 
+    @Column(name = "verified_at")
+    private Instant verifiedAt;
+
+    @Column(name = "verified_by")
+    private UUID verifiedBy;
+
     @Column(name = "guardian_status", nullable = false, length = 30)
     private String guardianStatus = "ACTIVE";
 
-
     protected Guardian() {
     }
-
 
     public Guardian(
             String guardianNumber,
@@ -105,18 +120,60 @@ public class Guardian extends AuditedTenantEntity {
             UUID sourceAdmissionGuardianId,
             String preferredLanguage
     ) {
-        this.guardianNumber = requireText(guardianNumber, "guardianNumber");
-        this.firstName = requireText(firstName, "firstName");
+
+        this.guardianNumber =
+                requireText(
+                        guardianNumber,
+                        "guardianNumber"
+                );
+
+        this.firstName =
+                requireText(
+                        firstName,
+                        "firstName"
+                );
+
         this.middleName = middleName;
-        this.lastName = requireText(lastName, "lastName");
+
+        this.lastName =
+                requireText(
+                        lastName,
+                        "lastName"
+                );
+
         this.preferredName = preferredName;
+
+        if (
+                dateOfBirth != null
+                && dateOfBirth.isAfter(LocalDate.now())
+        ) {
+            throw new IllegalArgumentException(
+                    "dateOfBirth must not be in the future"
+            );
+        }
+
         this.dateOfBirth = dateOfBirth;
+
+        if (
+                gender != null
+                && !ALLOWED_GENDERS.contains(gender)
+        ) {
+            throw new IllegalArgumentException(
+                    "Invalid gender: " + gender
+            );
+        }
+
         this.gender = gender;
         this.nationalityCode = nationalityCode;
         this.nationalIdNumber = nationalIdNumber;
         this.passportNumber = passportNumber;
+
         this.primaryPhoneNumber =
-                requireText(primaryPhoneNumber, "primaryPhoneNumber");
+                requireText(
+                        primaryPhoneNumber,
+                        "primaryPhoneNumber"
+                );
+
         this.alternativePhoneNumber = alternativePhoneNumber;
         this.email = email;
         this.physicalAddress = physicalAddress;
@@ -128,16 +185,101 @@ public class Guardian extends AuditedTenantEntity {
         this.preferredLanguage = preferredLanguage;
     }
 
+    public void linkEiamUser(
+            UUID userId
+    ) {
 
-    private String requireText(String value, String field) {
-        if (value == null || value.isBlank()) {
+        if (userId == null) {
+            throw new IllegalArgumentException(
+                    "eiamUserId must not be null"
+            );
+        }
+
+        if (
+                eiamUserId != null
+                && !eiamUserId.equals(userId)
+        ) {
+            throw new IllegalStateException(
+                    "Guardian is already linked to a different EIAM user"
+            );
+        }
+
+        eiamUserId = userId;
+    }
+
+    public boolean hasEiamUserLink() {
+        return eiamUserId != null;
+    }
+
+    public void markVerificationPending() {
+        this.verificationStatus = "PENDING";
+        this.verifiedAt = null;
+        this.verifiedBy = null;
+    }
+
+    public void verify(
+            UUID verifiedBy
+    ) {
+
+        if (verifiedBy == null) {
+            throw new IllegalArgumentException(
+                    "verifiedBy must not be null"
+            );
+        }
+
+        this.verificationStatus = "VERIFIED";
+        this.verifiedAt = Instant.now();
+        this.verifiedBy = verifiedBy;
+    }
+
+    public void rejectVerification() {
+        this.verificationStatus = "REJECTED";
+        this.verifiedAt = null;
+        this.verifiedBy = null;
+    }
+
+    public void expireVerification() {
+        this.verificationStatus = "EXPIRED";
+        this.verifiedAt = null;
+        this.verifiedBy = null;
+    }
+
+    public void activate() {
+        this.guardianStatus = "ACTIVE";
+    }
+
+    public void deactivate() {
+        this.guardianStatus = "INACTIVE";
+    }
+
+    public void restrict() {
+        this.guardianStatus = "RESTRICTED";
+    }
+
+    public void markDeceased() {
+        this.guardianStatus = "DECEASED";
+    }
+
+    public void archive() {
+        this.guardianStatus = "ARCHIVED";
+    }
+
+    private String requireText(
+            String value,
+            String field
+    ) {
+
+        if (
+                value == null
+                || value.isBlank()
+        ) {
             throw new IllegalArgumentException(
                     field + " must not be blank"
             );
         }
+
         return value.trim();
     }
-
 
     public String getGuardianNumber() {
         return guardianNumber;
@@ -147,19 +289,52 @@ public class Guardian extends AuditedTenantEntity {
         return firstName;
     }
 
+    public String getMiddleName() {
+        return middleName;
+    }
+
     public String getLastName() {
         return lastName;
+    }
+
+    public String getPreferredName() {
+        return preferredName;
+    }
+
+    public LocalDate getDateOfBirth() {
+        return dateOfBirth;
+    }
+
+    public String getGender() {
+        return gender;
     }
 
     public String getPrimaryPhoneNumber() {
         return primaryPhoneNumber;
     }
 
+    public UUID getSourceAdmissionGuardianId() {
+        return sourceAdmissionGuardianId;
+    }
+
     public String getVerificationStatus() {
         return verificationStatus;
+    }
+
+    public Instant getVerifiedAt() {
+        return verifiedAt;
+    }
+
+    public UUID getVerifiedBy() {
+        return verifiedBy;
     }
 
     public String getGuardianStatus() {
         return guardianStatus;
     }
+
+    public UUID getEiamUserId() {
+        return eiamUserId;
+    }
+
 }

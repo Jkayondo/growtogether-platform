@@ -6,6 +6,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface UserRoleRepository extends JpaRepository<UserRole, UUID> {
     List<UserRole> findAllByTenantIdAndUserId(UUID tenantId, UUID userId);
+
+    List<UserRole> findAllByTenantIdAndRoleId(
+            UUID tenantId,
+            UUID roleId
+    );
     long countByTenantIdAndRoleId(UUID tenantId, UUID roleId);
     void deleteByTenantIdAndUserIdAndRoleId(UUID tenantId, UUID userId, UUID roleId);
     void deleteAllByTenantIdAndUserId(UUID tenantId, UUID userId);

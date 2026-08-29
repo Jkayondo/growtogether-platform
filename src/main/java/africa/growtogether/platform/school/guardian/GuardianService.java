@@ -1,6 +1,7 @@
 package africa.growtogether.platform.school.guardian;
 
 import java.util.UUID;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,20 +16,35 @@ public class GuardianService {
         this.repository = repository;
     }
 
-
     @Transactional
     public Guardian create(
+            UUID tenantId,
             CreateGuardianCommand command
     ) {
 
-        if (repository.existsByGuardianNumber(
-                command.guardianNumber()
-        )) {
+        if (
+                repository.existsByTenantIdAndGuardianNumber(
+                        tenantId,
+                        command.guardianNumber()
+                )
+        ) {
             throw new IllegalArgumentException(
-                    "Guardian number already exists"
+                    "Guardian number already exists for tenant"
             );
         }
 
+        if (
+                command.sourceAdmissionGuardianId() != null
+                && repository
+                        .existsByTenantIdAndSourceAdmissionGuardianId(
+                                tenantId,
+                                command.sourceAdmissionGuardianId()
+                        )
+        ) {
+            throw new IllegalArgumentException(
+                    "Admission guardian already has a guardian profile"
+            );
+        }
 
         Guardian guardian =
                 new Guardian(
@@ -54,19 +70,128 @@ public class GuardianService {
                         command.preferredLanguage()
                 );
 
+        guardian.setTenantId(
+                tenantId
+        );
 
-        return repository.save(guardian);
+        return repository.save(
+                guardian
+        );
     }
 
-
     @Transactional(readOnly = true)
-    public Guardian get(UUID id) {
+    public Guardian get(
+            UUID tenantId,
+            UUID id
+    ) {
 
-        return repository.findById(id)
+        return repository
+                .findByTenantIdAndId(
+                        tenantId,
+                        id
+                )
                 .orElseThrow(
                         () -> new IllegalArgumentException(
                                 "Guardian not found"
                         )
                 );
+    }
+
+    @Transactional
+    public Guardian markVerificationPending(
+            UUID tenantId,
+            UUID guardianId
+    ) {
+
+        Guardian guardian =
+                get(
+                        tenantId,
+                        guardianId
+                );
+
+        guardian.markVerificationPending();
+
+        return repository.save(
+                guardian
+        );
+    }
+
+    @Transactional
+    public Guardian verify(
+            UUID tenantId,
+            UUID guardianId,
+            UUID verifiedBy
+    ) {
+
+        Guardian guardian =
+                get(
+                        tenantId,
+                        guardianId
+                );
+
+        guardian.verify(
+                verifiedBy
+        );
+
+        return repository.save(
+                guardian
+        );
+    }
+
+    @Transactional
+    public Guardian restrict(
+            UUID tenantId,
+            UUID guardianId
+    ) {
+
+        Guardian guardian =
+                get(
+                        tenantId,
+                        guardianId
+                );
+
+        guardian.restrict();
+
+        return repository.save(
+                guardian
+        );
+    }
+
+    @Transactional
+    public Guardian activate(
+            UUID tenantId,
+            UUID guardianId
+    ) {
+
+        Guardian guardian =
+                get(
+                        tenantId,
+                        guardianId
+                );
+
+        guardian.activate();
+
+        return repository.save(
+                guardian
+        );
+    }
+
+    @Transactional
+    public Guardian deactivate(
+            UUID tenantId,
+            UUID guardianId
+    ) {
+
+        Guardian guardian =
+                get(
+                        tenantId,
+                        guardianId
+                );
+
+        guardian.deactivate();
+
+        return repository.save(
+                guardian
+        );
     }
 }

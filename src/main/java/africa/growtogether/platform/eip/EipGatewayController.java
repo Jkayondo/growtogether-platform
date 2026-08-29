@@ -8,5 +8,6 @@ import africa.growtogether.platform.common.api.*; import static africa.growtoget
  @PostMapping("/transformations") @PreAuthorize("hasAuthority('integration.transformation.manage')") public ApiResponse<TransformationView> transform(@Valid @RequestBody TransformCommand c){return ApiResponses.success(service.createTransform(c));}
  @GetMapping("/transformations") @PreAuthorize("hasAuthority('integration.transformation.read')") public ApiResponse<List<TransformationView>> transforms(){return ApiResponses.success(service.listTransforms());}
  @PostMapping("/connectors") @PreAuthorize("hasAuthority('integration.connector.manage')") public ApiResponse<ConnectorView> connector(@Valid @RequestBody ConnectorCommand c){return ApiResponses.success(service.createConnector(c));}
+ @PatchMapping("/connectors/{connectorId}/credential") @PreAuthorize("hasAuthority('integration.connector.manage')") public ApiResponse<ConnectorView> rotateConnectorCredential(@PathVariable UUID connectorId,@Valid @RequestBody CredentialRotationCommand c){return ApiResponses.success(service.rotateConnectorCredential(connectorId,c));}
  @GetMapping("/connectors") @PreAuthorize("hasAuthority('integration.connector.read')") public ApiResponse<List<ConnectorView>> connectors(){return ApiResponses.success(service.listConnectors());}
 }

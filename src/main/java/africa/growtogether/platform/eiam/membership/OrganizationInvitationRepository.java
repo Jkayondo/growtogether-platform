@@ -9,5 +9,10 @@ public interface OrganizationInvitationRepository extends JpaRepository<Organiza
     Optional<OrganizationInvitation> findByIdAndTenantId(UUID id, UUID tenantId);
     Optional<OrganizationInvitation> findByTenantIdAndTokenHash(UUID tenantId, String tokenHash);
     Optional<OrganizationInvitation> findFirstByTenantIdAndEmailIgnoreCaseAndInvitationStatus(UUID tenantId, String email, InvitationStatus status);
+    Optional<OrganizationInvitation> findFirstByTenantIdAndPhoneNumberAndInvitationStatus(
+            UUID tenantId,
+            String phoneNumber,
+            InvitationStatus status
+    );
     List<OrganizationInvitation> findAllByTenantIdOrderByCreatedAtDesc(UUID tenantId);
 }

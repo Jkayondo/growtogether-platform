@@ -80,6 +80,11 @@ public class AcademicYear extends AuditedTenantEntity {
     }
 
 
+    public String getAcademicYearName() {
+        return academicYearName;
+    }
+
+
     public boolean isCurrentYear() {
         return currentYear;
     }

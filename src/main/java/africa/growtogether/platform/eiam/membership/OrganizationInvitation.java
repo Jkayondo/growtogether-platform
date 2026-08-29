@@ -13,8 +13,12 @@ import java.util.UUID;
 @Entity
 @Table(name = "eiam_organization_invitation")
 public class OrganizationInvitation extends AuditedTenantEntity {
-    @Column(name = "email", nullable = false, length = 255)
+    @Column(name = "email", length = 255)
     private String email;
+
+    @Column(name = "phone_number", length = 32)
+    private String phoneNumber;
+
     @Column(name = "token_hash", nullable = false, length = 64)
     private String tokenHash;
     @Enumerated(EnumType.STRING)
@@ -31,8 +35,36 @@ public class OrganizationInvitation extends AuditedTenantEntity {
 
     protected OrganizationInvitation() {}
 
-    public OrganizationInvitation(String email, String tokenHash, Instant expiresAt, UUID invitedByUserId) {
-        this.email = normalizeEmail(email);
+    public OrganizationInvitation(
+            String email,
+            String tokenHash,
+            Instant expiresAt,
+            UUID invitedByUserId
+    ) {
+        this(
+                email,
+                null,
+                tokenHash,
+                expiresAt,
+                invitedByUserId
+        );
+    }
+
+    public OrganizationInvitation(
+            String email,
+            String phoneNumber,
+            String tokenHash,
+            Instant expiresAt,
+            UUID invitedByUserId
+    ) {
+        this.email = normalizeOptionalEmail(email);
+        this.phoneNumber = normalizeOptionalPhone(phoneNumber);
+
+        requireContactIdentity(
+                this.email,
+                this.phoneNumber
+        );
+
         this.tokenHash = required(tokenHash, "tokenHash");
         this.expiresAt = required(expiresAt, "expiresAt");
         this.invitedByUserId = invitedByUserId;
@@ -78,6 +110,9 @@ public class OrganizationInvitation extends AuditedTenantEntity {
     }
 
     public String getEmail() { return email; }
+    public String getPhoneNumber() { return phoneNumber; }
+    public boolean isEmailTarget() { return email != null; }
+    public boolean isPhoneTarget() { return phoneNumber != null; }
     public String getTokenHash() { return tokenHash; }
     public InvitationStatus getInvitationStatus() { return invitationStatus; }
     public Instant getExpiresAt() { return expiresAt; }
@@ -85,9 +120,41 @@ public class OrganizationInvitation extends AuditedTenantEntity {
     public Instant getRevokedAt() { return revokedAt; }
     public UUID getInvitedByUserId() { return invitedByUserId; }
 
-    private static String normalizeEmail(String value) {
-        return required(value, "email").trim().toLowerCase(Locale.ROOT);
+    private static String normalizeOptionalEmail(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        return value.trim().toLowerCase(Locale.ROOT);
     }
+
+    private static String normalizeOptionalPhone(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        String phone = value.trim();
+
+        if (!phone.matches("^\\+[1-9][0-9]{5,14}$")) {
+            throw new IllegalArgumentException(
+                    "phoneNumber must use canonical international format."
+            );
+        }
+
+        return phone;
+    }
+
+    private static void requireContactIdentity(
+            String email,
+            String phoneNumber
+    ) {
+        if ((email == null) == (phoneNumber == null)) {
+            throw new IllegalArgumentException(
+                    "Exactly one invitation contact identity is required."
+            );
+        }
+    }
+
     private static <T> T required(T value, String name) {
         if (value == null || (value instanceof String text && text.isBlank())) {
             throw new IllegalArgumentException(name + " is required.");

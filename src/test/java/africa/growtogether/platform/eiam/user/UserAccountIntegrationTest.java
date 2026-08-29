@@ -6,11 +6,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import africa.growtogether.platform.common.security.PasswordService;
 import africa.growtogether.platform.common.web.RequestContext;
 import africa.growtogether.platform.common.web.RequestContextHolder;
+import jakarta.persistence.EntityManager;
+import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +22,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers(disabledWithoutDocker = true)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @SpringBootTest
 @Transactional
 class UserAccountIntegrationTest {
@@ -35,6 +39,7 @@ class UserAccountIntegrationTest {
     @Autowired UserAccountService service;
     @Autowired UserAccountRepository repository;
     @Autowired PasswordService passwords;
+    @Autowired EntityManager entityManager;
 
     @AfterEach void clear() { RequestContextHolder.clear(); }
 
@@ -143,6 +148,75 @@ class UserAccountIntegrationTest {
         assertThat(firstPage.totalElements()).isEqualTo(3);
         assertThat(firstPage.totalPages()).isEqualTo(2);
         assertThat(secondPage.content()).extracting(UserView::displayName).containsExactly("Zulu User");
+    }
+
+    @Test
+    void verifiedPhoneLookupRequiresPhoneVerification() {
+        UUID tenant = UUID.randomUUID();
+        String phone = "+256701234567";
+
+        RequestContextHolder.set(
+            new RequestContext(
+                "test",
+                tenant.toString()
+            )
+        );
+
+        UserAccount user =
+            new UserAccount(
+                "phone.parent",
+                null,
+                phone,
+                "Phone Parent",
+                passwords.hash("strong-password-123")
+            );
+
+        repository.saveAndFlush(user);
+        UUID userId = user.getId();
+
+        entityManager.clear();
+
+        assertThat(
+            repository
+                .findByTenantIdAndPrimaryPhoneNumberAndPhoneVerifiedAtIsNotNull(
+                    tenant,
+                    phone
+                )
+        ).isEmpty();
+
+        UserAccount stored =
+            repository
+                .findByIdAndTenantId(
+                    userId,
+                    tenant
+                )
+                .orElseThrow();
+
+        stored.verifyPhone(
+            Instant.parse("2026-08-23T00:00:00Z")
+        );
+
+        repository.saveAndFlush(stored);
+        entityManager.clear();
+
+        UserAccount verified =
+            repository
+                .findByTenantIdAndPrimaryPhoneNumberAndPhoneVerifiedAtIsNotNull(
+                    tenant,
+                    phone
+                )
+                .orElseThrow();
+
+        assertThat(verified.getId())
+            .isEqualTo(userId);
+
+        assertThat(verified.isPhoneVerified())
+            .isTrue();
+
+        assertThat(verified.getPhoneVerifiedAt())
+            .isEqualTo(
+                Instant.parse("2026-08-23T00:00:00Z")
+            );
     }
 
 }

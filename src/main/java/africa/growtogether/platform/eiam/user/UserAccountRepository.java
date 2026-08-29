@@ -11,4 +11,12 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, UUID>,
     Optional<UserAccount> findByIdAndTenantId(UUID id, UUID tenantId);
     Optional<UserAccount> findByTenantIdAndUsernameIgnoreCase(UUID tenantId, String username);
     Optional<UserAccount> findByTenantIdAndEmailIgnoreCase(UUID tenantId, String email);
+    Optional<UserAccount> findByTenantIdAndPrimaryPhoneNumber(
+            UUID tenantId,
+            String primaryPhoneNumber
+    );
+    Optional<UserAccount> findByTenantIdAndPrimaryPhoneNumberAndPhoneVerifiedAtIsNotNull(
+            UUID tenantId,
+            String primaryPhoneNumber
+    );
 }

@@ -1,5 +1,6 @@
 package africa.growtogether.platform.eiam.membership;
 
+import africa.growtogether.platform.common.events.EventPublisher;
 import africa.growtogether.platform.common.security.EnterpriseIdentityContext;
 import africa.growtogether.platform.common.security.PasswordService;
 import africa.growtogether.platform.common.web.RequestContextHolder;
@@ -13,6 +14,7 @@ import africa.growtogether.platform.eiam.role.RoleNotFoundException;
 import africa.growtogether.platform.eiam.role.RoleRepository;
 import africa.growtogether.platform.eiam.role.UserRole;
 import africa.growtogether.platform.eiam.role.UserRoleRepository;
+import africa.growtogether.platform.eiam.role.events.UserRolesChangedEvent;
 import africa.growtogether.platform.eiam.user.DuplicateUserException;
 import africa.growtogether.platform.eiam.user.UserAccount;
 import africa.growtogether.platform.eiam.user.UserAccountRepository;
@@ -24,6 +26,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -43,6 +46,7 @@ public class MembershipService {
     private final PasswordService passwords;
     private final EnterpriseIdentityContext identity;
     private final AuditEventService audit;
+    private final EventPublisher eventPublisher;
     private final SecureRandom random = new SecureRandom();
     private final Clock clock = Clock.systemUTC();
 
@@ -55,7 +59,8 @@ public class MembershipService {
         UserRoleRepository userRoles,
         PasswordService passwords,
         EnterpriseIdentityContext identity,
-        AuditEventService audit
+        AuditEventService audit,
+        EventPublisher eventPublisher
     ) {
         this.invitations = invitations;
         this.invitationRoles = invitationRoles;
@@ -66,26 +71,161 @@ public class MembershipService {
         this.passwords = passwords;
         this.identity = identity;
         this.audit = audit;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
     public InvitationView createInvitation(CreateInvitationCommand command) {
         UUID tenantId = activeTenant();
-        String email = normalize(command.email());
-        invitations.findFirstByTenantIdAndEmailIgnoreCaseAndInvitationStatus(tenantId, email, InvitationStatus.PENDING)
-            .ifPresent(existing -> { throw new MembershipException("A pending invitation already exists for this email address."); });
 
-        Set<UUID> roleIds = new LinkedHashSet<>(command.roleIds());
-        roleIds.forEach(roleId -> requiredRole(roleId, tenantId));
-        String token = newToken();
-        Instant expiresAt = command.expiresAt() == null ? Instant.now(clock).plus(7, ChronoUnit.DAYS) : command.expiresAt();
-        OrganizationInvitation invitation = invitations.saveAndFlush(
-            new OrganizationInvitation(email, hash(token), expiresAt, identity.userId()));
-        roleIds.forEach(roleId -> invitationRoles.save(new InvitationRole(invitation.getId(), roleId)));
+        String email =
+            normalizeOptionalEmail(
+                command.email()
+            );
+
+        String phoneNumber =
+            normalizeOptionalPhone(
+                command.phoneNumber()
+            );
+
+        if ((email == null) == (phoneNumber == null)) {
+            throw new MembershipException(
+                "Exactly one invitation contact identity is required."
+            );
+        }
+
+        if (email != null) {
+            invitations
+                .findFirstByTenantIdAndEmailIgnoreCaseAndInvitationStatus(
+                    tenantId,
+                    email,
+                    InvitationStatus.PENDING
+                )
+                .ifPresent(existing -> {
+                    throw new MembershipException(
+                        "A pending invitation already exists for this email address."
+                    );
+                });
+        } else {
+            invitations
+                .findFirstByTenantIdAndPhoneNumberAndInvitationStatus(
+                    tenantId,
+                    phoneNumber,
+                    InvitationStatus.PENDING
+                )
+                .ifPresent(existing -> {
+                    throw new MembershipException(
+                        "A pending invitation already exists for this phone number."
+                    );
+                });
+        }
+
+        Set<UUID> roleIds =
+            new LinkedHashSet<>(
+                command.roleIds()
+            );
+
+        roleIds.forEach(
+            roleId -> requiredRole(
+                roleId,
+                tenantId
+            )
+        );
+
+        String token =
+            newToken();
+
+        Instant expiresAt =
+            command.expiresAt() == null
+                ? Instant.now(clock).plus(7, ChronoUnit.DAYS)
+                : command.expiresAt();
+
+        OrganizationInvitation invitation =
+            invitations.saveAndFlush(
+                new OrganizationInvitation(
+                    email,
+                    phoneNumber,
+                    hash(token),
+                    expiresAt,
+                    identity.userId()
+                )
+            );
+
+        roleIds.forEach(
+            roleId -> invitationRoles.save(
+                new InvitationRole(
+                    invitation.getId(),
+                    roleId
+                )
+            )
+        );
+
         invitationRoles.flush();
-        record("EIAM.INVITATION.CREATED", AuditOutcome.SUCCESS, SecuritySeverity.INFO, invitation.getId(),
-            "Organization invitation created.", Map.of("email", email, "roleCount", roleIds.size()));
-        return InvitationView.from(invitation, roleIds, token);
+
+        record(
+            "EIAM.INVITATION.CREATED",
+            AuditOutcome.SUCCESS,
+            SecuritySeverity.INFO,
+            invitation.getId(),
+            "Organization invitation created.",
+            invitationDetails(
+                invitation,
+                roleIds.size()
+            )
+        );
+
+        return InvitationView.from(
+            invitation,
+            roleIds,
+            token
+        );
+    }
+
+    /*
+     * Internal enterprise boundary for callers that know stable
+     * business role codes rather than tenant-specific EIAM role IDs.
+     *
+     * This does not expose a new HTTP endpoint. The existing invitation
+     * lifecycle remains authoritative for token creation, role validation,
+     * auditing, account reuse and membership creation.
+     */
+    @Transactional
+    public InvitationView createInvitationByRoleCodes(
+            CreateRoleCodeInvitationCommand command
+    ) {
+
+        UUID tenantId =
+            activeTenant();
+
+        Set<UUID> roleIds =
+            command.roleCodes()
+                .stream()
+                .map(
+                    roleCode ->
+                        roles
+                            .findByTenantIdAndCodeIgnoreCase(
+                                tenantId,
+                                roleCode
+                            )
+                            .orElseThrow(
+                                RoleNotFoundException::new
+                            )
+                            .getId()
+                )
+                .collect(
+                    java.util.stream.Collectors.toCollection(
+                        LinkedHashSet::new
+                    )
+                );
+
+        return createInvitation(
+            new CreateInvitationCommand(
+                command.email(),
+                command.phoneNumber(),
+                roleIds,
+                command.expiresAt()
+            )
+        );
     }
 
     @Transactional(readOnly = true)
@@ -103,8 +243,14 @@ public class MembershipService {
         String token = newToken();
         invitation.replaceToken(hash(token), Instant.now(clock).plus(7, ChronoUnit.DAYS));
         invitations.saveAndFlush(invitation);
-        record("EIAM.INVITATION.RESENT", AuditOutcome.SUCCESS, SecuritySeverity.INFO, invitation.getId(),
-            "Organization invitation resent.", Map.of("email", invitation.getEmail()));
+        record(
+            "EIAM.INVITATION.RESENT",
+            AuditOutcome.SUCCESS,
+            SecuritySeverity.INFO,
+            invitation.getId(),
+            "Organization invitation resent.",
+            invitationDetails(invitation)
+        );
         return InvitationView.from(invitation, invitationRoleIds(tenantId, invitationId), token);
     }
 
@@ -113,21 +259,83 @@ public class MembershipService {
         OrganizationInvitation invitation = requiredInvitation(invitationId, activeTenant());
         invitation.revoke(Instant.now(clock));
         invitations.saveAndFlush(invitation);
-        record("EIAM.INVITATION.REVOKED", AuditOutcome.SUCCESS, SecuritySeverity.MEDIUM, invitation.getId(),
-            "Organization invitation revoked.", Map.of("email", invitation.getEmail()));
+        record(
+            "EIAM.INVITATION.REVOKED",
+            AuditOutcome.SUCCESS,
+            SecuritySeverity.MEDIUM,
+            invitation.getId(),
+            "Organization invitation revoked.",
+            invitationDetails(invitation)
+        );
     }
 
     @Transactional
     public MembershipView accept(AcceptInvitationCommand command) {
+
+        /*
+         * Backward-compatible public acceptance contract.
+         *
+         * Controllers and existing callers continue receiving
+         * MembershipView exactly as before.
+         */
+        return acceptWithEvidence(
+            command
+        ).membership();
+    }
+
+    @Transactional
+    public InvitationAcceptanceEvidence acceptWithEvidence(AcceptInvitationCommand command) {
         UUID tenantId = activeTenant();
         Instant now = Instant.now(clock);
         OrganizationInvitation invitation = invitations.findByTenantIdAndTokenHash(tenantId, hash(command.token()))
             .orElseThrow(() -> new MembershipException("Invitation token is invalid."));
         invitation.assertAcceptable(now);
 
-        UserAccount user = users.findByTenantIdAndEmailIgnoreCase(tenantId, invitation.getEmail())
-            .map(existing -> prepareExistingUser(existing, now))
-            .orElseGet(() -> createInvitedUser(tenantId, invitation, command));
+        UserAccount user;
+
+        if (invitation.isEmailTarget()) {
+            user =
+                users.findByTenantIdAndEmailIgnoreCase(
+                    tenantId,
+                    invitation.getEmail()
+                )
+                .map(
+                    existing -> prepareExistingUser(
+                        existing,
+                        invitation,
+                        now
+                    )
+                )
+                .orElseGet(
+                    () -> createInvitedUser(
+                        tenantId,
+                        invitation,
+                        command,
+                        now
+                    )
+                );
+        } else {
+            user =
+                users.findByTenantIdAndPrimaryPhoneNumber(
+                    tenantId,
+                    invitation.getPhoneNumber()
+                )
+                .map(
+                    existing -> prepareExistingUser(
+                        existing,
+                        invitation,
+                        now
+                    )
+                )
+                .orElseGet(
+                    () -> createInvitedUser(
+                        tenantId,
+                        invitation,
+                        command,
+                        now
+                    )
+                );
+        }
         TenantMembership membership = memberships.findByTenantIdAndUserId(tenantId, user.getId())
             .orElseGet(() -> memberships.saveAndFlush(new TenantMembership(user.getId(), now)));
         if (membership.getMembershipStatus() == MembershipStatus.REMOVED) {
@@ -142,11 +350,21 @@ public class MembershipService {
             if (!assigned) userRoles.save(new UserRole(user.getId(), roleId));
         }
         userRoles.flush();
+
+        publishUserRolesChanged(
+            tenantId,
+            user.getId(),
+            now
+        );
+
         invitation.accept(now);
         invitations.saveAndFlush(invitation);
         record("EIAM.INVITATION.ACCEPTED", AuditOutcome.SUCCESS, SecuritySeverity.INFO, invitation.getId(),
             "Organization invitation accepted.", Map.of("userId", user.getId().toString(), "membershipId", membership.getId().toString()));
-        return MembershipView.from(membership);
+        return new InvitationAcceptanceEvidence(
+            invitation.getId(),
+            MembershipView.from(membership)
+        );
     }
 
     @Transactional(readOnly = true)
@@ -164,26 +382,109 @@ public class MembershipService {
         return MembershipView.from(membership);
     }
 
-    private UserAccount prepareExistingUser(UserAccount user, Instant now) {
-        if (user.getAccountStatus() == africa.growtogether.platform.eiam.user.UserAccountStatus.DEACTIVATED) {
-            throw new MembershipException("A deactivated account cannot accept an invitation.");
+    private void publishUserRolesChanged(
+            UUID tenantId,
+            UUID userId,
+            Instant occurredAt
+    ) {
+
+        eventPublisher.publish(
+            new UserRolesChangedEvent(
+                UUID.randomUUID(),
+                tenantId,
+                userId,
+                occurredAt
+            )
+        );
+    }
+
+    private UserAccount prepareExistingUser(
+            UserAccount user,
+            OrganizationInvitation invitation,
+            Instant now
+    ) {
+        if (
+            user.getAccountStatus()
+                == africa.growtogether.platform.eiam.user.UserAccountStatus.DEACTIVATED
+        ) {
+            throw new MembershipException(
+                "A deactivated account cannot accept an invitation."
+            );
         }
-        if (user.getAccountStatus() == africa.growtogether.platform.eiam.user.UserAccountStatus.PENDING
-            || user.getAccountStatus() == africa.growtogether.platform.eiam.user.UserAccountStatus.SUSPENDED) {
+
+        if (
+            user.getAccountStatus()
+                == africa.growtogether.platform.eiam.user.UserAccountStatus.PENDING
+            || user.getAccountStatus()
+                == africa.growtogether.platform.eiam.user.UserAccountStatus.SUSPENDED
+        ) {
             user.activate();
         }
-        user.verifyEmail(now);
+
+        verifyInvitationTarget(
+            user,
+            invitation,
+            now
+        );
+
         return users.saveAndFlush(user);
     }
 
-    private UserAccount createInvitedUser(UUID tenantId, OrganizationInvitation invitation, AcceptInvitationCommand command) {
-        String username = normalize(command.username());
-        users.findByTenantIdAndUsernameIgnoreCase(tenantId, username)
-            .ifPresent(existing -> { throw new DuplicateUserException("username", "Username is already in use for this tenant."); });
-        UserAccount user = new UserAccount(username, invitation.getEmail(), command.displayName(), passwords.hash(command.password()));
+    private UserAccount createInvitedUser(
+            UUID tenantId,
+            OrganizationInvitation invitation,
+            AcceptInvitationCommand command,
+            Instant now
+    ) {
+        String username =
+            normalize(
+                command.username()
+            );
+
+        users.findByTenantIdAndUsernameIgnoreCase(
+            tenantId,
+            username
+        )
+        .ifPresent(existing -> {
+            throw new DuplicateUserException(
+                "username",
+                "Username is already in use for this tenant."
+            );
+        });
+
+        UserAccount user =
+            new UserAccount(
+                username,
+                invitation.getEmail(),
+                invitation.getPhoneNumber(),
+                command.displayName(),
+                passwords.hash(
+                    command.password()
+                )
+            );
+
         user.activate();
-        user.verifyEmail(Instant.now(clock));
+
+        verifyInvitationTarget(
+            user,
+            invitation,
+            now
+        );
+
         return users.saveAndFlush(user);
+    }
+
+    private void verifyInvitationTarget(
+            UserAccount user,
+            OrganizationInvitation invitation,
+            Instant now
+    ) {
+        if (invitation.isEmailTarget()) {
+            user.verifyEmail(now);
+            return;
+        }
+
+        user.verifyPhone(now);
     }
 
     private OrganizationInvitation requiredInvitation(UUID id, UUID tenantId) {
@@ -226,7 +527,87 @@ public class MembershipService {
         }
     }
 
-    private static String normalize(String value) { return value.trim().toLowerCase(); }
+    private static String normalize(String value) {
+        return value.trim().toLowerCase();
+    }
+
+    private static String normalizeOptionalEmail(
+            String value
+    ) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        return value.trim().toLowerCase();
+    }
+
+    private static String normalizeOptionalPhone(
+            String value
+    ) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        String phone =
+            value.trim();
+
+        if (!phone.matches("^\\+[1-9][0-9]{5,14}$")) {
+            throw new MembershipException(
+                "Phone number must use canonical international format."
+            );
+        }
+
+        return phone;
+    }
+
+    private static Map<String, Object> invitationDetails(
+            OrganizationInvitation invitation
+    ) {
+        Map<String, Object> details =
+            new LinkedHashMap<>();
+
+        if (invitation.isEmailTarget()) {
+            details.put(
+                "contactType",
+                "EMAIL"
+            );
+
+            details.put(
+                "email",
+                invitation.getEmail()
+            );
+        } else {
+            details.put(
+                "contactType",
+                "PHONE"
+            );
+
+            details.put(
+                "phoneNumber",
+                invitation.getPhoneNumber()
+            );
+        }
+
+        return details;
+    }
+
+    private static Map<String, Object> invitationDetails(
+            OrganizationInvitation invitation,
+            int roleCount
+    ) {
+        Map<String, Object> details =
+            new LinkedHashMap<>(
+                invitationDetails(invitation)
+            );
+
+        details.put(
+            "roleCount",
+            roleCount
+        );
+
+        return details;
+    }
+
     private static UUID activeTenant() {
         return RequestContextHolder.current().map(context -> context.tenantId())
             .filter(value -> value != null && !value.isBlank()).map(UUID::fromString)

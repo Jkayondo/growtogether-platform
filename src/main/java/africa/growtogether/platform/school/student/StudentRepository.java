@@ -2,14 +2,28 @@ package africa.growtogether.platform.school.student;
 
 import java.util.Optional;
 import java.util.UUID;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface StudentRepository extends JpaRepository<Student, UUID> {
+public interface StudentRepository
+        extends JpaRepository<Student, UUID> {
 
-    boolean existsByStudentNumber(String studentNumber);
+    boolean existsByTenantIdAndStudentNumber(
+            UUID tenantId,
+            String studentNumber
+    );
 
-    boolean existsByPermanentLearnerNumber(String permanentLearnerNumber);
+    boolean existsByPermanentLearnerNumber(
+            String permanentLearnerNumber
+    );
 
-    Optional<Student> findById(UUID id);
+    Optional<Student> findByTenantIdAndId(
+            UUID tenantId,
+            UUID id
+    );
 
+    Optional<Student> findByTenantIdAndAdmissionApplicationId(
+            UUID tenantId,
+            UUID admissionApplicationId
+    );
 }

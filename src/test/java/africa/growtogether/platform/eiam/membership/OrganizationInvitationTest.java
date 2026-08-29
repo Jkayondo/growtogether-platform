@@ -28,4 +28,78 @@ class OrganizationInvitationTest {
         membership.changeStatus(MembershipStatus.REMOVED, Instant.now());
         assertThrows(MembershipException.class, () -> membership.changeStatus(MembershipStatus.ACTIVE, Instant.now()));
     }
+    @Test
+    void supportsPhoneTargetInvitation() {
+        OrganizationInvitation invitation =
+            new OrganizationInvitation(
+                null,
+                "+256701234567",
+                "hash",
+                Instant.now().plusSeconds(60),
+                null
+            );
+
+        assertEquals(
+            "+256701234567",
+            invitation.getPhoneNumber()
+        );
+
+        assertEquals(
+            null,
+            invitation.getEmail()
+        );
+
+        assertEquals(
+            true,
+            invitation.isPhoneTarget()
+        );
+
+        assertEquals(
+            false,
+            invitation.isEmailTarget()
+        );
+    }
+
+    @Test
+    void rejectsInvitationWithBothEmailAndPhoneTargets() {
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> new OrganizationInvitation(
+                "user@example.com",
+                "+256701234567",
+                "hash",
+                Instant.now().plusSeconds(60),
+                null
+            )
+        );
+    }
+
+    @Test
+    void rejectsInvitationWithoutContactIdentity() {
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> new OrganizationInvitation(
+                null,
+                null,
+                "hash",
+                Instant.now().plusSeconds(60),
+                null
+            )
+        );
+    }
+
+    @Test
+    void rejectsNonCanonicalPhoneTarget() {
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> new OrganizationInvitation(
+                null,
+                "0701234567",
+                "hash",
+                Instant.now().plusSeconds(60),
+                null
+            )
+        );
+    }
+
 }

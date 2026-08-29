@@ -82,6 +82,11 @@ public class NotificationService {
             SendCommand c
     ) {
 
+        String correlation =
+                RequestContextHolder.current()
+                        .map(x -> x.correlationId())
+                        .orElse(null);
+
         NotificationRequest n =
                 new NotificationRequest(
                         tenantId,
@@ -91,7 +96,7 @@ public class NotificationService {
                         c.priority(),
                         c.subject(),
                         c.body(),
-                        null,
+                        correlation,
                         c.sourceService() == null
                                 ? "UNKNOWN"
                                 : c.sourceService(),

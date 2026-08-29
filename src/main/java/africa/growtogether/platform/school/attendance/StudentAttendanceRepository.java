@@ -20,4 +20,9 @@ public interface StudentAttendanceRepository
             String attendanceStatus
     );
 
+    long countByTenantIdAndAttendanceStatus(
+            UUID tenantId,
+            String attendanceStatus
+   );
+
 }

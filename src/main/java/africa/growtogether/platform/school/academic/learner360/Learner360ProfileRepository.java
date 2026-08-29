@@ -47,5 +47,6 @@ public interface Learner360ProfileRepository
             UUID tenantId,
             String learningRiskLevel
     );
+    long countByTenantId(UUID tenantId);
 
 }
