@@ -901,9 +901,99 @@ PostgreSQL/Testcontainers validation confirmed that:
 - an existing MEMBER is not incorrectly converted by the historical
   backfill.
 
-### 27.6 Verified evidence
+### 27.6 Historical existing-administrator reconciliation
 
-Focused lifecycle regression:
+Browser end-to-end validation exposed an historical-data condition not
+covered by the original role-change lifecycle:
+
+- the School Profile already existed;
+- V168 had correctly provisioned its canonical SCHOOL_PROFILE
+  institution space;
+- the EIAM user already held SCHOOL_ADMIN and was ACTIVE;
+- no active GT Connect membership existed for that administrator;
+- no new EIAM role mutation occurred after live reconciliation was
+  introduced, so no UserRolesChangedEvent was available to trigger
+  membership creation.
+
+V172 could normalize qualifying existing ADMIN memberships, but it did
+not create a missing historical membership.
+
+The durable repair is:
+
+V173__backfill_existing_school_admin_connect_memberships.sql
+
+V173 aligns historical data with the verified runtime authority model.
+
+For each canonical SCHOOL_PROFILE institution space it:
+
+- creates an authoritative ACTIVE ADMIN membership for an ACTIVE
+  SCHOOL_ADMIN who has no active Connect membership;
+- promotes an eligible existing ordinary membership to ADMIN while
+  preserving the previous ordinary role for later restoration;
+- attaches EIAM_SCHOOL_ADMIN provenance to an eligible ordinary ADMIN;
+- excludes inactive EIAM users;
+- excludes users without SCHOOL_ADMIN;
+- does not overwrite a membership governed by another authority source.
+
+The migration was first executed against the live development schema
+inside an explicit transaction and rolled back. During that simulation
+the missing administrator membership was created correctly and the
+post-rollback active membership count returned to zero.
+
+Automated PostgreSQL/Testcontainers validation then confirmed V173
+against a database starting deliberately at V172.
+
+The migration was subsequently applied normally through Flyway to the
+development database and recorded successfully as version 173.
+
+Live database verification established:
+
+- member_role = ADMIN;
+- membership_status = ACTIVE;
+- role_authority_source = EIAM_SCHOOL_ADMIN;
+- previous_member_role = NULL for the newly created historical
+  membership;
+- created_by = system.
+
+### 27.7 School administrator browser end-to-end validation
+
+The SCHOOL_ADMIN user journey has now been browser-validated through:
+
+SCHOOL_ADMIN
+    ->
+School Administration Portal
+    ->
+Communication
+    ->
+GT Connect
+    ->
+authorised Conversations
+    ->
+GT School INSTITUTION space
+    ->
+conversation selection.
+
+Before V173, the browser correctly displayed no authorised GT Connect
+conversations because the historical SCHOOL_ADMIN had no active Connect
+membership.
+
+After V173 was applied through Flyway, the same browser journey displayed
+the GT School INSTITUTION conversation and allowed it to be selected.
+
+The resulting empty message panel is a valid conversation state because
+the institution space currently contains no messages.
+
+Engineering gate:
+
+GT-CONNECT-R1-E2E-001D-R8
+
+Status:
+
+**MY CONVERSATIONS SCHOOL_ADMIN BROWSER E2E CLOSED.**
+
+### 27.8 Verified evidence
+
+Original focused lifecycle regression:
 
 GT-CONNECT-R1-GAP-010H22Q
 
@@ -911,6 +1001,45 @@ GT-CONNECT-R1-GAP-010H22Q
 - failures: 0;
 - errors: 0;
 - BUILD SUCCESS.
+
+V173 PostgreSQL/Flyway migration validation:
+
+GT-CONNECT-R1-E2E-001D-R6
+
+- tests: 1;
+- failures: 0;
+- errors: 0;
+- skipped: 0;
+- BUILD SUCCESS.
+
+Strengthened SCHOOL_ADMIN lifecycle regression including V173:
+
+GT-CONNECT-R1-E2E-001D-R9
+
+- tests: 30;
+- failures: 0;
+- errors: 0;
+- skipped: 0;
+- BUILD SUCCESS.
+
+Live V173 application and verification:
+
+GT-CONNECT-R1-E2E-001D-R7A
+
+- Flyway version: 173;
+- migration success: true;
+- authoritative ADMIN membership: verified;
+- authority source: EIAM_SCHOOL_ADMIN.
+
+Browser end-to-end validation:
+
+GT-CONNECT-R1-E2E-001D-R8
+
+- SCHOOL_ADMIN authentication: verified;
+- Communication -> GT Connect navigation: verified;
+- authorised GT School INSTITUTION conversation discovery: verified;
+- conversation selection: verified;
+- My Conversations browser E2E: CLOSED.
 
 V172 PostgreSQL/Flyway validation:
 
@@ -936,10 +1065,14 @@ edce4d5 — checkpoint(backend): preserve integrated green baseline
 
 Status:
 
-**BACKEND CLOSED AND RECOVERY-PROTECTED**
+**SCHOOL_ADMIN MEMBERSHIP LIFECYCLE BACKEND CLOSED.**
 
-This status does not by itself establish frontend or browser end-to-end
-completion of administrator user journeys.
+**MY CONVERSATIONS SCHOOL_ADMIN BROWSER E2E CLOSED.**
+
+The controlled recovery commit containing this record also contains the
+V173 historical-data repair and its PostgreSQL regression test. This
+preserves the verified implementation independently of conversation
+history.
 
 ---
 
