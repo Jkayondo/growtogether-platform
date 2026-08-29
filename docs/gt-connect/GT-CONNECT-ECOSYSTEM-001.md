@@ -812,7 +812,7 @@ frontend or full end-to-end administrator lifecycle.
 
 ## 27. SCHOOL ADMINISTRATOR MEMBERSHIP DERIVATION
 
-The current architectural rule is:
+The authoritative architectural rule is:
 
 EIAM SCHOOL_ADMIN
     ->
@@ -820,36 +820,126 @@ ACTIVE eligible EIAM user
     ->
 canonical SCHOOL_PROFILE institution space
     ->
-ACTIVE Connect ADMIN membership.
+authoritatively derived Connect ADMIN membership.
 
-Initial provisioning logic has been implemented and unit-tested.
+The complete backend assignment and revocation lifecycle is now
+implemented and verified.
 
-The lifecycle is being strengthened so that subsequent EIAM role changes
-also reconcile GT Connect access.
+### 27.1 Assignment lifecycle
 
-Required lifecycle direction:
+When SCHOOL_ADMIN authority is assigned through an authoritative EIAM
+role mutation:
 
-SCHOOL_ADMIN assigned
-    ->
-Connect ADMIN access established
+- EIAM publishes a neutral UserRolesChangedEvent;
+- GT School resolves the canonical SCHOOL_PROFILE institution space;
+- a tenant without an onboarded School profile is handled as a safe
+  no-op;
+- an eligible active user with no active Connect membership receives an
+  authoritative ADMIN membership;
+- an existing ordinary MEMBER is promoted to ADMIN while preserving the
+  previous ordinary role;
+- repeated reconciliation is idempotent;
+- Connect does not become an independent source of institutional
+  administrator authority.
 
-SCHOOL_ADMIN removed
-    ->
-derived Connect ADMIN access revoked safely
+### 27.2 Authority provenance
 
-This lifecycle must preserve:
+gt_connect_space_members records reversible privileged-role provenance
+using:
 
-- tenant isolation;
-- authoritative EIAM ownership;
-- idempotency;
-- inactive-account exclusion;
-- safe revocation;
-- auditability;
-- transaction integrity.
+- role_authority_source;
+- previous_member_role.
+
+The current authoritative source identifier is:
+
+EIAM_SCHOOL_ADMIN
+
+This provenance distinguishes an ordinary Connect membership from a
+privilege derived from an authoritative enterprise role.
+
+### 27.3 Revocation lifecycle
+
+When SCHOOL_ADMIN authority is removed:
+
+- an authority-derived ADMIN membership that previously represented an
+  ordinary membership is restored to its previous member role;
+- an ADMIN membership created solely because of SCHOOL_ADMIN authority
+  is removed from active membership;
+- unrelated ordinary memberships are preserved;
+- authority cannot be released by a mismatched authority source;
+- historical provenance is retained where required for auditability.
+
+The reconciliation service also excludes ineligible inactive users when
+reconciliation occurs.
+
+Account-status mutation events are not represented by this evidence as
+an independently completed lifecycle trigger. The verified trigger in
+this release is authoritative EIAM role mutation.
+
+### 27.4 Initial provisioning alignment
+
+Initial School administrator provisioning and later live role-change
+reconciliation use the same authoritative provenance model.
+
+This prevents onboarding from creating a second, incompatible
+administrator-membership rule.
+
+### 27.5 Database migration
+
+V172__add_gt_connect_member_role_authority_provenance.sql introduces
+the authority-provenance persistence foundation and performs controlled
+historical normalization.
+
+PostgreSQL/Testcontainers validation confirmed that:
+
+- the migration applies successfully;
+- the provenance columns and constraints are created;
+- an eligible historical SCHOOL_ADMIN Connect ADMIN is normalized;
+- an ordinary ADMIN without authoritative SCHOOL_ADMIN is not
+  normalized;
+- a suspended SCHOOL_ADMIN user is not normalized;
+- an existing MEMBER is not incorrectly converted by the historical
+  backfill.
+
+### 27.6 Verified evidence
+
+Focused lifecycle regression:
+
+GT-CONNECT-R1-GAP-010H22Q
+
+- tests: 29;
+- failures: 0;
+- errors: 0;
+- BUILD SUCCESS.
+
+V172 PostgreSQL/Flyway validation:
+
+GT-CONNECT-R1-GAP-010H22P
+
+- tests: 1;
+- failures: 0;
+- errors: 0;
+- BUILD SUCCESS.
+
+Integrated backend regression:
+
+GT-BACKEND-CHECKPOINT-001F
+
+- tests: 883;
+- failures: 0;
+- errors: 0;
+- BUILD SUCCESS.
+
+Controlled Git recovery checkpoint:
+
+edce4d5 — checkpoint(backend): preserve integrated green baseline
 
 Status:
 
-**IN PROGRESS — lifecycle event integration not yet formally closed.**
+**BACKEND CLOSED AND RECOVERY-PROTECTED**
+
+This status does not by itself establish frontend or browser end-to-end
+completion of administrator user journeys.
 
 ---
 
