@@ -714,4 +714,164 @@ Platform.
 
 ---
 
+
+---
+
+## 25. ECOSYSTEM-TO-ENGINEERING SYNCHRONIZATION RULE
+
+GT Connect ecosystem architecture and GT Connect engineering SHALL move
+together.
+
+The ecosystem record is not a static future-vision document.
+
+Every material GT Connect engineering capability must be checked against
+the ecosystem direction during implementation.
+
+The controlled cycle is:
+
+Ecosystem Direction
+    ->
+Engineering Requirement
+    ->
+Backend
+    ->
+Frontend
+    ->
+End-to-End Validation
+    ->
+Formal Engineering Closure
+    ->
+Controlled Ecosystem Record Update
+    ->
+Git Evidence
+    ->
+Next Capability
+
+This rule exists to ensure that:
+
+- Release 1 implementation does not unintentionally block future GT
+  Connect capabilities;
+- new verified engineering developments are recoverable independently of
+  conversation history;
+- future capabilities are not falsely represented as implemented;
+- architecture and implementation cannot silently diverge;
+- another engineer or future AI session can determine both the intended
+  destination and the verified implementation position.
+
+Future ecosystem capability SHALL continue to be staged appropriately.
+
+Moving the ecosystem and engineering together does NOT mean that every
+reserved capability must be implemented in Release 1.
+
+Release protection remains mandatory.
+
+---
+
+## 26. VERIFIED SCHOOL INSTITUTION MEMBERSHIP GOVERNANCE
+
+Engineering evidence established a stronger governance rule for canonical
+GT School institution conversations.
+
+Canonical School institution space:
+
+- Space Type: INSTITUTION
+- Context Type: SCHOOL_PROFILE
+- Context Reference: SchoolProfile identifier
+
+For the canonical SCHOOL_PROFILE space:
+
+- ordinary MEMBER membership may use the governed membership path;
+- manual ADMIN assignment is prohibited;
+- manual MODERATOR assignment is prohibited;
+- manual OWNER assignment is prohibited;
+- privileged institutional administration is derived from authoritative
+  EIAM School roles.
+
+The purpose is to prevent GT Connect from becoming an independent
+shadow-authority system separate from EIAM.
+
+Validated engineering gate:
+
+**GT-CONNECT-R1-GAP-010H18**
+
+Evidence:
+
+- ConnectServiceTest: 37 tests;
+- failures: 0;
+- errors: 0;
+- BUILD SUCCESS.
+
+Status:
+
+**BACKEND VALIDATED**
+
+This evidence does not by itself establish completion of the corresponding
+frontend or full end-to-end administrator lifecycle.
+
+---
+
+## 27. SCHOOL ADMINISTRATOR MEMBERSHIP DERIVATION
+
+The current architectural rule is:
+
+EIAM SCHOOL_ADMIN
+    ->
+ACTIVE eligible EIAM user
+    ->
+canonical SCHOOL_PROFILE institution space
+    ->
+ACTIVE Connect ADMIN membership.
+
+Initial provisioning logic has been implemented and unit-tested.
+
+The lifecycle is being strengthened so that subsequent EIAM role changes
+also reconcile GT Connect access.
+
+Required lifecycle direction:
+
+SCHOOL_ADMIN assigned
+    ->
+Connect ADMIN access established
+
+SCHOOL_ADMIN removed
+    ->
+derived Connect ADMIN access revoked safely
+
+This lifecycle must preserve:
+
+- tenant isolation;
+- authoritative EIAM ownership;
+- idempotency;
+- inactive-account exclusion;
+- safe revocation;
+- auditability;
+- transaction integrity.
+
+Status:
+
+**IN PROGRESS — lifecycle event integration not yet formally closed.**
+
+---
+
+## 28. ENGINEERING EVIDENCE DISCIPLINE
+
+GT Connect capability status SHALL use separate evidence columns:
+
+- Backend;
+- Frontend;
+- End-to-End.
+
+A capability is not considered fully implemented simply because:
+
+- a source file exists;
+- a database table exists;
+- compilation succeeds;
+- a backend unit test succeeds.
+
+Formal completion requires the evidence appropriate to the capability.
+
+The engineering team SHALL preserve green test gates and update this
+controlled record when material implementation state changes.
+
+
 **END OF CONTROLLED RECORD — GT-CONNECT-ECOSYSTEM-001**
