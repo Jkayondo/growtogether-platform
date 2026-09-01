@@ -1097,4 +1097,284 @@ The engineering team SHALL preserve green test gates and update this
 controlled record when material implementation state changes.
 
 
+## 29. RELEASE 1 BROWSER MESSAGING AND NOTIFICATION LIFECYCLE
+
+GT Connect Release 1 browser messaging has progressed from backend/API
+availability to a verified two-user browser communication lifecycle.
+
+The verified Release 1 browser capability now includes:
+
+- authenticated SCHOOL_ADMIN and PARENT browser sessions;
+- authorised GT School INSTITUTION conversation discovery;
+- browser message composition and sending;
+- persisted two-user message exchange;
+- delivery and read receipts;
+- bidirectional near-real-time conversation synchronization;
+- background-tab synchronization while GT Connect remains mounted;
+- correct Delivered versus Read semantics;
+- audible incoming-message notification;
+- Sound On / Muted user control;
+- persistent mute preference across browser refresh;
+- localhost development CORS support for the verified Vite origins;
+- username-or-email browser login alignment.
+
+This section records only capabilities that were actually exercised through
+the browser and/or supported by authoritative database evidence.
+
+### 29.1 Browser authentication and CORS alignment
+
+The GT School login experience now accepts either username or email in the
+browser while preserving the EIAM `usernameOrEmail` API contract.
+
+The controlled development CORS configuration was also extended to permit:
+
+- `http://localhost:5173`;
+- `http://localhost:5174`.
+
+A dedicated CORS regression test was added.
+
+Browser authentication was subsequently proven using the real PARENT user
+journey.
+
+Status:
+
+**GT CONNECT BROWSER AUTHENTICATION AND CORS ALIGNMENT VERIFIED.**
+
+### 29.2 Real two-user browser messaging
+
+The controlled two-user journey was exercised using:
+
+- SCHOOL_ADMIN;
+- PARENT;
+- the authorised GT School INSTITUTION conversation.
+
+The verified browser lifecycle included:
+
+- administrator message creation;
+- parent receipt and read acknowledgement;
+- parent reply;
+- administrator receipt and read acknowledgement;
+- browser rendering of both directions.
+
+Relevant controlled engineering gates included:
+
+- GT-CONNECT-R1-E2E-002;
+- GT-CONNECT-R1-E2E-003D;
+- GT-CONNECT-R1-E2E-003E;
+- GT-CONNECT-R1-E2E-003F;
+- GT-CONNECT-R1-E2E-003G.
+
+Status:
+
+**REAL TWO-USER BROWSER MESSAGING VERIFIED.**
+
+### 29.3 Near-real-time conversation synchronization
+
+Initial browser behaviour required manual Refresh to discover a message sent
+by another participant.
+
+Repository conformity review confirmed that no polling, WebSocket, SSE or
+other automatic refresh mechanism existed in the GT Connect browser
+component.
+
+Release 1 therefore introduced a deliberately small synchronization
+mechanism using a 10-second silent polling interval.
+
+The implementation:
+
+- reloads the currently selected conversation;
+- avoids normal loading-state flicker during silent synchronization;
+- cleans up its interval when the component lifecycle changes;
+- does not require manual Refresh for newly received messages.
+
+Controlled two-browser validation proved both:
+
+- SCHOOL_ADMIN -> PARENT automatic appearance;
+- PARENT -> SCHOOL_ADMIN automatic appearance.
+
+Relevant gates included:
+
+- GT-CONNECT-R1-E2E-003H16;
+- GT-CONNECT-R1-E2E-003H17;
+- GT-CONNECT-R1-E2E-003H18;
+- GT-CONNECT-R1-E2E-003H19.
+
+Status:
+
+**GT-CONNECT-R1-LIVESYNC-001 — BIDIRECTIONAL NEAR-REAL-TIME
+SYNCHRONIZATION CLOSED.**
+
+The Release 1 polling implementation is not represented as the final
+long-term real-time architecture. Future WebSocket, SSE, push or equivalent
+architecture may supersede it through normal GT change governance.
+
+### 29.4 Background Delivered and visible Read semantics
+
+Background synchronization introduced an important receipt-governance
+requirement.
+
+GT Connect SHALL NOT mark a message Read merely because a hidden browser tab
+received it.
+
+The Release 1 browser implementation therefore distinguishes:
+
+- hidden browser tab -> Delivered;
+- visible selected conversation -> Read.
+
+The frontend now consumes the existing backend Delivered endpoint separately
+from the Read endpoint.
+
+Controlled browser and PostgreSQL evidence proved that a message received
+while the parent GT School tab was hidden produced:
+
+- an authoritative `delivered_at` timestamp;
+- `read_at = NULL`.
+
+After the parent returned to the visible GT School conversation, the same
+receipt transitioned to:
+
+- the original `delivered_at` timestamp retained;
+- a later authoritative `read_at` timestamp.
+
+The final controlled evidence message had:
+
+- message ID:
+  `965a75f1-ed2d-4f78-a626-be18881796fa`;
+- Delivered:
+  `2026-09-01 14:31:37.496255+03`;
+- Read:
+  `2026-09-01 14:54:59.337741+03`.
+
+Relevant gates included:
+
+- GT-CONNECT-R1-NOTIFY-001H;
+- GT-CONNECT-R1-NOTIFY-001I;
+- GT-CONNECT-R1-NOTIFY-001J;
+- GT-CONNECT-R1-NOTIFY-001L.
+
+Status:
+
+**BACKGROUND DELIVERED -> VISIBLE READ LIFECYCLE VERIFIED.**
+
+### 29.5 Audible incoming-message notification
+
+GT Connect Release 1 now provides a short browser-generated audible tone for
+a genuinely new incoming message.
+
+The implementation deliberately avoids notification sound for:
+
+- the user's own outgoing message;
+- messages already known to the current browser session;
+- initial conversation baseline loading.
+
+The browser audio implementation is non-blocking. Failure or browser policy
+restriction affecting audio SHALL NOT interrupt message delivery.
+
+Controlled E2E validation proved:
+
+- foreground incoming-message beep;
+- background-tab incoming-message beep while GT Connect remains open;
+- message synchronization continues independently of the audio preference.
+
+Status:
+
+**GT-CONNECT-R1-NOTIFY-001 — AUDIBLE MESSAGE NOTIFICATION VERIFIED.**
+
+### 29.6 Sound preference
+
+GT Connect exposes:
+
+- Sound On;
+- Muted.
+
+The preference is stored locally in the browser and survives browser refresh.
+
+Controlled validation proved that while Muted:
+
+- incoming messages continue to synchronize normally;
+- the notification tone is suppressed.
+
+After browser refresh, the Muted preference remained active.
+
+Relevant gates included:
+
+- GT-CONNECT-R1-NOTIFY-001M;
+- GT-CONNECT-R1-NOTIFY-001N.
+
+Status:
+
+**SOUND ON / MUTED AND PERSISTENT MUTE PREFERENCE VERIFIED.**
+
+### 29.7 Notification boundary and mobile reservation
+
+The current Release 1 notification implementation is browser based.
+
+It does NOT yet constitute:
+
+- operating-system push notification when GT is completely closed;
+- native mobile push notification;
+- Service Worker / PWA push delivery;
+- guaranteed vibration when the phone is in silent mode.
+
+The following capability is therefore reserved:
+
+GT-CONNECT-R1-NOTIFY-VIB-001
+
+**Mobile Vibration Notification**
+
+Status:
+
+**RESERVED — NOT IMPLEMENTED.**
+
+Future mobile/PWA notification work SHALL respect operating-system sound,
+silent-mode, vibration and user-permission policies rather than attempting to
+bypass them.
+
+### 29.8 Controlled recovery evidence
+
+The verified browser messaging milestone was preserved in the controlled Git
+commit:
+
+`871570c — feat(connect): complete browser messaging lifecycle`
+
+The commit was created surgically using only the seven verified target files
+so that unrelated staged GrowTogether engineering work was not swept into
+the checkpoint.
+
+The preserved scope includes:
+
+- browser login alignment;
+- GT Connect browser dashboard;
+- message composer and browser API/service path;
+- near-real-time synchronization;
+- Delivered / Read browser handling;
+- audible notification and persistent mute preference;
+- CORS development-origin repair;
+- CORS regression test.
+
+Engineering status:
+
+| Capability | Backend | Frontend | End-to-End |
+|---|---|---|---|
+| Browser authentication | VERIFIED | VERIFIED | VERIFIED |
+| Message send / persistence | VERIFIED | VERIFIED | VERIFIED |
+| Bidirectional near-real-time synchronization | VERIFIED | VERIFIED | VERIFIED |
+| Delivered / Read lifecycle | VERIFIED | VERIFIED | VERIFIED |
+| Foreground audible notification | N/A | VERIFIED | VERIFIED |
+| Background audible notification | N/A | VERIFIED | VERIFIED |
+| Sound mute / persistence | N/A | VERIFIED | VERIFIED |
+| Mobile vibration | RESERVED | NOT IMPLEMENTED | NOT VERIFIED |
+
+Formal milestone:
+
+**GT-CONNECT-R1-BROWSER-MSG-001 — COMPLETE BROWSER MESSAGING &
+NOTIFICATION LIFECYCLE — CLOSED.**
+
+Recovery commit:
+
+**871570c**
+
+---
+
+
 **END OF CONTROLLED RECORD — GT-CONNECT-ECOSYSTEM-001**
