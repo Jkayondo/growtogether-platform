@@ -1,0 +1,219 @@
+.gt-connect-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.gt-connect-spaces,
+.gt-connect-conversation {
+  margin-bottom: 0;
+}
+
+.gt-connect-conversation {
+  min-height: 560px;
+}
+
+.gt-connect-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.gt-connect-panel-heading h3 {
+  margin: 0 0 4px;
+}
+
+.gt-connect-panel-heading span {
+  font-size: 13px;
+  opacity: 0.65;
+}
+
+.gt-connect-space-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gt-connect-space-item {
+  width: 100%;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: var(--gt-surface);
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gt-connect-space-item:hover {
+  background: rgba(0, 169, 164, 0.06);
+}
+
+.gt-connect-space-item.active {
+  border-color: var(--gt-primary);
+  background: rgba(0, 169, 164, 0.10);
+}
+
+.gt-connect-space-item span {
+  font-size: 12px;
+  opacity: 0.65;
+}
+
+.gt-connect-message-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gt-connect-message {
+  max-width: 76%;
+  padding: 12px 14px;
+  border-radius: 12px;
+}
+
+.gt-connect-message.received {
+  align-self: flex-start;
+  background: #f0f2f5;
+}
+
+.gt-connect-message.mine {
+  align-self: flex-end;
+  background: rgba(0, 169, 164, 0.12);
+}
+
+.gt-connect-message-body {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.gt-connect-message-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 8px;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.gt-connect-receipt-status {
+  font-weight: 600;
+}
+
+.gt-connect-receipt-status.read {
+  color: var(--gt-primary);
+}
+
+.gt-connect-attachments {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.gt-connect-attachments span {
+  font-size: 11px;
+  padding: 4px 7px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.gt-connect-empty {
+  padding: 30px 16px;
+  text-align: center;
+  opacity: 0.65;
+}
+
+.gt-connect-error {
+  margin-bottom: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(180, 30, 30, 0.08);
+}
+
+.gt-connect-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.gt-connect-composer-input {
+  flex: 1;
+  min-height: 72px;
+  resize: vertical;
+  font: inherit;
+}
+
+.gt-connect-composer .gt-button {
+  flex: 0 0 auto;
+}
+
+
+.gt-connect-sound-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  border-radius: 999px;
+  padding: 7px 11px;
+  background: var(--gt-surface);
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.gt-connect-sound-toggle:hover {
+  background: rgba(0, 169, 164, 0.06);
+}
+
+.gt-connect-sound-toggle:focus-visible {
+  outline: 2px solid var(--gt-primary);
+  outline-offset: 2px;
+}
+
+
+@media (max-width: 900px) {
+  .gt-connect-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .gt-connect-conversation {
+    min-height: auto;
+  }
+
+  .gt-connect-message {
+    max-width: 88%;
+  }
+}
+
+@media (max-width: 600px) {
+  .gt-connect-composer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .gt-connect-panel-heading {
+    align-items: flex-start;
+  }
+
+  .gt-connect-message {
+    max-width: 94%;
+  }
+}
+
+
+/* GT Connect rounded message composer */
+.gt-connect-composer-input {
+  border-radius: 18px;
+}
