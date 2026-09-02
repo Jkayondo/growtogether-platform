@@ -56,6 +56,9 @@ class AuthenticationPhoneIdentityTest {
     private MfaService mfa;
 
     @Mock
+    private AuthenticationSecurityStateService securityState;
+
+    @Mock
     private UserAccount user;
 
     private UUID tenantId;
@@ -92,7 +95,8 @@ class AuthenticationPhoneIdentityTest {
                                 900
                         ),
                         refreshTokens,
-                        mfa
+                        mfa,
+                        securityState
                 );
     }
 
