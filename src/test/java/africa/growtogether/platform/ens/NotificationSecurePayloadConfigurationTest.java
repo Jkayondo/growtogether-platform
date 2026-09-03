@@ -82,6 +82,13 @@ class NotificationSecurePayloadConfigurationTest {
         contextRunner
                 .withPropertyValues(
                         "gt.ens.secure-payload.enabled=true",
+                        /*
+                         * Explicitly blank the key so this fail-closed
+                         * scenario is isolated from any developer/runtime
+                         * GT_ENS_SECURE_PAYLOAD_ENCRYPTION_KEY environment
+                         * variable inherited by the Maven test process.
+                         */
+                        "gt.ens.secure-payload.encryption-key=",
                         "gt.ens.secure-payload.key-id="
                                 + "ens-test-key"
                 )
