@@ -1,23 +1,25 @@
-import type { ReactNode } from "react";
+import { Outlet } from "react-router-dom";
 import Sidebar from "../components/navigation/Sidebar";
 import GTHeader from "../components/common/GTHeader";
 
-interface MainLayoutProps {
-  children: ReactNode;
-}
+export default function MainLayout() {
 
-export default function MainLayout({ children }: MainLayoutProps) {
   return (
-    <div className="gt-layout">
-       <GTHeader />
 
-      <div className="gt-body">
-        <Sidebar />
+    <div className="gt-body">
 
-        <main className="gt-content">
-          {children}
-        </main>
-      </div>
+      <Sidebar />
+
+      <main className="gt-content">
+
+        <GTHeader />
+
+        <Outlet />
+
+      </main>
+
     </div>
+
   );
+
 }

@@ -1,0 +1,1 @@
+{"success":false,"code":"GT-AUTH-002","message":"The access token is invalid or expired.","data":null,"errors":[],"metadata":{"correlationId":"cca0aab0-e0e6-40a0-9bcc-8fdd6baf8a43","tenantId":"0c4d0dac-0a6d-41e3-b5d3-c168eb496a7e","timestamp":"2026-08-18T15:27:43.073413Z"}}
