@@ -396,6 +396,19 @@ export default function ConnectDashboard() {
             result
           );
 
+          /*
+           * If the authorised space list becomes empty after a
+           * refresh, retire any conversation state that belonged
+           * to the previously selected space.
+           *
+           * This occurs after the external API synchronization
+           * completes rather than synchronously inside an effect.
+           */
+          if (result.length === 0) {
+            setMessages([]);
+            setReceiptsByMessage({});
+          }
+
           setSelectedSpaceId(
             current => {
 
@@ -630,7 +643,24 @@ export default function ConnectDashboard() {
   useEffect(
     () => {
 
-      void loadSpaces();
+      /*
+       * Schedule the initial external synchronization outside the
+       * synchronous effect body. The cleanup also prevents a queued
+       * initial load from surviving an unmount/remount cycle.
+       */
+      const timeoutId =
+        window.setTimeout(
+          () => {
+            void loadSpaces();
+          },
+          0
+        );
+
+      return () => {
+        window.clearTimeout(
+          timeoutId
+        );
+      };
 
     },
     [loadSpaces]
@@ -641,15 +671,31 @@ export default function ConnectDashboard() {
     () => {
 
       if (!selectedSpaceId) {
-
-        setMessages([]);
         return;
-
       }
 
-      void loadConversation(
-        selectedSpaceId
-      );
+      /*
+       * Synchronize the selected conversation from the external
+       * Connect API outside the synchronous effect body.
+       *
+       * Cancelling the queued task prevents an obsolete selection
+       * from starting a load if the user changes spaces immediately.
+       */
+      const timeoutId =
+        window.setTimeout(
+          () => {
+            void loadConversation(
+              selectedSpaceId
+            );
+          },
+          0
+        );
+
+      return () => {
+        window.clearTimeout(
+          timeoutId
+        );
+      };
 
     },
     [
