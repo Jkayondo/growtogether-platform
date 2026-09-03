@@ -1377,4 +1377,267 @@ Recovery commit:
 ---
 
 
+
+## 30. Release 1 Runtime and Authentication Security Hardening
+
+This section records the controlled production-readiness hardening completed
+after the Release 1 browser messaging milestone.
+
+The work covered runtime dependency health, browser session continuity,
+failed-login security persistence, and rejected-refresh session revocation.
+
+These capabilities are enterprise EIAM/runtime foundations consumed by
+GT Connect and other GrowTogether products.
+
+### 30.1 Governed Redis runtime and backend health
+
+GT runtime conformity established that Redis was already defined in the
+authoritative repository through the governed Compose configuration:
+
+- service: `redis`;
+- image: `redis:8-alpine`;
+- host port: `6379`;
+- container health check: `redis-cli ping`.
+
+Before Redis was running, the application showed:
+
+- aggregate `/actuator/health` = `DOWN`;
+- HTTP status = `503`;
+- liveness/readiness remained independently available.
+
+The existing governed Redis service was started through Docker Compose.
+
+Controlled runtime evidence then proved:
+
+- Redis container status = running;
+- Redis Docker health = healthy;
+- port `6379` = listening;
+- aggregate `/actuator/health` = `UP`;
+- aggregate health HTTP status = `200`;
+- `/actuator/health/readiness` = `UP`;
+- readiness HTTP status = `200`.
+
+No Redis software was installed directly on the host and no application
+source modification was required.
+
+Status:
+
+**GT-CONNECT-R1-OPS-008 — REDIS RUNTIME & BACKEND HEALTH INCIDENT —
+CLOSED.**
+
+### 30.2 Live browser session refresh and token rotation
+
+GT Connect browser session continuity was validated against the real EIAM
+refresh flow.
+
+The authoritative configuration provides:
+
+- access-token lifetime: 900 seconds by default;
+- refresh-token lifetime: 2,592,000 seconds by default;
+- server-side refresh-session storage using refresh-token hashes;
+- refresh-token rotation on successful refresh.
+
+The frontend already contained controlled 401 recovery logic that:
+
+1. detects an eligible unauthorized request;
+2. invokes `/api/v1/eiam/auth/refresh`;
+3. stores the rotated access and refresh credentials;
+4. retries the original request once;
+5. falls back to login only when refresh cannot recover the session.
+
+Controlled browser validation deliberately replaced only the parent browser
+access token with an invalid test value while preserving the refresh token.
+
+The browser subsequently replaced the invalid access token automatically
+without requiring the parent to sign in again.
+
+Server-side evidence proved that the same session:
+
+`41574d5c-e6f6-43d5-a426-bb8e0ebe782d`
+
+advanced from:
+
+- `last_used_at = 2026-09-01 22:19:02.419144+03`;
+- `expires_at = 2026-10-01 22:19:02.419144+03`;
+
+to:
+
+- `last_used_at = 2026-09-02 23:11:43.810539+03`;
+- `expires_at = 2026-10-02 23:11:43.810539+03`.
+
+No access token, refresh token or password was exposed in controlled
+evidence.
+
+Status:
+
+**GT-CONNECT-R1-AUTH-009 — LIVE SESSION REFRESH & ROTATION — CLOSED.**
+
+### 30.3 Failed-login persistence and lockout security
+
+A production-readiness defect was confirmed in the original authentication
+transaction.
+
+On an incorrect password the authentication service:
+
+1. mutated `failed_login_attempts`;
+2. immediately threw `AuthenticationException`;
+3. caused the surrounding transaction to roll back.
+
+The HTTP response therefore correctly returned `401`, while the intended
+security-state mutation could be lost.
+
+The repair introduced an independent authentication security-state
+transaction using the existing GrowTogether `REQUIRES_NEW` pattern.
+
+The hardened implementation now:
+
+- records failed-login state in an independent transaction;
+- uses a locked account lookup for atomic security updates;
+- preserves configured lockout state;
+- allows the outer authentication request to fail normally;
+- retains normal successful-login reset behavior.
+
+Controlled PostgreSQL regression proved:
+
+- one failed login persists one failed attempt;
+- the configured failure threshold persists lockout;
+- a locked account rejects even the correct password;
+- successful authentication resets the failed-attempt state.
+
+Targeted and broader authentication regression gates passed:
+
+- initial targeted security suite: 5/5;
+- broader authentication/EIAM regression: 16/16.
+
+Live HTTP and PostgreSQL validation against the running backend proved:
+
+- initial `failed_login_attempts = 0`;
+- deliberately incorrect password returned `GT-EIAM-AUTH-401`;
+- HTTP status = `401`;
+- `failed_login_attempts` persisted as `1`;
+- the account remained ACTIVE;
+- after a subsequent legitimate login the counter returned to `0`;
+- `locked_until` remained clear;
+- `last_login_at` advanced normally.
+
+The controlled repair was preserved in:
+
+`e5c7b3a — fix(eiam): persist failed login security state`
+
+Status:
+
+**GT-CONNECT-R1-AUTH-010 — FAILED-LOGIN PERSISTENCE & LOCKOUT SECURITY —
+CLOSED.**
+
+### 30.4 Rejected-refresh session revocation security
+
+A second rollback defect was identified in rejected refresh handling.
+
+When an existing refresh session became unacceptable because:
+
+- the account was no longer available; or
+- MFA became required for a session that had not been MFA verified;
+
+the original refresh implementation mutated the session with:
+
+- `ACCOUNT_UNAVAILABLE`; or
+- `MFA_REQUIRED`;
+
+and then threw `AuthenticationException`.
+
+A PostgreSQL regression first reproduced the defect and proved that
+`revoked_at` remained NULL after the rejected refresh.
+
+The repair extended the independent authentication security-state mechanism
+so security-triggered session revocation is persisted through a
+`REQUIRES_NEW` transaction before the outer refresh request is rejected.
+
+PostgreSQL regression then proved both branches:
+
+- `ACCOUNT_UNAVAILABLE` revocation persists;
+- `MFA_REQUIRED` revocation persists.
+
+The focused revocation suite passed 2/2.
+
+The broader authentication, MFA and account regression gate passed:
+
+- 22 tests;
+- 0 failures;
+- 0 errors;
+- 0 skipped.
+
+A governed live validation used a disposable EIAM account created and
+activated through the normal user lifecycle APIs.
+
+The test established refresh session:
+
+`886f3d37-b9b3-4036-a546-8a46e821682e`
+
+while the account was ACTIVE and the session was unrevoked.
+
+The disposable account was then suspended through the governed EIAM
+suspension API.
+
+Before refresh:
+
+- account status = SUSPENDED;
+- `revoked_at = NULL`;
+- `revoke_reason = NULL`.
+
+The subsequent real refresh request returned:
+
+- HTTP `401`;
+- code `GT-EIAM-AUTH-401`;
+- message `Account is not available for authentication.`
+
+Server-side PostgreSQL evidence then showed:
+
+- `revoked_at = 2026-09-03 09:10:49.649327+03`;
+- `revoke_reason = ACCOUNT_UNAVAILABLE`;
+- the prior `last_used_at` was retained.
+
+The disposable test account was subsequently deactivated through the
+governed EIAM lifecycle API and its temporary private credential file was
+removed.
+
+The controlled repair was preserved in:
+
+`4dc3f22 — fix(eiam): persist rejected refresh revocations`
+
+Status:
+
+**GT-CONNECT-R1-AUTH-011 — REJECTED REFRESH SESSION SECURITY — CLOSED.**
+
+### 30.5 Production-readiness recovery chain
+
+The browser, runtime and authentication hardening sequence is recoverable
+through the following controlled Git checkpoints:
+
+- `871570c — feat(connect): complete browser messaging lifecycle`;
+- `b0766f8 — docs(connect): record browser messaging lifecycle`;
+- `e5c7b3a — fix(eiam): persist failed login security state`;
+- `4dc3f22 — fix(eiam): persist rejected refresh revocations`.
+
+Engineering status:
+
+| Capability | Backend | Frontend | End-to-End |
+|---|---|---|---|
+| Redis runtime dependency | VERIFIED | N/A | VERIFIED |
+| Aggregate backend health | VERIFIED | N/A | VERIFIED |
+| Browser session refresh | VERIFIED | VERIFIED | VERIFIED |
+| Refresh-token rotation | VERIFIED | VERIFIED | VERIFIED |
+| Failed-login persistence | VERIFIED | N/A | VERIFIED |
+| Account lockout persistence | VERIFIED | N/A | VERIFIED |
+| Successful-login security reset | VERIFIED | VERIFIED | VERIFIED |
+| ACCOUNT_UNAVAILABLE refresh revocation | VERIFIED | N/A | VERIFIED |
+| MFA_REQUIRED refresh revocation | VERIFIED | N/A | VERIFIED |
+
+Formal security milestone:
+
+**GT-CONNECT-R1-AUTH-009 / AUTH-010 / AUTH-011 — RELEASE 1
+AUTHENTICATION SESSION & LOGIN SECURITY HARDENING — CLOSED.**
+
+---
+
+
 **END OF CONTROLLED RECORD — GT-CONNECT-ECOSYSTEM-001**
