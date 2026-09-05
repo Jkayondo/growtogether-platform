@@ -1640,4 +1640,216 @@ AUTHENTICATION SESSION & LOGIN SECURITY HARDENING — CLOSED.**
 ---
 
 
+## 31. Release 1 Regression, Frontend Lifecycle Hardening and Recovery Evidence
+
+This section records the controlled Release 1 regression and browser-lifecycle
+evidence completed after the runtime and authentication hardening recorded in
+Section 30.
+
+It preserves the distinction between backend regression, frontend quality,
+browser end-to-end evidence and the known browser-background polling boundary.
+
+### 31.1 Full backend regression — GT-CONNECT-R1-REG-013
+
+Following the controlled runtime, authentication and ENS test-isolation work,
+the complete backend regression suite was executed.
+
+Result:
+
+- tests run: 1200;
+- failures: 0;
+- errors: 0;
+- skipped: 0;
+- Maven build: SUCCESS.
+
+This is the authoritative regression result for the controlled GT Connect
+Release 1 backend state at this recovery point.
+
+Formal gate:
+
+**GT-CONNECT-R1-REG-013 — FULL BACKEND REGRESSION — CLOSED.**
+
+### 31.2 ENS secure-payload test isolation — be3c107
+
+During full-suite regression,
+`NotificationSecurePayloadConfigurationTest.enabledWithoutEncryptionKeyFailsClosed`
+initially failed because the inherited developer shell environment supplied a
+valid ENS secure-payload encryption key.
+
+The failure reproduced under the normal inherited environment.
+
+A controlled subprocess with only the ENS secure-payload environment variables
+removed proved that the failure was test-environment contamination rather than
+a production fail-closed defect.
+
+The repair explicitly supplied a blank
+`gt.ens.secure-payload.encryption-key` value to the fail-closed test scenario.
+
+The production fail-closed encryption requirement was not weakened or disabled.
+
+Post-repair evidence:
+
+- focused ENS secure-payload suite: 3/3 passed;
+- full backend regression: 1200/1200 passed.
+
+Controlled recovery commit:
+
+`be3c107 — test(ens): isolate secure payload fail-closed configuration`
+
+### 31.3 Frontend lifecycle hardening — 454024f
+
+React 19 lint identified synchronous state-update behavior originating from
+`useEffect` handling in `ConnectDashboard.tsx`.
+
+The React lint rule was not disabled or weakened.
+
+The controlled repair:
+
+- scheduled initial `loadSpaces` synchronization outside the synchronous effect
+  body;
+- scheduled conversation loading with cleanup to prevent obsolete queued
+  selections;
+- moved empty-space cleanup to post-API synchronization so stale conversation
+  state is retired safely;
+- preserved polling;
+- preserved visibility handling;
+- preserved message-receipt handling;
+- preserved notification sound;
+- preserved mute behavior;
+- preserved message sending.
+
+Controlled recovery commit:
+
+`454024f — fix(connect): harden browser effect lifecycle`
+
+### 31.4 Frontend and browser regression — GT-CONNECT-R1-REG-014
+
+The repaired GT Connect frontend passed the controlled frontend quality and
+browser regression gate.
+
+Static and production-build evidence:
+
+- Connect-specific ESLint: 0 errors / 0 warnings;
+- TypeScript: `tsc -b` succeeded;
+- Vite production build: succeeded;
+- production build transformed 700 modules.
+
+Controlled browser regression established:
+
+- Admin GT Connect initial load succeeded;
+- the authorised conversation list loaded;
+- the single authorised conversation opened correctly;
+- Admin → Parent messaging succeeded;
+- Parent → Admin messaging succeeded;
+- foreground near-real-time synchronization succeeded;
+- audible incoming-message notification succeeded with Sound On;
+- mute suppressed the tone without suppressing synchronization;
+- Delivered → Read lifecycle semantics succeeded;
+- visibility-return synchronization succeeded.
+
+Formal gate:
+
+**GT-CONNECT-R1-REG-014 — FRONTEND & BROWSER REGRESSION — CLOSED.**
+
+### 31.5 Post-repair bidirectional browser evidence
+
+The post-`454024f` live browser regression preserved the previously verified
+GT Connect messaging behavior.
+
+Admin → Parent:
+
+- Admin sent a message successfully;
+- Parent received the message without manual refresh while the conversation was
+  already open;
+- Sound On produced the expected notification tone;
+- mute suppressed the tone while synchronization continued.
+
+Parent → Admin:
+
+- Parent sent a message successfully;
+- Admin received the message automatically while visible;
+- the incoming-message tone was heard when enabled;
+- receipt state progressed through the governed lifecycle.
+
+The repair therefore preserved the controlled bidirectional browser-messaging
+baseline rather than replacing or downgrading it.
+
+### 31.6 Delivered, Read and browser visibility semantics
+
+The Release 1 receipt interpretation remains:
+
+**VISIBLE BROWSER**
+
+Message → near-real-time synchronization → notification → Read
+
+Status: **VERIFIED**
+
+**HIDDEN BROWSER**
+
+Where browser background timers continue, polling may receive the message and
+record Delivered while Read remains unset.
+
+Status: **OBSERVED / BEST-EFFORT**
+
+Where the browser throttles or suspends background timers, the message may
+remain Sent until the browser becomes active again.
+
+Status: **OBSERVED / BEST-EFFORT**
+
+**WHEN THE BROWSER BECOMES VISIBLE**
+
+Visibility-return synchronization runs immediately and the visible
+conversation can progress to Read.
+
+Status: **VERIFIED**
+
+Hidden-tab polling is therefore not classified as guaranteed background
+delivery.
+
+Guaranteed closed-app or background delivery belongs to future governed
+real-time and push architecture such as WebSocket/SSE, Service Worker/Web Push
+or native mobile push. It is not a Release 1 browser-polling guarantee.
+
+### 31.7 Controlled Release 1 recovery chain
+
+The regression and frontend-hardening evidence extends the controlled GT
+Connect recovery chain with:
+
+- `871570c — feat(connect): complete browser messaging lifecycle`;
+- `b0766f8 — docs(connect): record browser messaging lifecycle`;
+- `e5c7b3a — fix(eiam): persist failed login security state`;
+- `4dc3f22 — fix(eiam): persist rejected refresh revocations`;
+- `b497ceb — docs(connect): record runtime and authentication hardening`;
+- `be3c107 — test(ens): isolate secure payload fail-closed configuration`;
+- `454024f — fix(connect): harden browser effect lifecycle`.
+
+These recovery checkpoints are preserved as ancestors of the current
+integration HEAD. Newer GT School examination engineering remains on top of
+this Connect recovery chain and must not be discarded merely to recover an
+earlier Connect checkpoint.
+
+### 31.8 Controlled status after regression
+
+| Capability / Gate | Controlled status |
+|---|---|
+| Full backend regression | VERIFIED — 1200/1200 |
+| ENS fail-closed production behavior | PRESERVED |
+| ENS fail-closed test isolation | VERIFIED |
+| Connect-specific ESLint | VERIFIED — 0 errors / 0 warnings |
+| TypeScript build | VERIFIED |
+| Vite production build | VERIFIED |
+| Admin → Parent browser messaging | VERIFIED |
+| Parent → Admin browser messaging | VERIFIED |
+| Sound notification | VERIFIED |
+| Mute preference behavior | VERIFIED |
+| Delivered → Read semantics | VERIFIED |
+| Visibility-return synchronization | VERIFIED |
+| Hidden-tab polling | BEST-EFFORT / OBSERVED |
+| Guaranteed closed-app background delivery | NOT A RELEASE 1 POLLING GUARANTEE |
+
+The known hidden-browser limitation does not downgrade the verified foreground
+GT Connect messaging lifecycle.
+
+---
+
 **END OF CONTROLLED RECORD — GT-CONNECT-ECOSYSTEM-001**
