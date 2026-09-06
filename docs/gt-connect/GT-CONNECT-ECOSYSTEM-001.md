@@ -1852,4 +1852,212 @@ GT Connect messaging lifecycle.
 
 ---
 
+## 32. Release 1 Frontend Automated Regression Foundation
+
+This section records the establishment of the first real automated frontend
+regression foundation for the GT School web workspace and the critical GT
+Connect Release 1 behavior now protected by that foundation.
+
+The controlled objective was to close the previously confirmed absence of a
+frontend automated-test foundation without modifying already verified GT
+Connect production behavior merely to make testing possible.
+
+### 32.1 Previous confirmed gap
+
+Before this work:
+
+- the `gt-school-web` workspace exposed development, build, lint and preview
+  scripts but no real automated test script;
+- no Vitest or Jest test framework was configured;
+- no frontend test/spec sources were present;
+- authentication/session recovery and critical GT Connect lifecycle behavior
+  therefore lacked automated frontend regression protection.
+
+This was classified as a confirmed production-readiness quality gap.
+
+### 32.2 Automated test foundation
+
+A controlled test foundation was established in the existing npm workspace.
+
+Foundation:
+
+- Vitest `^5.0.0`;
+- jsdom `^30.0.1`;
+- workspace test command: `vitest run`;
+- dedicated `vitest.config.ts`;
+- browser-like jsdom test environment;
+- mock cleanup and restoration between tests.
+
+The package-management boundary remains:
+
+- frontend workspace root: `frontend/`;
+- application workspace: `frontend/apps/gt-school-web`;
+- authoritative lockfile: `frontend/package-lock.json`.
+
+No second application-level package lockfile was introduced.
+
+### 32.3 Authentication and session-recovery regression
+
+The first automated regression protects the already verified EIAM/GT Connect
+session-recovery behavior.
+
+Controlled behavior:
+
+1. a protected frontend request receives HTTP `401`;
+2. the existing refresh token is submitted to
+   `/api/v1/eiam/auth/refresh`;
+3. rotated access and refresh credentials are returned;
+4. the rotated credentials are stored;
+5. the original protected request is retried once;
+6. the retry uses the rotated access token.
+
+The regression test also verifies the tenant context used during refresh.
+
+Production `apiClient.ts` logic was not modified for this test.
+
+Controlled recovery commit:
+
+`0406ad7 — test(connect): establish frontend session recovery regression`
+
+### 32.4 GT Connect Delivered / Read visibility regression
+
+The second controlled automated regression protects the Release 1 browser
+receipt lifecycle.
+
+Verified automated behavior:
+
+**Visible conversation**
+
+Incoming messages are acknowledged as:
+
+`Read`
+
+The test verifies that the Delivered-only acknowledgement path is not used for
+the visible-conversation boundary.
+
+**Hidden browser tab**
+
+After the initial conversation baseline is established, a newly arriving
+incoming message during hidden-tab synchronization is acknowledged as:
+
+`Delivered`
+
+The hidden state does not falsely acknowledge the message as Read.
+
+**Visibility return**
+
+When the browser becomes visible again, GT Connect performs immediate
+synchronization rather than waiting for the next background polling interval.
+
+The visible-conversation boundary then acknowledges the incoming message as:
+
+`Read`
+
+This automated regression preserves the existing Release 1 interpretation:
+
+- foreground/visible Read semantics are VERIFIED;
+- hidden-tab polling remains browser-dependent and BEST-EFFORT;
+- automated coverage does not convert background polling into a guaranteed
+  closed-app delivery mechanism.
+
+Production `ConnectDashboard.tsx` behavior was not modified for this test.
+
+Controlled recovery commit:
+
+`81aa340 — test(connect): cover delivered and read visibility lifecycle`
+
+### 32.5 Controlled frontend regression result
+
+Following the two test-foundation increments, the complete current
+`gt-school-web` automated suite passed:
+
+- test files: 2/2;
+- tests: 3/3;
+- failures: 0.
+
+Covered controlled scenarios:
+
+1. HTTP 401 → token refresh → credential rotation → protected-request retry;
+2. visible incoming GT Connect message → Read;
+3. hidden newly received message → Delivered, followed by visibility return
+   → Read.
+
+Targeted ESLint covering the controlled GT Connect and test sources passed.
+
+TypeScript compilation passed.
+
+Vite production build passed.
+
+The validated production build transformed 715 modules.
+
+The existing large-bundle warning remains a separate optimization item and was
+not suppressed or mixed into this QA gate.
+
+### 32.6 Dependency conformity
+
+The initial Vitest/jsdom installation added the dependency graph required for
+the test foundation.
+
+During npm resolution:
+
+`picomatch 4.0.5 → 4.0.7`
+
+was classified as a required transitive patch update because Vitest 5.0.0
+requires `picomatch ^4.0.7`.
+
+The later React Testing Library increment added:
+
+`@testing-library/react ^16.3.3`
+
+plus its required transitive dependencies.
+
+Dependency conformity established:
+
+- no package removals were required;
+- no unrelated existing package-version churn was identified in the Testing
+  Library increment;
+- npm audit reported 0 vulnerabilities during the controlled installations.
+
+The observed `fsevents` install-script policy warning did not prevent
+installation, test execution, lint or build and was not used as authority to
+change package-script security policy.
+
+### 32.7 Recovery chain
+
+The controlled frontend QA recovery chain is:
+
+- `0406ad7 — test(connect): establish frontend session recovery regression`;
+- `81aa340 — test(connect): cover delivered and read visibility lifecycle`.
+
+These commits sit on top of the previously preserved GT Connect recovery and
+continuity chain.
+
+### 32.8 Controlled status
+
+| Capability / Gate | Controlled status |
+|---|---|
+| Frontend automated-test framework | VERIFIED |
+| gt-school-web real test command | VERIFIED |
+| Authentication/session recovery automation | VERIFIED |
+| Rotated-token retry automation | VERIFIED |
+| Visible incoming → Read automation | VERIFIED |
+| Hidden new incoming → Delivered automation | VERIFIED |
+| Hidden state does not falsely claim Read | VERIFIED |
+| Visibility-return → Read automation | VERIFIED |
+| Current automated frontend suite | VERIFIED — 3/3 |
+| Targeted Connect/test ESLint | VERIFIED |
+| TypeScript build | VERIFIED |
+| Vite production build | VERIFIED |
+| Exhaustive frontend behavior coverage | NOT CLAIMED |
+| Guaranteed closed-app/background delivery | NOT A RELEASE 1 POLLING GUARANTEE |
+| Broader future frontend regression expansion | CONTINUOUS QUALITY WORK |
+
+Formal quality milestone:
+
+**GT-CONNECT-R1-QA-015 / QA-016 — FRONTEND AUTOMATED TEST FOUNDATION AND
+CRITICAL CONNECT RELEASE 1 REGRESSION COVERAGE — CLOSED TO THE CONTROLLED
+MINIMUM R1 ACCEPTANCE BOUNDARY.**
+
+---
+
 **END OF CONTROLLED RECORD — GT-CONNECT-ECOSYSTEM-001**
