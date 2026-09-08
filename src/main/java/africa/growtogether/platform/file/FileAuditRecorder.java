@@ -39,7 +39,7 @@ public class FileAuditRecorder {
                         AuditOutcome.SUCCESS,
                         SecuritySeverity.INFO,
                         "FILE",
-                        fileReference,
+                        auditResourceId(fileReference),
                         message,
                         details == null
                                 ? Map.of()
@@ -64,7 +64,7 @@ public class FileAuditRecorder {
                         AuditOutcome.DENIED,
                         SecuritySeverity.HIGH,
                         "FILE",
-                        fileReference,
+                        auditResourceId(fileReference),
                         message,
                         Map.of()
                 )
@@ -72,4 +72,23 @@ public class FileAuditRecorder {
 
     }
 
+
+    /**
+     * Keep audit identifiers within the existing 100-character schema.
+     * Long references use a stable digest instead of lossy truncation.
+     * The original storage key remains in the storage/document records.
+     */
+    private static String auditResourceId(String reference) {
+        if (reference == null || reference.length() <= 100) {
+            return reference;
+        }
+        try {
+            byte[] digest = java.security.MessageDigest
+                    .getInstance("SHA-256")
+                    .digest(reference.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return "sha256:" + java.util.HexFormat.of().formatHex(digest);
+        } catch (java.security.NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 is unavailable", ex);
+        }
+    }
 }
