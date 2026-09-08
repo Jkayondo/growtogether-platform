@@ -14,4 +14,7 @@ public class AiModel extends AuditedTenantEntity {
  public AiModel(java.util.UUID tenantId,String code,String providerCode,String providerModel,AiEnums.Capability capability){setTenantId(tenantId);this.code=req(code).toUpperCase();this.providerCode=req(providerCode).toUpperCase();this.providerModel=req(providerModel);this.capability=java.util.Objects.requireNonNull(capability);}
  private static String req(String s){if(s==null||s.isBlank())throw new IllegalArgumentException("value is required");return s.trim();}
  public String code(){return code;} public String providerCode(){return providerCode;} public AiEnums.Capability capability(){return capability;}
+ public String providerModel(){return providerModel;}
+ public boolean enabled(){return enabled;}
+ public Integer maxOutputTokens(){return maxOutputTokens;}
 }

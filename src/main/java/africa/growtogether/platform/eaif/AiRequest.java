@@ -24,4 +24,5 @@ public class AiRequest extends AuditedTenantEntity {
  public void fail(String reason){if(requestStatus!=AiEnums.RequestStatus.PROCESSING)throw new IllegalStateException("Request is not processing");failureReason=req(reason);requestStatus=AiEnums.RequestStatus.FAILED;completedAt=Instant.now();}
  public void reject(String reason){if(requestStatus==AiEnums.RequestStatus.SUCCEEDED||requestStatus==AiEnums.RequestStatus.CANCELLED)throw new IllegalStateException("Request is terminal");failureReason=req(reason);requestStatus=AiEnums.RequestStatus.REJECTED;completedAt=Instant.now();}
  public AiEnums.RequestStatus requestStatus(){return requestStatus;} public String useCase(){return useCase;} public String modelCode(){return modelCode;} public AiEnums.RiskLevel riskLevel(){return riskLevel;} public String sourceService(){return sourceService;} public String correlationId(){return correlationId;} public String outputReference(){return outputReference;}
+ public String inputHash(){return inputHash;}
 }
