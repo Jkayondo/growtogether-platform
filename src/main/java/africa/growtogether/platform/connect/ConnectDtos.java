@@ -34,6 +34,13 @@ public final class ConnectDtos {
     ) {
     }
 
+    public record InstitutionMemberCandidateView(
+            UUID userId,
+            String displayName,
+            String username
+    ) {
+    }
+
     public record SendTextMessageCommand(
             @NotBlank
             String body,

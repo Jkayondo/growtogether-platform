@@ -22,13 +22,16 @@ import {
   loadConnectMessageReceipts,
   loadConnectMessages,
   loadMyConnectSpaces,
-  sendConnectTextMessage
+  sendConnectTextMessage,
+  addConnectInstitutionMember,
+  findConnectInstitutionMemberCandidates
 } from "../../services/connectService";
 
 import type {
   ConnectMessage,
   ConnectReceipt,
-  ConnectSpace
+  ConnectSpace,
+  ConnectInstitutionMemberCandidate
 } from "../../types/connect";
 
 import "./connect.css";
@@ -43,6 +46,10 @@ const CONNECT_POLL_INTERVAL_MS =
 
 const CONNECT_SOUND_PREFERENCE_KEY =
   "gt_connect_sound_enabled";
+
+
+const CONNECT_MANAGE_PERMISSION =
+  "core.connect.manage";
 
 
 function formatMessageTime(
@@ -122,6 +129,25 @@ export default function ConnectDashboard() {
 
   const [sendingMessage, setSendingMessage] =
     useState(false);
+
+
+  const [memberSearchQuery, setMemberSearchQuery] =
+    useState("");
+
+  const [
+    memberCandidates,
+    setMemberCandidates
+  ] =
+    useState<ConnectInstitutionMemberCandidate[]>([]);
+
+  const [searchingMembers, setSearchingMembers] =
+    useState(false);
+
+  const [addingMemberId, setAddingMemberId] =
+    useState<string | null>(null);
+
+  const [memberNotice, setMemberNotice] =
+    useState<string | null>(null);
 
   const [soundEnabled, setSoundEnabled] =
     useState(
@@ -812,6 +838,134 @@ export default function ConnectDashboard() {
     );
 
 
+  const canManageInstitutionMembers =
+    Boolean(
+      selectedSpace &&
+      selectedSpace.contextType === "SCHOOL_PROFILE" &&
+      user?.permissions?.includes(
+        CONNECT_MANAGE_PERMISSION
+      )
+    );
+
+
+  const searchInstitutionMembers =
+    async (
+      event: FormEvent<HTMLFormElement>
+    ) => {
+
+      event.preventDefault();
+
+      if (
+        !selectedSpaceId ||
+        !canManageInstitutionMembers ||
+        searchingMembers
+      ) {
+        return;
+      }
+
+      const query =
+        memberSearchQuery.trim();
+
+      if (query.length < 2) {
+        setMemberCandidates([]);
+        setMemberNotice(
+          "Enter at least 2 characters to search."
+        );
+        return;
+      }
+
+      setSearchingMembers(true);
+      setMemberNotice(null);
+
+      try {
+
+        const result =
+          await findConnectInstitutionMemberCandidates(
+            selectedSpaceId,
+            query
+          );
+
+        setMemberCandidates(
+          result
+        );
+
+        if (result.length === 0) {
+          setMemberNotice(
+            "No eligible GT people matched this search."
+          );
+        }
+
+      }
+      catch {
+
+        setMemberCandidates([]);
+        setMemberNotice(
+          "Unable to search GT people."
+        );
+
+      }
+      finally {
+
+        setSearchingMembers(false);
+
+      }
+    };
+
+
+  const addInstitutionMember =
+    async (
+      candidate: ConnectInstitutionMemberCandidate
+    ) => {
+
+      if (
+        !selectedSpaceId ||
+        !canManageInstitutionMembers ||
+        addingMemberId
+      ) {
+        return;
+      }
+
+      setAddingMemberId(
+        candidate.userId
+      );
+
+      setMemberNotice(null);
+
+      try {
+
+        await addConnectInstitutionMember(
+          selectedSpaceId,
+          candidate.userId
+        );
+
+        setMemberCandidates(
+          current =>
+            current.filter(
+              item =>
+                item.userId !== candidate.userId
+            )
+        );
+
+        setMemberNotice(
+          `${candidate.displayName ?? candidate.username} added to this GT Connect institution.`
+        );
+
+      }
+      catch {
+
+        setMemberNotice(
+          "Unable to add this GT person."
+        );
+
+      }
+      finally {
+
+        setAddingMemberId(null);
+
+      }
+    };
+
+
   const submitMessage =
     async (
       event: FormEvent<HTMLFormElement>
@@ -1059,6 +1213,124 @@ export default function ConnectDashboard() {
                 <div className="gt-connect-empty">
                   No messages in this conversation yet.
                 </div>
+              )
+            }
+
+
+            {
+              canManageInstitutionMembers && (
+                <section className="gt-connect-member-manager">
+
+                  <div className="gt-connect-member-manager-heading">
+                    <div>
+                      <strong>Institution members</strong>
+                      <span>
+                        Search existing GT people and add them to this institution.
+                      </span>
+                    </div>
+                  </div>
+
+                  <form
+                    className="gt-connect-member-search"
+                    onSubmit={searchInstitutionMembers}
+                  >
+                    <input
+                      className="gt-input"
+                      type="search"
+                      aria-label="Search GT people"
+                      placeholder="Search by name, username or email..."
+                      value={memberSearchQuery}
+                      disabled={searchingMembers}
+                      onChange={
+                        event =>
+                          setMemberSearchQuery(
+                            event.target.value
+                          )
+                      }
+                    />
+
+                    <button
+                      className="gt-button"
+                      type="submit"
+                      disabled={
+                        searchingMembers ||
+                        memberSearchQuery.trim().length < 2
+                      }
+                    >
+                      {
+                        searchingMembers
+                          ? "Searching..."
+                          : "Search"
+                      }
+                    </button>
+                  </form>
+
+                  {
+                    memberNotice && (
+                      <div
+                        className="gt-connect-member-notice"
+                        role="status"
+                      >
+                        {memberNotice}
+                      </div>
+                    )
+                  }
+
+                  {
+                    memberCandidates.length > 0 && (
+                      <div className="gt-connect-member-results">
+
+                        {
+                          memberCandidates.map(
+                            candidate => (
+
+                              <div
+                                className="gt-connect-member-candidate"
+                                key={candidate.userId}
+                              >
+                                <div>
+                                  <strong>
+                                    {
+                                      candidate.displayName ??
+                                      candidate.username
+                                    }
+                                  </strong>
+
+                                  <span>
+                                    @{candidate.username}
+                                  </span>
+                                </div>
+
+                                <button
+                                  className="gt-button"
+                                  type="button"
+                                  disabled={
+                                    addingMemberId !== null
+                                  }
+                                  onClick={
+                                    () =>
+                                      void addInstitutionMember(
+                                        candidate
+                                      )
+                                  }
+                                >
+                                  {
+                                    addingMemberId === candidate.userId
+                                      ? "Adding..."
+                                      : "Add"
+                                  }
+                                </button>
+                              </div>
+
+                            )
+                          )
+                        }
+
+                      </div>
+                    )
+                  }
+
+                </section>
               )
             }
 

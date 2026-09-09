@@ -4,7 +4,9 @@ import type {
   ApiResponse,
   ConnectMessage,
   ConnectReceipt,
-  ConnectSpace
+  ConnectSpace,
+  ConnectInstitutionMemberCandidate,
+  ConnectMember
 } from "../types/connect";
 
 export function getMyConnectSpaces()
@@ -97,5 +99,40 @@ export function markConnectMessageRead(
       messageId
     )}/read`,
     {}
+  );
+}
+
+
+export async function searchConnectInstitutionMemberCandidates(
+  spaceId: string,
+  query: string
+): Promise<ApiResponse<ConnectInstitutionMemberCandidate[]>> {
+
+  return apiClient.get<
+    ApiResponse<ConnectInstitutionMemberCandidate[]>
+  >(
+    `/api/v1/connect/spaces/${encodeURIComponent(
+      spaceId
+    )}/institution-member-candidates?query=${encodeURIComponent(
+      query
+    )}`
+  );
+}
+
+
+export async function postConnectInstitutionMember(
+  spaceId: string,
+  userId: string
+): Promise<ApiResponse<ConnectMember>> {
+
+  return apiClient.post<
+    ApiResponse<ConnectMember>
+  >(
+    `/api/v1/connect/spaces/${encodeURIComponent(
+      spaceId
+    )}/institution-members`,
+    {
+      userId
+    }
   );
 }

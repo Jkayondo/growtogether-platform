@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  fireEvent
 } from "@testing-library/react";
 
 import {
@@ -25,6 +26,8 @@ import {
   loadConnectMessages,
   loadMyConnectSpaces,
   sendConnectTextMessage,
+  addConnectInstitutionMember,
+  findConnectInstitutionMemberCandidates
 } from "../../services/connectService";
 
 import type {
@@ -39,6 +42,7 @@ const authState =
     () => ({
       user: {
         id: "user-1",
+        permissions: [] as string[],
       },
     })
   );
@@ -73,6 +77,12 @@ vi.mock(
 
     sendConnectTextMessage:
       vi.fn(),
+
+    findConnectInstitutionMemberCandidates:
+      vi.fn(),
+
+    addConnectInstitutionMember:
+      vi.fn(),
   })
 );
 
@@ -105,6 +115,17 @@ const mockLoadSpaces =
 const mockSendMessage =
   vi.mocked(
     sendConnectTextMessage
+  );
+
+
+const mockFindMemberCandidates =
+  vi.mocked(
+    findConnectInstitutionMemberCandidates
+  );
+
+const mockAddInstitutionMember =
+  vi.mocked(
+    addConnectInstitutionMember
   );
 
 
@@ -499,6 +520,152 @@ describe(
 
           }
         );
+
+      }
+    );
+
+  }
+);
+
+
+describe(
+  "ConnectDashboard institution membership management",
+  () => {
+
+    beforeEach(
+      () => {
+
+        authState.user.permissions = [
+          "core.connect.manage",
+        ];
+
+        mockLoadSpaces.mockResolvedValue(
+          [
+            {
+              ...space,
+              contextType: "SCHOOL_PROFILE",
+              contextReference: "school-1",
+            },
+          ]
+        );
+
+        mockLoadMessages.mockResolvedValue(
+          []
+        );
+
+        mockFindMemberCandidates.mockResolvedValue(
+          [
+            {
+              userId: "candidate-1",
+              displayName: "Jane Namusoke",
+              username: "jnamusoke",
+            },
+          ]
+        );
+
+        mockAddInstitutionMember.mockResolvedValue(
+          {
+            id: "member-1",
+            spaceId: "space-1",
+            userId: "candidate-1",
+            memberRole: "MEMBER",
+            membershipStatus: "ACTIVE",
+            joinedAt: "2026-09-08T12:00:00Z",
+            leftAt: null,
+          }
+        );
+
+      }
+    );
+
+
+    afterEach(
+      () => {
+
+        authState.user.permissions = [];
+
+        cleanup();
+
+        vi.clearAllMocks();
+
+      }
+    );
+
+
+    it(
+      "searches GT people and adds an eligible institution member",
+      async () => {
+
+        render(
+          <ConnectDashboard />
+        );
+
+        const searchInput =
+          await screen.findByRole(
+            "searchbox",
+            {
+              name: "Search GT people",
+            }
+          );
+
+        fireEvent.change(
+          searchInput,
+          {
+            target: {
+              value: "Jane",
+            },
+          }
+        );
+
+        fireEvent.click(
+          screen.getByRole(
+            "button",
+            {
+              name: "Search",
+            }
+          )
+        );
+
+        await waitFor(
+          () =>
+            expect(
+              mockFindMemberCandidates
+            ).toHaveBeenCalledWith(
+              "space-1",
+              "Jane"
+            )
+        );
+
+        expect(
+          await screen.findByText(
+            "Jane Namusoke"
+          )
+        ).toBeTruthy();
+
+        fireEvent.click(
+          screen.getByRole(
+            "button",
+            {
+              name: "Add",
+            }
+          )
+        );
+
+        await waitFor(
+          () =>
+            expect(
+              mockAddInstitutionMember
+            ).toHaveBeenCalledWith(
+              "space-1",
+              "candidate-1"
+            )
+        );
+
+        expect(
+          await screen.findByText(
+            "Jane Namusoke added to this GT Connect institution."
+          )
+        ).toBeTruthy();
 
       }
     );

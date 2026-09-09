@@ -4,13 +4,17 @@ import {
   getMyConnectSpaces,
   markConnectMessageDelivered,
   markConnectMessageRead,
-  postConnectTextMessage
+  postConnectTextMessage,
+  postConnectInstitutionMember,
+  searchConnectInstitutionMemberCandidates
 } from "./connectApi";
 
 import type {
   ConnectMessage,
   ConnectReceipt,
-  ConnectSpace
+  ConnectSpace,
+  ConnectInstitutionMemberCandidate,
+  ConnectMember
 } from "../types/connect";
 
 export async function loadMyConnectSpaces()
@@ -87,6 +91,36 @@ export async function acknowledgeConnectMessageRead(
     await markConnectMessageRead(
       spaceId,
       messageId
+    );
+
+  return response.data;
+}
+
+
+export async function findConnectInstitutionMemberCandidates(
+  spaceId: string,
+  query: string
+): Promise<ConnectInstitutionMemberCandidate[]> {
+
+  const response =
+    await searchConnectInstitutionMemberCandidates(
+      spaceId,
+      query
+    );
+
+  return response.data;
+}
+
+
+export async function addConnectInstitutionMember(
+  spaceId: string,
+  userId: string
+): Promise<ConnectMember> {
+
+  const response =
+    await postConnectInstitutionMember(
+      spaceId,
+      userId
     );
 
   return response.data;

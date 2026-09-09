@@ -1,8 +1,19 @@
 package africa.growtogether.platform.connect;
 
+import org.springframework.data.jpa.domain.Specification;
+
+import org.springframework.data.domain.Sort;
+
+import org.springframework.data.domain.PageRequest;
+
+import jakarta.persistence.criteria.Predicate;
+
 import africa.growtogether.platform.common.security.EnterpriseIdentityContext;
 import africa.growtogether.platform.eds.integration.EdsDocumentAttachmentGateway;
 import africa.growtogether.platform.eds.integration.EdsDocumentAttachmentGateway.AttachmentReference;
+import africa.growtogether.platform.eiam.user.UserAccount;
+import africa.growtogether.platform.eiam.user.UserAccountRepository;
+import africa.growtogether.platform.eiam.user.UserAccountStatus;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -26,6 +37,7 @@ public class ConnectService {
 
     private final EdsDocumentAttachmentGateway edsAttachments;
 
+    private final UserAccountRepository userAccounts;
     private final EnterpriseIdentityContext identity;
     private final ConnectParentRelationshipAuthorizationService parentAuthorization;
     private final ConnectTeacherAssignmentAuthorizationService teacherAssignmentAuthorization;
@@ -36,6 +48,7 @@ public class ConnectService {
             ConnectMessageRepository messages,
             ConnectMessageAttachmentRepository attachments,
             EdsDocumentAttachmentGateway edsAttachments,
+            UserAccountRepository userAccounts,
             EnterpriseIdentityContext identity,
             ConnectParentRelationshipAuthorizationService parentAuthorization,
             ConnectTeacherAssignmentAuthorizationService teacherAssignmentAuthorization
@@ -45,6 +58,7 @@ public class ConnectService {
         this.messages = messages;
         this.attachments = attachments;
         this.edsAttachments = edsAttachments;
+        this.userAccounts = userAccounts;
         this.identity = identity;
         this.parentAuthorization = parentAuthorization;
         this.teacherAssignmentAuthorization = teacherAssignmentAuthorization;
@@ -129,6 +143,11 @@ public class ConnectService {
             );
         }
 
+        requireActiveTargetUser(
+                tenantId,
+                userId
+        );
+
         return addMemberInternal(
                 tenantId,
                 spaceId,
@@ -136,6 +155,179 @@ public class ConnectService {
                 role
         );
     }
+
+    @Transactional
+    public ConnectSpaceMember addInstitutionMember(
+            UUID spaceId,
+            UUID userId
+    ) {
+
+        requireManagePermission();
+
+        UUID tenantId =
+                identity.requireTenantId();
+
+        ConnectSpace space =
+                requireSpace(
+                        tenantId,
+                        spaceId
+                );
+
+        if (!isSchoolProfileContext(space)) {
+            throw new IllegalArgumentException(
+                    "Institution membership endpoint requires the canonical "
+                            + "School SCHOOL_PROFILE GT Connect space"
+            );
+        }
+
+        requireActiveTargetUser(
+                tenantId,
+                userId
+        );
+
+        return addMemberInternal(
+                tenantId,
+                spaceId,
+                userId,
+                ConnectMemberRole.MEMBER
+        );
+    }
+
+
+    @Transactional(readOnly = true)
+    public List<ConnectDtos.InstitutionMemberCandidateView>
+            searchInstitutionMemberCandidates(
+                    UUID spaceId,
+                    String query
+            ) {
+
+        requireManagePermission();
+
+        UUID tenantId =
+                identity.requireTenantId();
+
+        ConnectSpace space =
+                requireSpace(
+                        tenantId,
+                        spaceId
+                );
+
+        if (!isSchoolProfileContext(space)) {
+            throw new IllegalArgumentException(
+                    "Institution member candidates require the canonical "
+                            + "School SCHOOL_PROFILE GT Connect space"
+            );
+        }
+
+        String normalized =
+                query == null
+                        ? ""
+                        : query.trim().toLowerCase();
+
+        /*
+         * Do not expose a browse-all EIAM directory through Connect.
+         * A deliberate search term is required before candidate data
+         * is returned.
+         */
+        if (normalized.length() < 2) {
+            return List.of();
+        }
+
+        String pattern =
+                "%" + normalized + "%";
+
+        Specification<UserAccount> specification =
+                (
+                        root,
+                        criteriaQuery,
+                        builder
+                ) -> {
+
+                    List<Predicate> predicates =
+                            new ArrayList<>();
+
+                    predicates.add(
+                            builder.equal(
+                                    root.get("tenantId"),
+                                    tenantId
+                            )
+                    );
+
+                    predicates.add(
+                            builder.equal(
+                                    root.get("accountStatus"),
+                                    UserAccountStatus.ACTIVE
+                            )
+                    );
+
+                    predicates.add(
+                            builder.or(
+                                    builder.like(
+                                            builder.lower(
+                                                    root.get("username")
+                                            ),
+                                            pattern
+                                    ),
+                                    builder.like(
+                                            builder.lower(
+                                                    root.get("email")
+                                            ),
+                                            pattern
+                                    ),
+                                    builder.like(
+                                            builder.lower(
+                                                    root.get("displayName")
+                                            ),
+                                            pattern
+                                    )
+                            )
+                    );
+
+                    return builder.and(
+                            predicates.toArray(
+                                    Predicate[]::new
+                            )
+                    );
+                };
+
+        return userAccounts
+                .findAll(
+                        specification,
+                        PageRequest.of(
+                                0,
+                                20,
+                                Sort.by(
+                                        Sort.Order.asc(
+                                                "displayName"
+                                        ),
+                                        Sort.Order.asc(
+                                                "id"
+                                        )
+                                )
+                        )
+                )
+                .stream()
+                .filter(
+                        user ->
+                                !members
+                                        .existsByTenantIdAndSpaceIdAndUserIdAndMembershipStatus(
+                                                tenantId,
+                                                spaceId,
+                                                user.getId(),
+                                                ConnectMembershipStatus.ACTIVE
+                                        )
+                )
+                .map(
+                        user ->
+                                new ConnectDtos.InstitutionMemberCandidateView(
+                                        user.getId(),
+                                        user.getDisplayName(),
+                                        user.getUsername()
+                                )
+                )
+                .toList();
+    }
+
 
     @Transactional
     public ConnectSpaceMember addParentMember(
@@ -932,6 +1124,45 @@ public class ConnectService {
                 membership
         );
     }
+
+    private UserAccount requireActiveTargetUser(
+            UUID tenantId,
+            UUID userId
+    ) {
+
+        if (userId == null) {
+            throw new IllegalArgumentException(
+                    "Target EIAM user ID is required"
+            );
+        }
+
+        UserAccount user =
+                userAccounts
+                        .findByIdAndTenantId(
+                                userId,
+                                tenantId
+                        )
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "Target EIAM user was not found "
+                                                        + "for the active tenant"
+                                        )
+                        );
+
+        if (
+                user.getAccountStatus()
+                        != UserAccountStatus.ACTIVE
+        ) {
+            throw new AccessDeniedException(
+                    "Only ACTIVE EIAM users may be added "
+                            + "to GT Connect"
+            );
+        }
+
+        return user;
+    }
+
 
     private ConnectSpaceMember addMemberInternal(
             UUID tenantId,

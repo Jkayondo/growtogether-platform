@@ -2,6 +2,9 @@ package africa.growtogether.platform.connect;
 
 import africa.growtogether.platform.common.security.EnterpriseIdentityContext;
 import africa.growtogether.platform.eds.integration.EdsDocumentAttachmentGateway;
+import africa.growtogether.platform.eiam.user.UserAccountRepository;
+import africa.growtogether.platform.eiam.user.UserAccount;
+import africa.growtogether.platform.eiam.user.UserAccountStatus;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +42,9 @@ class ConnectServiceTest {
     private EdsDocumentAttachmentGateway edsAttachments;
 
     @Mock
+    private UserAccountRepository userAccounts;
+
+    @Mock
     private EnterpriseIdentityContext identity;
 
     @Mock
@@ -63,6 +69,7 @@ class ConnectServiceTest {
                         messages,
                         attachments,
                         edsAttachments,
+                        userAccounts,
                         identity,
                         parentAuthorization,
                         teacherAssignmentAuthorization
@@ -367,6 +374,10 @@ class ConnectServiceTest {
         UUID newUserId =
                 UUID.randomUUID();
 
+        stubActiveTargetUser(
+                newUserId
+        );
+
         when(
                 identity.hasPermission(
                         ConnectPermissions.MANAGE
@@ -437,6 +448,10 @@ class ConnectServiceTest {
 
         UUID newUserId =
                 UUID.randomUUID();
+
+        stubActiveTargetUser(
+                newUserId
+        );
 
         when(
                 identity.hasPermission(
@@ -2497,6 +2512,31 @@ class ConnectServiceTest {
     }
 
 
+    private void stubActiveTargetUser(
+            UUID userId
+    ) {
+
+        UserAccount user =
+                mock(
+                        UserAccount.class
+                );
+
+        when(
+                user.getAccountStatus()
+        ).thenReturn(
+                UserAccountStatus.ACTIVE
+        );
+
+        when(
+                userAccounts.findByIdAndTenantId(
+                        userId,
+                        tenantId
+                )
+        ).thenReturn(
+                Optional.of(user)
+        );
+    }
+
     private void stubTenant() {
         when(
                 identity.requireTenantId()
@@ -2514,4 +2554,434 @@ class ConnectServiceTest {
                 currentUserId
         );
     }
+
+    @Test
+    void managerCannotAddUnknownTenantUser() {
+
+        UUID targetUserId =
+                UUID.randomUUID();
+
+        when(
+                identity.hasPermission(
+                        ConnectPermissions.MANAGE
+                )
+        ).thenReturn(
+                true
+        );
+
+        stubTenant();
+
+        when(
+                spaces.findByIdAndTenantId(
+                        spaceId,
+                        tenantId
+                )
+        ).thenReturn(
+                Optional.of(
+                        mock(ConnectSpace.class)
+                )
+        );
+
+        when(
+                userAccounts.findByIdAndTenantId(
+                        targetUserId,
+                        tenantId
+                )
+        ).thenReturn(
+                Optional.empty()
+        );
+
+        IllegalArgumentException exception =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () ->
+                                service.addMember(
+                                        spaceId,
+                                        targetUserId,
+                                        ConnectMemberRole.MEMBER
+                                )
+                );
+
+        assertTrue(
+                exception.getMessage()
+                        .contains(
+                                "active tenant"
+                        )
+        );
+
+        verify(
+                members,
+                never()
+        ).save(
+                any()
+        );
+    }
+
+    @Test
+    void managerCannotAddInactiveEiamUser() {
+
+        UUID targetUserId =
+                UUID.randomUUID();
+
+        when(
+                identity.hasPermission(
+                        ConnectPermissions.MANAGE
+                )
+        ).thenReturn(
+                true
+        );
+
+        stubTenant();
+
+        when(
+                spaces.findByIdAndTenantId(
+                        spaceId,
+                        tenantId
+                )
+        ).thenReturn(
+                Optional.of(
+                        mock(ConnectSpace.class)
+                )
+        );
+
+        UserAccount user =
+                mock(
+                        UserAccount.class
+                );
+
+        when(
+                user.getAccountStatus()
+        ).thenReturn(
+                UserAccountStatus.SUSPENDED
+        );
+
+        when(
+                userAccounts.findByIdAndTenantId(
+                        targetUserId,
+                        tenantId
+                )
+        ).thenReturn(
+                Optional.of(user)
+        );
+
+        assertThrows(
+                AccessDeniedException.class,
+                () ->
+                        service.addMember(
+                                spaceId,
+                                targetUserId,
+                                ConnectMemberRole.MEMBER
+                        )
+        );
+
+        verify(
+                members,
+                never()
+        ).save(
+                any()
+        );
+    }
+
+    @Test
+    void managerCanAddActiveUserToSchoolInstitutionSpace() {
+
+        UUID targetUserId =
+                UUID.randomUUID();
+
+        when(
+                identity.hasPermission(
+                        ConnectPermissions.MANAGE
+                )
+        ).thenReturn(
+                true
+        );
+
+        stubTenant();
+
+        ConnectSpace space =
+                mock(
+                        ConnectSpace.class
+                );
+
+        when(
+                space.getContextType()
+        ).thenReturn(
+                "SCHOOL_PROFILE"
+        );
+
+        when(
+                spaces.findByIdAndTenantId(
+                        spaceId,
+                        tenantId
+                )
+        ).thenReturn(
+                Optional.of(space)
+        );
+
+        stubActiveTargetUser(
+                targetUserId
+        );
+
+        when(
+                members
+                        .existsByTenantIdAndSpaceIdAndUserIdAndMembershipStatus(
+                                tenantId,
+                                spaceId,
+                                targetUserId,
+                                ConnectMembershipStatus.ACTIVE
+                        )
+        ).thenReturn(
+                false
+        );
+
+        when(
+                members.save(
+                        any(ConnectSpaceMember.class)
+                )
+        ).thenAnswer(
+                invocation ->
+                        invocation.getArgument(0)
+        );
+
+        ConnectSpaceMember member =
+                service.addInstitutionMember(
+                        spaceId,
+                        targetUserId
+                );
+
+        assertEquals(
+                ConnectMemberRole.MEMBER,
+                member.getMemberRole()
+        );
+
+        assertEquals(
+                targetUserId,
+                member.getUserId()
+        );
+
+        assertEquals(
+                tenantId,
+                member.getTenantId()
+        );
+    }
+
+    @Test
+    void institutionMembershipRejectsNonSchoolProfileSpace() {
+
+        UUID targetUserId =
+                UUID.randomUUID();
+
+        when(
+                identity.hasPermission(
+                        ConnectPermissions.MANAGE
+                )
+        ).thenReturn(
+                true
+        );
+
+        stubTenant();
+
+        ConnectSpace space =
+                mock(
+                        ConnectSpace.class
+                );
+
+        when(
+                space.getContextType()
+        ).thenReturn(
+                "GENERAL"
+        );
+
+        when(
+                spaces.findByIdAndTenantId(
+                        spaceId,
+                        tenantId
+                )
+        ).thenReturn(
+                Optional.of(space)
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        service.addInstitutionMember(
+                                spaceId,
+                                targetUserId
+                        )
+        );
+
+        verifyNoInteractions(
+                userAccounts
+        );
+
+        verify(
+                members,
+                never()
+        ).save(
+                any()
+        );
+    }
+
+
+
+    @Test
+    void managerCanSearchActiveInstitutionMemberCandidates() {
+
+        UUID candidateUserId =
+                UUID.randomUUID();
+
+        when(
+                identity.hasPermission(
+                        ConnectPermissions.MANAGE
+                )
+        ).thenReturn(
+                true
+        );
+
+        stubTenant();
+
+        ConnectSpace space =
+                mock(
+                        ConnectSpace.class
+                );
+
+        when(
+                space.getContextType()
+        ).thenReturn(
+                "SCHOOL_PROFILE"
+        );
+
+        when(
+                spaces.findByIdAndTenantId(
+                        spaceId,
+                        tenantId
+                )
+        ).thenReturn(
+                Optional.of(space)
+        );
+
+        UserAccount candidate =
+                mock(
+                        UserAccount.class
+                );
+
+        when(
+                candidate.getId()
+        ).thenReturn(
+                candidateUserId
+        );
+
+        when(
+                candidate.getDisplayName()
+        ).thenReturn(
+                "Jane Namusoke"
+        );
+
+        when(
+                candidate.getUsername()
+        ).thenReturn(
+                "jnamusoke"
+        );
+
+        when(
+                userAccounts.findAll(
+                        org.mockito.ArgumentMatchers
+                                .<org.springframework.data.jpa.domain.Specification<UserAccount>>any(),
+                        org.mockito.ArgumentMatchers
+                                .<org.springframework.data.domain.Pageable>any()
+                )
+        ).thenReturn(
+                new org.springframework.data.domain.PageImpl<>(
+                        List.of(candidate)
+                )
+        );
+
+        when(
+                members
+                        .existsByTenantIdAndSpaceIdAndUserIdAndMembershipStatus(
+                                tenantId,
+                                spaceId,
+                                candidateUserId,
+                                ConnectMembershipStatus.ACTIVE
+                        )
+        ).thenReturn(
+                false
+        );
+
+        List<ConnectDtos.InstitutionMemberCandidateView>
+                candidates =
+                        service.searchInstitutionMemberCandidates(
+                                spaceId,
+                                "Jane"
+                        );
+
+        assertEquals(
+                1,
+                candidates.size()
+        );
+
+        assertEquals(
+                candidateUserId,
+                candidates.get(0).userId()
+        );
+
+        assertEquals(
+                "Jane Namusoke",
+                candidates.get(0).displayName()
+        );
+
+        assertEquals(
+                "jnamusoke",
+                candidates.get(0).username()
+        );
+    }
+
+
+    @Test
+    void institutionMemberCandidateSearchRejectsNonSchoolProfileSpace() {
+
+        when(
+                identity.hasPermission(
+                        ConnectPermissions.MANAGE
+                )
+        ).thenReturn(
+                true
+        );
+
+        stubTenant();
+
+        ConnectSpace space =
+                mock(
+                        ConnectSpace.class
+                );
+
+        when(
+                space.getContextType()
+        ).thenReturn(
+                "GENERAL"
+        );
+
+        when(
+                spaces.findByIdAndTenantId(
+                        spaceId,
+                        tenantId
+                )
+        ).thenReturn(
+                Optional.of(space)
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        service.searchInstitutionMemberCandidates(
+                                spaceId,
+                                "Jane"
+                        )
+        );
+
+        verifyNoInteractions(
+                userAccounts
+        );
+    }
+
 }

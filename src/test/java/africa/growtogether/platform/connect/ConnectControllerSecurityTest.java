@@ -3227,4 +3227,346 @@ class ConnectControllerSecurityTest {
         return announcement;
     }
 
+
+    @Test
+    void institutionMembershipEndpointRequiresManagePermission()
+            throws Exception {
+
+        UUID tenantId =
+                UUID.randomUUID();
+
+        UUID spaceId =
+                UUID.randomUUID();
+
+        UUID userId =
+                UUID.randomUUID();
+
+        String token =
+                token(
+                        UUID.randomUUID(),
+                        tenantId,
+                        Set.of()
+                );
+
+        mockMvc.perform(
+                        post(
+                                "/api/v1/connect/spaces/"
+                                        + spaceId
+                                        + "/institution-members"
+                        )
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .header(
+                                        "X-Tenant-ID",
+                                        tenantId.toString()
+                                )
+                                .contentType(
+                                        MediaType.APPLICATION_JSON
+                                )
+                                .content(
+                                        """
+                                        {
+                                          "userId": "%s"
+                                        }
+                                        """.formatted(
+                                                userId
+                                        )
+                                )
+                )
+                .andExpect(
+                        status().isForbidden()
+                );
+
+        verify(
+                service,
+                never()
+        ).addInstitutionMember(
+                any(),
+                any()
+        );
+    }
+
+    @Test
+    void managerCanDelegateInstitutionMembershipToService()
+            throws Exception {
+
+        UUID tenantId =
+                UUID.randomUUID();
+
+        UUID spaceId =
+                UUID.randomUUID();
+
+        UUID userId =
+                UUID.randomUUID();
+
+        UUID memberId =
+                UUID.randomUUID();
+
+        String token =
+                token(
+                        UUID.randomUUID(),
+                        tenantId,
+                        Set.of(
+                                ConnectPermissions.MANAGE
+                        )
+                );
+
+        ConnectSpaceMember member =
+                mock(
+                        ConnectSpaceMember.class
+                );
+
+        when(
+                member.getId()
+        ).thenReturn(
+                memberId
+        );
+
+        when(
+                member.getSpaceId()
+        ).thenReturn(
+                spaceId
+        );
+
+        when(
+                member.getUserId()
+        ).thenReturn(
+                userId
+        );
+
+        when(
+                member.getMemberRole()
+        ).thenReturn(
+                ConnectMemberRole.MEMBER
+        );
+
+        when(
+                member.getMembershipStatus()
+        ).thenReturn(
+                ConnectMembershipStatus.ACTIVE
+        );
+
+        when(
+                service.addInstitutionMember(
+                        spaceId,
+                        userId
+                )
+        ).thenReturn(
+                member
+        );
+
+        mockMvc.perform(
+                        post(
+                                "/api/v1/connect/spaces/"
+                                        + spaceId
+                                        + "/institution-members"
+                        )
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .header(
+                                        "X-Tenant-ID",
+                                        tenantId.toString()
+                                )
+                                .contentType(
+                                        MediaType.APPLICATION_JSON
+                                )
+                                .content(
+                                        """
+                                        {
+                                          "userId": "%s"
+                                        }
+                                        """.formatted(
+                                                userId
+                                        )
+                                )
+                )
+                .andExpect(
+                        status().isCreated()
+                )
+                .andExpect(
+                        header().string(
+                                "Location",
+                                "/api/v1/connect/spaces/"
+                                        + spaceId
+                                        + "/members/"
+                                        + memberId
+                        )
+                )
+                .andExpect(
+                        jsonPath("$.code")
+                                .value(
+                                        "GT-CONNECT-MEMBER-003"
+                                )
+                )
+                .andExpect(
+                        jsonPath("$.data.userId")
+                                .value(
+                                        userId.toString()
+                                )
+                )
+                .andExpect(
+                        jsonPath("$.data.memberRole")
+                                .value(
+                                        "MEMBER"
+                                )
+                );
+
+        verify(
+                service
+        ).addInstitutionMember(
+                spaceId,
+                userId
+        );
+    }
+
+
+
+    @Test
+    void institutionMemberCandidatesEndpointRequiresManagePermission()
+            throws Exception {
+
+        UUID tenantId =
+                UUID.randomUUID();
+
+        UUID spaceId =
+                UUID.randomUUID();
+
+        String token =
+                token(
+                        UUID.randomUUID(),
+                        tenantId,
+                        Set.of()
+                );
+
+        mockMvc.perform(
+                        org.springframework.test.web.servlet.request
+                                .MockMvcRequestBuilders.get(
+                                        "/api/v1/connect/spaces/"
+                                                + spaceId
+                                                + "/institution-member-candidates"
+                                )
+                                .param(
+                                        "query",
+                                        "Jane"
+                                )
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .header(
+                                        "X-Tenant-ID",
+                                        tenantId.toString()
+                                )
+                )
+                .andExpect(
+                        status().isForbidden()
+                );
+
+        verify(
+                service,
+                never()
+        ).searchInstitutionMemberCandidates(
+                any(),
+                any()
+        );
+    }
+
+
+    @Test
+    void managerCanSearchInstitutionMemberCandidates()
+            throws Exception {
+
+        UUID tenantId =
+                UUID.randomUUID();
+
+        UUID spaceId =
+                UUID.randomUUID();
+
+        UUID candidateUserId =
+                UUID.randomUUID();
+
+        String token =
+                token(
+                        UUID.randomUUID(),
+                        tenantId,
+                        Set.of(
+                                ConnectPermissions.MANAGE
+                        )
+                );
+
+        when(
+                service.searchInstitutionMemberCandidates(
+                        spaceId,
+                        "Jane"
+                )
+        ).thenReturn(
+                List.of(
+                        new ConnectDtos.InstitutionMemberCandidateView(
+                                candidateUserId,
+                                "Jane Namusoke",
+                                "jnamusoke"
+                        )
+                )
+        );
+
+        mockMvc.perform(
+                        org.springframework.test.web.servlet.request
+                                .MockMvcRequestBuilders.get(
+                                        "/api/v1/connect/spaces/"
+                                                + spaceId
+                                                + "/institution-member-candidates"
+                                )
+                                .param(
+                                        "query",
+                                        "Jane"
+                                )
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .header(
+                                        "X-Tenant-ID",
+                                        tenantId.toString()
+                                )
+                )
+                .andExpect(
+                        status().isOk()
+                )
+                .andExpect(
+                        jsonPath("$.code")
+                                .value(
+                                        "GT-CONNECT-MEMBER-004"
+                                )
+                )
+                .andExpect(
+                        jsonPath("$.data[0].userId")
+                                .value(
+                                        candidateUserId.toString()
+                                )
+                )
+                .andExpect(
+                        jsonPath("$.data[0].displayName")
+                                .value(
+                                        "Jane Namusoke"
+                                )
+                )
+                .andExpect(
+                        jsonPath("$.data[0].username")
+                                .value(
+                                        "jnamusoke"
+                                )
+                );
+
+        verify(
+                service
+        ).searchInstitutionMemberCandidates(
+                spaceId,
+                "Jane"
+        );
+    }
+
 }

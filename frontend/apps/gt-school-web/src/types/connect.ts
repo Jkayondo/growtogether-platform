@@ -46,3 +46,20 @@ export interface ApiResponse<T> {
     timestamp: string;
   };
 }
+
+
+export interface ConnectInstitutionMemberCandidate {
+  userId: string;
+  displayName: string | null;
+  username: string;
+}
+
+export interface ConnectMember {
+  id: string;
+  spaceId: string;
+  userId: string;
+  memberRole: string;
+  membershipStatus: string;
+  joinedAt: string;
+  leftAt: string | null;
+}

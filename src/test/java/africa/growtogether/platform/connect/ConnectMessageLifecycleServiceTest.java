@@ -2,6 +2,7 @@ package africa.growtogether.platform.connect;
 
 import africa.growtogether.platform.common.security.EnterpriseIdentityContext;
 import africa.growtogether.platform.eds.integration.EdsDocumentAttachmentGateway;
+import africa.growtogether.platform.eiam.user.UserAccountRepository;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,6 +39,9 @@ class ConnectMessageLifecycleServiceTest {
     private EdsDocumentAttachmentGateway edsAttachments;
 
     @Mock
+    private UserAccountRepository userAccounts;
+
+    @Mock
     private EnterpriseIdentityContext identity;
 
     @Mock
@@ -63,6 +67,7 @@ class ConnectMessageLifecycleServiceTest {
                         messages,
                         attachments,
                         edsAttachments,
+                        userAccounts,
                         identity,
                         parentAuthorization,
                         teacherAssignmentAuthorization

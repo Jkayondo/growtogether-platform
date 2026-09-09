@@ -104,6 +104,73 @@ public class ConnectController {
                 );
     }
 
+    @GetMapping(
+            "/spaces/{spaceId}/institution-member-candidates"
+    )
+    @PreAuthorize(
+            "hasAuthority('core.connect.manage')"
+    )
+    public ApiResponse<
+            List<ConnectDtos.InstitutionMemberCandidateView>
+            > institutionMemberCandidates(
+                    @PathVariable
+                    UUID spaceId,
+
+                    @RequestParam(required = false)
+                    String query
+            ) {
+
+        return responses.success(
+                "GT-CONNECT-MEMBER-004",
+                "Institution member candidates retrieved.",
+                service.searchInstitutionMemberCandidates(
+                        spaceId,
+                        query
+                )
+        );
+    }
+
+
+    @PostMapping(
+            "/spaces/{spaceId}/institution-members"
+    )
+    @PreAuthorize(
+            "hasAuthority('core.connect.manage')"
+    )
+    public ResponseEntity<ApiResponse<MemberView>> addInstitutionMember(
+            @PathVariable
+            UUID spaceId,
+
+            @Valid
+            @RequestBody
+            AddProtectedMemberCommand command
+    ) {
+
+        ConnectSpaceMember member =
+                service.addInstitutionMember(
+                        spaceId,
+                        command.userId()
+                );
+
+        return ResponseEntity
+                .created(
+                        URI.create(
+                                "/api/v1/connect/spaces/"
+                                        + spaceId
+                                        + "/members/"
+                                        + member.getId()
+                        )
+                )
+                .body(
+                        responses.success(
+                                "GT-CONNECT-MEMBER-003",
+                                "Member added to GT Connect institution space.",
+                                MemberView.from(member)
+                        )
+                );
+    }
+
+
     @PostMapping(
             "/spaces/{spaceId}/parents"
     )
