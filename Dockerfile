@@ -10,6 +10,10 @@ FROM eclipse-temurin:21-jre-alpine
 RUN addgroup -S gt && adduser -S gt -G gt
 WORKDIR /app
 COPY --from=build /workspace/target/gt-platform-*.jar app.jar
+
+RUN mkdir -p /app/storage/uploads \
+    && chown -R gt:gt /app/storage
+
 USER gt:gt
 EXPOSE 8080
 ENTRYPOINT ["java","-XX:MaxRAMPercentage=75.0","-jar","/app/app.jar"]
