@@ -3,6 +3,9 @@ import type { AuthSession } from "./authTypes";
 
 const TOKEN_KEY = "gt_access_token";
 
+const REFRESH_TOKEN_KEY =
+  "gt_refresh_token";
+
 
 export const saveSession = (
   session: AuthSession
@@ -11,6 +14,11 @@ export const saveSession = (
   localStorage.setItem(
     TOKEN_KEY,
     session.accessToken
+  );
+
+  localStorage.setItem(
+    REFRESH_TOKEN_KEY,
+    session.refreshToken
   );
 
   localStorage.setItem(
@@ -25,6 +33,15 @@ export const getToken = () => {
 
   return localStorage.getItem(
     TOKEN_KEY
+  );
+
+};
+
+
+export const getRefreshToken = () => {
+
+  return localStorage.getItem(
+    REFRESH_TOKEN_KEY
   );
 
 };
@@ -47,6 +64,10 @@ export const clearSession = () => {
 
   localStorage.removeItem(
     TOKEN_KEY
+  );
+
+  localStorage.removeItem(
+    REFRESH_TOKEN_KEY
   );
 
   localStorage.removeItem(

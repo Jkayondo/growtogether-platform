@@ -60,9 +60,164 @@ const getAccessToken = () => {
 
 
 
+let refreshInProgress:
+  Promise<boolean> | null = null;
+
+
+const clearStoredSession = () => {
+
+  localStorage.removeItem(
+    "gt_access_token"
+  );
+
+  localStorage.removeItem(
+    "gt_refresh_token"
+  );
+
+  localStorage.removeItem(
+    "gt_user"
+  );
+
+};
+
+
+async function refreshAccessToken():
+Promise<boolean> {
+
+  const refreshToken =
+    localStorage.getItem(
+      "gt_refresh_token"
+    );
+
+
+  if (!refreshToken) {
+
+    return false;
+
+  }
+
+
+  try {
+
+    const response =
+      await fetch(
+        `${API_BASE_URL}/api/v1/eiam/auth/refresh`,
+        {
+
+          method: "POST",
+
+          headers: {
+
+            "Content-Type":
+              "application/json",
+
+            ...(getTenantId()
+              ? {
+                  "X-Tenant-ID":
+                    getTenantId()
+                }
+              : {})
+
+          },
+
+          body:
+            JSON.stringify({
+              refreshToken
+            })
+
+        }
+      );
+
+
+    if (!response.ok) {
+
+      return false;
+
+    }
+
+
+    const payload =
+      await response.json() as {
+
+        data?: {
+
+          accessToken?: string;
+
+          refreshToken?: string;
+
+        };
+
+      };
+
+
+    const nextAccessToken =
+      payload.data?.accessToken;
+
+    const nextRefreshToken =
+      payload.data?.refreshToken;
+
+
+    if (
+      !nextAccessToken
+      || !nextRefreshToken
+    ) {
+
+      return false;
+
+    }
+
+
+    localStorage.setItem(
+      "gt_access_token",
+      nextAccessToken
+    );
+
+    localStorage.setItem(
+      "gt_refresh_token",
+      nextRefreshToken
+    );
+
+
+    return true;
+
+  }
+  catch {
+
+    return false;
+
+  }
+
+}
+
+
+async function ensureRefreshed():
+Promise<boolean> {
+
+  if (!refreshInProgress) {
+
+    refreshInProgress =
+      refreshAccessToken()
+        .finally(
+          () => {
+
+            refreshInProgress =
+              null;
+
+          }
+        );
+
+  }
+
+
+  return refreshInProgress;
+
+}
+
+
 async function request<T>(
   endpoint: string,
-  options?: RequestInit
+  options?: RequestInit,
+  allowRefresh = true
 ): Promise<T> {
 
 
@@ -70,18 +225,15 @@ async function request<T>(
     getAccessToken();
 
 
-
   const response =
     await fetch(
       `${API_BASE_URL}${endpoint}`,
       {
 
-
         headers: {
 
           "Content-Type":
             "application/json",
-
 
           ...(getTenantId()
             ? {
@@ -90,16 +242,14 @@ async function request<T>(
               }
             : {}),
 
-
           ...(token
             ? {
-              Authorization:
-                `Bearer ${token}`
-            }
+                Authorization:
+                  `Bearer ${token}`
+              }
             : {})
 
         },
-
 
         ...options
 
@@ -107,19 +257,34 @@ async function request<T>(
     );
 
 
-
   if (!response.ok) {
 
 
-    if (response.status === 401) {
+    if (
+      response.status === 401
+      && allowRefresh
+      && endpoint
+        !== "/api/v1/eiam/auth/login"
+      && endpoint
+        !== "/api/v1/eiam/auth/refresh"
+    ) {
 
-      localStorage.removeItem(
-        "gt_access_token"
-      );
+      const refreshed =
+        await ensureRefreshed();
 
-      localStorage.removeItem(
-        "gt_user"
-      );
+
+      if (refreshed) {
+
+        return request<T>(
+          endpoint,
+          options,
+          false
+        );
+
+      }
+
+
+      clearStoredSession();
 
       window.location.href =
         "/login";
@@ -132,7 +297,6 @@ async function request<T>(
     );
 
   }
-
 
 
   return response.json();
