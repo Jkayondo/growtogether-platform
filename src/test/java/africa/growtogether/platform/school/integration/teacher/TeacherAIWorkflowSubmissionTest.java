@@ -18,7 +18,8 @@ class TeacherAIWorkflowSubmissionTest {
     private final TeacherAiAccessGuard access = mock(TeacherAiAccessGuard.class);
     private final AiFoundationService foundation = mock(AiFoundationService.class);
     private final TeacherAIWorkflowService service =
-            new TeacherAIWorkflowService(identity, access, foundation);
+            new TeacherAIWorkflowService(identity, access, foundation,
+                    mock(africa.growtogether.platform.eaif.execution.AiTextExecutionService.class));
 
     private void permitted() {
         when(identity.hasPermission("ai.request.create")).thenReturn(true);

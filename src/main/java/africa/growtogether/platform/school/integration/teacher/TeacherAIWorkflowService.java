@@ -15,12 +15,15 @@ public class TeacherAIWorkflowService {
     private final EnterpriseIdentityContext identity;
     private final TeacherAiAccessGuard access;
     private final AiFoundationService foundation;
+    private final africa.growtogether.platform.eaif.execution.AiTextExecutionService execution;
 
     public TeacherAIWorkflowService(EnterpriseIdentityContext identity,
-            TeacherAiAccessGuard access, AiFoundationService foundation) {
+            TeacherAiAccessGuard access, AiFoundationService foundation,
+            africa.growtogether.platform.eaif.execution.AiTextExecutionService execution) {
         this.identity = identity;
         this.access = access;
         this.foundation = foundation;
+        this.execution = execution;
     }
 
     // Preserved legacy summary; this is not an execution-readiness indicator.
@@ -64,6 +67,53 @@ public class TeacherAIWorkflowService {
 
         return new Submission(request.getId(), request.requestStatus());
     }
+
+
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public RequestStatus execute(UUID tenantId, UUID teacherProfileId,
+            UUID assignmentId, UUID requestId, String input) {
+        ownedRequest(tenantId, teacherProfileId, assignmentId, requestId,
+                "ai.runtime.execute");
+        String reference = execution.execute(tenantId, requestId, input);
+        return new RequestStatus(requestId, AiEnums.RequestStatus.SUCCEEDED, reference);
+    }
+
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    public RequestStatus status(UUID tenantId, UUID teacherProfileId,
+            UUID assignmentId, UUID requestId) {
+        var request = ownedRequest(tenantId, teacherProfileId, assignmentId,
+                requestId, "ai.request.read");
+        return new RequestStatus(request.getId(), request.requestStatus(),
+                request.requestStatus() == AiEnums.RequestStatus.SUCCEEDED
+                        ? request.outputReference() : null);
+    }
+
+    private africa.growtogether.platform.eaif.AiRequest ownedRequest(
+            UUID tenantId, UUID teacherProfileId, UUID assignmentId,
+            UUID requestId, String permission) {
+        identity.requireTenant(tenantId);
+        if (!identity.hasPermission(permission))
+            throw new AccessDeniedException("AI request permission required.");
+        UUID userId = identity.requireUserId();
+        access.requireOwnedAssignment(tenantId, teacherProfileId, assignmentId);
+        if (requestId == null)
+            throw new AccessDeniedException("AI request access denied.");
+
+        var request = foundation.get(tenantId, requestId);
+        String scope = AiTextRequest.hash(
+                tenantId + ":" + userId + ":" + teacherProfileId + ":" + assignmentId);
+        if (request.getStatus()
+                    != africa.growtogether.platform.common.persistence.EntityStatus.ACTIVE
+                || !"GT_SCHOOL_TEACHER".equals(request.sourceService())
+                || !"TEACHER_ASSISTANCE".equals(request.useCase())
+                || !scope.equals(request.correlationId()))
+            throw new AccessDeniedException("AI request access denied.");
+        return request;
+    }
+
+    // A document reference does not grant permission to download its contents.
+    public record RequestStatus(UUID requestId, AiEnums.RequestStatus status,
+            String outputReference) {}
 
     public record Submission(UUID requestId, AiEnums.RequestStatus status) {}
 }
