@@ -260,6 +260,77 @@ class ConnectTeacherAuthorizationServiceTest {
         ).requireUserId();
     }
 
+
+    @Test
+    void uniqueCurrentTeacherUsesAuthenticatedIdentity() {
+        when(identity.requireUserId()).thenReturn(authenticatedUserId);
+        stubTenant();
+
+        WorkforceMember member = activeWorkforceMember();
+        TeacherProfile teacher = activeTeacherProfile();
+
+        when(workforceMembers.findAllByTenantIdAndEiamUserId(
+                tenantId, authenticatedUserId
+        )).thenReturn(List.of(member));
+        when(teacherProfiles.findByTenantIdAndWorkforceMemberId(
+                tenantId, workforceMemberId
+        )).thenReturn(Optional.of(teacher));
+
+        assertSame(teacher, service.requireUniqueCurrentTeacherProfile());
+        verify(identity).requireUserId();
+        verify(workforceMembers).findAllByTenantIdAndEiamUserId(
+                tenantId, authenticatedUserId
+        );
+    }
+
+    @Test
+    void uniqueCurrentTeacherRejectsMissingMapping() {
+        when(identity.requireUserId()).thenReturn(authenticatedUserId);
+        stubTenant();
+        when(workforceMembers.findAllByTenantIdAndEiamUserId(
+                tenantId, authenticatedUserId
+        )).thenReturn(List.of());
+
+        assertThrows(
+                AccessDeniedException.class,
+                () -> service.requireUniqueCurrentTeacherProfile()
+        );
+        verifyNoInteractions(teacherProfiles);
+    }
+
+    @Test
+    void uniqueCurrentTeacherRejectsAmbiguousProfiles() {
+        when(identity.requireUserId()).thenReturn(authenticatedUserId);
+        stubTenant();
+
+        WorkforceMember first = activeWorkforceMember();
+        WorkforceMember second = mock(WorkforceMember.class);
+        UUID secondMemberId = UUID.randomUUID();
+
+        when(second.getId()).thenReturn(secondMemberId);
+        when(second.getWorkforceStatus()).thenReturn("ACTIVE");
+        when(second.getStatus()).thenReturn(EntityStatus.ACTIVE);
+
+        TeacherProfile firstTeacher = activeTeacherProfile();
+        TeacherProfile secondTeacher = activeTeacherProfile();
+
+        when(workforceMembers.findAllByTenantIdAndEiamUserId(
+                tenantId, authenticatedUserId
+        )).thenReturn(List.of(first, second));
+
+        when(teacherProfiles.findByTenantIdAndWorkforceMemberId(
+                tenantId, workforceMemberId
+        )).thenReturn(Optional.of(firstTeacher));
+        when(teacherProfiles.findByTenantIdAndWorkforceMemberId(
+                tenantId, secondMemberId
+        )).thenReturn(Optional.of(secondTeacher));
+
+        assertThrows(
+                AccessDeniedException.class,
+                () -> service.requireUniqueCurrentTeacherProfile()
+        );
+    }
+
     private void stubTenant() {
 
         when(

@@ -45,9 +45,28 @@ public class ConnectTeacherAuthorizationService {
     }
 
     @Transactional(readOnly = true)
-    public TeacherProfile requireTeacherProfileForUser(
-            UUID userId
-    ) {
+    public TeacherProfile requireTeacherProfileForUser(UUID userId) {
+        return findActiveTeacherProfilesForUser(userId)
+                .stream()
+                .findFirst()
+                .orElseThrow(ConnectTeacherAuthorizationService::denied);
+    }
+
+    @Transactional(readOnly = true)
+    public TeacherProfile requireUniqueCurrentTeacherProfile() {
+        List<TeacherProfile> matches =
+                findActiveTeacherProfilesForUser(identity.requireUserId());
+
+        if (matches.size() != 1) {
+            throw new AccessDeniedException(
+                    "Exactly one active teacher profile is required for this user and tenant"
+            );
+        }
+
+        return matches.get(0);
+    }
+
+    private List<TeacherProfile> findActiveTeacherProfilesForUser(UUID userId) {
 
         if (userId == null) {
             throw new IllegalArgumentException(
@@ -104,10 +123,7 @@ public class ConnectTeacherAuthorizationService {
                                 teacher.getStatus()
                                         == EntityStatus.ACTIVE
                 )
-                .findFirst()
-                .orElseThrow(
-                        ConnectTeacherAuthorizationService::denied
-                );
+                .toList();
     }
 
     private static AccessDeniedException denied() {
