@@ -1,0 +1,64 @@
+.teacher-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+
+.teacher-summary-grid {
+
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+
+}
+
+
+.teacher-card {
+
+  background: white;
+  padding: 24px;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+
+}
+
+
+.teacher-card h3 {
+
+  margin-top: 0;
+
+}
+
+
+.teacher-tools-grid {
+
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+
+}
+
+
+.teacher-tool-card {
+
+  background: white;
+  padding: 24px;
+  border-radius: 16px;
+  text-align: center;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+
+}
+
+
+@media(max-width:900px){
+
+  .teacher-summary-grid,
+  .teacher-tools-grid {
+
+    grid-template-columns: 1fr;
+
+  }
+
+}

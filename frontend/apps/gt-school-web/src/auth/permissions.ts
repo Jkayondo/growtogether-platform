@@ -27,6 +27,9 @@ export const Permission = {
   ACADEMIC_YEAR_CREATE:
     "school.academic.year.create",
 
+  TEACHING_ASSIGNMENT_READ:
+    "school.academic.teaching-assignment.read",
+
 } as const;
 
 

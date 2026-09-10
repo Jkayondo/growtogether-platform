@@ -325,7 +325,7 @@ const apiClient = {
 
   post<T>(
     endpoint: string,
-    body: unknown
+    body?: unknown
   ) {
 
     return request<T>(
@@ -334,8 +334,36 @@ const apiClient = {
 
         method: "POST",
 
-        body:
-          JSON.stringify(body)
+        ...(body !== undefined
+          ? {
+              body:
+                JSON.stringify(body)
+            }
+          : {})
+
+      }
+    );
+
+  },
+
+
+  patch<T>(
+    endpoint: string,
+    body?: unknown
+  ) {
+
+    return request<T>(
+      endpoint,
+      {
+
+        method: "PATCH",
+
+        ...(body !== undefined
+          ? {
+              body:
+                JSON.stringify(body)
+            }
+          : {})
 
       }
     );

@@ -1,3 +1,4 @@
+import TeacherWorkspace from "../features/teacher/TeacherWorkspace";
 import {
   Routes,
   Route
@@ -75,6 +76,19 @@ export default function AppRoutes() {
 
               </PermissionRoute>
 
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="teacher/workspace"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute
+                permission={Permission.TEACHING_ASSIGNMENT_READ}
+              >
+                <TeacherWorkspace />
+              </PermissionRoute>
             </ProtectedRoute>
           }
         />
