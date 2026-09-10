@@ -32,4 +32,16 @@ public interface AcademicCalendarEventRepository
             Instant end
     );
 
+
+    List<AcademicCalendarEvent> findByTenantIdAndAcademicYearId(
+            UUID tenantId, UUID academicYearId);
+
+    List<AcademicCalendarEvent> findByTenantIdAndAcademicTermId(
+            UUID tenantId, UUID academicTermId);
+
+    List<AcademicCalendarEvent> findByTenantIdAndEventStatus(
+            UUID tenantId, String eventStatus);
+
+    List<AcademicCalendarEvent> findByTenantIdAndStartAtBetween(
+            UUID tenantId, Instant start, Instant end);
 }

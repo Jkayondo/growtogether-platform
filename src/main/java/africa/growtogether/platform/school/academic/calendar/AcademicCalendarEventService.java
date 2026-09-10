@@ -6,6 +6,9 @@ import africa.growtogether.platform.school.academic.calendar.events.AcademicCale
 import africa.growtogether.platform.school.academic.term.AcademicTerm;
 import africa.growtogether.platform.school.academic.year.AcademicYear;
 
+
+import africa.growtogether.platform.common.security.EnterpriseIdentityContext;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,14 +23,17 @@ public class AcademicCalendarEventService {
 
     private final AcademicCalendarEventRepository repository;
     private final EventPublisher eventPublisher;
+    private final EnterpriseIdentityContext identity;
 
 
     public AcademicCalendarEventService(
             AcademicCalendarEventRepository repository,
-            EventPublisher eventPublisher
+            EventPublisher eventPublisher,
+            EnterpriseIdentityContext identity
     ) {
          this.repository = repository;
          this.eventPublisher = eventPublisher;
+         this.identity = identity;
      }
 
 
@@ -43,6 +49,23 @@ public class AcademicCalendarEventService {
             Instant endAt
     ) {
 
+
+        identity.requireTenant(tenantId);
+        if (academicYear == null
+                || !tenantId.equals(academicYear.getTenantId())) {
+            throw new AccessDeniedException("Academic year belongs to another tenant.");
+        }
+        if (academicTerm != null) {
+            if (!tenantId.equals(academicTerm.getTenantId())
+                    || academicTerm.getAcademicYear() == null
+                    || !tenantId.equals(academicTerm.getAcademicYear().getTenantId())) {
+                throw new AccessDeniedException("Academic term belongs to another tenant.");
+            }
+            if (academicYear.getId() == null
+                    || !academicYear.getId().equals(academicTerm.getAcademicYear().getId())) {
+                throw new IllegalArgumentException("Academic term does not belong to the year.");
+            }
+        }
 
         validateDates(
                 startAt,
@@ -65,6 +88,8 @@ public class AcademicCalendarEventService {
                 tenantId
         );
 
+
+        event.setEndAt(endAt);
 
         AcademicCalendarEvent saved =
                 repository.save(event);
@@ -91,7 +116,8 @@ public class AcademicCalendarEventService {
             UUID academicYearId
     ) {
 
-        return repository.findByAcademicYearId(
+        return repository.findByTenantIdAndAcademicYearId(
+                identity.requireTenantId(),
                 academicYearId
         );
     }
@@ -102,7 +128,8 @@ public class AcademicCalendarEventService {
             UUID academicTermId
     ) {
 
-        return repository.findByAcademicTermId(
+        return repository.findByTenantIdAndAcademicTermId(
+                identity.requireTenantId(),
                 academicTermId
         );
     }
@@ -111,7 +138,8 @@ public class AcademicCalendarEventService {
     @Transactional(readOnly = true)
     public List<AcademicCalendarEvent> findScheduledEvents() {
 
-        return repository.findByEventStatus(
+        return repository.findByTenantIdAndEventStatus(
+                identity.requireTenantId(),
                 "SCHEDULED"
         );
     }
@@ -123,7 +151,11 @@ public class AcademicCalendarEventService {
             Instant end
     ) {
 
-        return repository.findByStartAtBetween(
+        if (start == null || end == null || end.isBefore(start)) {
+            throw new IllegalArgumentException("A valid calendar query interval is required.");
+        }
+        return repository.findByTenantIdAndStartAtBetween(
+                identity.requireTenantId(),
                 start,
                 end
         );
@@ -135,6 +167,9 @@ public class AcademicCalendarEventService {
             Instant endAt
     ) {
 
+        if (startAt == null) {
+            throw new IllegalArgumentException("Calendar start time is required.");
+        }
         if (endAt != null
                 && endAt.isBefore(startAt)) {
 

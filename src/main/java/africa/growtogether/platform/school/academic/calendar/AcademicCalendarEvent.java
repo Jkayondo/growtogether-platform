@@ -184,6 +184,18 @@ public class AcademicCalendarEvent extends AuditedTenantEntity {
     }
 
 
+
+    public Instant getEndAt() {
+        return endAt;
+    }
+
+    public void setEndAt(Instant endAt) {
+        if (endAt != null && endAt.isBefore(startAt)) {
+            throw new IllegalArgumentException("Calendar event end precedes start.");
+        }
+        this.endAt = endAt;
+    }
+
     public Instant getStartAt() {
         return startAt;
     }
