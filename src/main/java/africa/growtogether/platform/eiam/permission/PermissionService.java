@@ -56,6 +56,8 @@ public class PermissionService {
         List<Permission> selected = requested.stream().map(id -> requiredPermission(id, tenant)).toList();
         selected.stream().filter(p -> !p.isAssignable()).findFirst().ifPresent(p -> { throw new PermissionLifecycleException("Inactive permissions cannot be assigned."); });
         rolePermissions.deleteAllByTenantIdAndRoleId(tenant, roleId);
+        // Remove existing unique keys before inserting replacement links.
+        rolePermissions.flush();
         selected.forEach(permission -> rolePermissions.save(new RolePermission(roleId, permission.getId())));
         rolePermissions.flush();
         return selected.stream().map(PermissionView::from).toList();
