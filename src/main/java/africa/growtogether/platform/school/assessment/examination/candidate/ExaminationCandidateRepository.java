@@ -1,6 +1,5 @@
 package africa.growtogether.platform.school.assessment.examination.candidate;
 
-
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
@@ -9,6 +8,12 @@ import java.util.UUID;
 
 public interface ExaminationCandidateRepository
         extends JpaRepository<ExaminationCandidate, UUID> {
+
+
+    Optional<ExaminationCandidate> findByTenantIdAndId(
+            UUID tenantId,
+            UUID id
+    );
 
 
     Optional<ExaminationCandidate> findByTenantIdAndCandidateNumber(
@@ -23,7 +28,15 @@ public interface ExaminationCandidateRepository
     );
 
 
-    Optional<ExaminationCandidate> findByTenantIdAndExaminationSessionIdAndStudentId(
+    Optional<ExaminationCandidate>
+    findByTenantIdAndExaminationSessionIdAndStudentId(
+            UUID tenantId,
+            UUID examinationSessionId,
+            UUID studentId
+    );
+
+
+    boolean existsByTenantIdAndExaminationSessionIdAndStudentId(
             UUID tenantId,
             UUID examinationSessionId,
             UUID studentId

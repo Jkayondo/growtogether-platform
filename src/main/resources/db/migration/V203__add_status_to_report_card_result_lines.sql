@@ -1,0 +1,2 @@
+ALTER TABLE report_card_result_lines
+ADD COLUMN status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE';

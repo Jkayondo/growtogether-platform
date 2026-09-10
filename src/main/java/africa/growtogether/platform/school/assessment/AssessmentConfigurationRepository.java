@@ -12,12 +12,14 @@ public interface AssessmentConfigurationRepository
 
 
     List<AssessmentConfiguration>
-    findBySubjectConfigurationIdOrderByAssessmentNameAsc(
+    findByTenantIdAndSubjectConfigurationIdOrderByAssessmentNameAsc(
+            UUID tenantId,
             UUID subjectConfigurationId
     );
 
 
-    boolean existsBySubjectConfigurationIdAndAssessmentName(
+    boolean existsByTenantIdAndSubjectConfigurationIdAndAssessmentName(
+            UUID tenantId,
             UUID subjectConfigurationId,
             String assessmentName
     );

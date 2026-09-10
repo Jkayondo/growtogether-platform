@@ -1,5 +1,6 @@
 package africa.growtogether.platform.school.assessment;
 
+import africa.growtogether.platform.school.subject.SubjectConfigurationRepository;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,12 +14,15 @@ public class AssessmentConfigurationService {
 
 
     private final AssessmentConfigurationRepository repository;
+    private final SubjectConfigurationRepository subjectConfigurations;
 
 
     public AssessmentConfigurationService(
-            AssessmentConfigurationRepository repository
+            AssessmentConfigurationRepository repository,
+            SubjectConfigurationRepository subjectConfigurations
     ) {
         this.repository = repository;
+        this.subjectConfigurations = subjectConfigurations;
     }
 
 
@@ -32,8 +36,21 @@ public class AssessmentConfigurationService {
     ) {
 
 
+        subjectConfigurations
+                .findByIdAndTenantId(
+                        subjectConfigurationId,
+                        tenantId
+                )
+                .orElseThrow(
+                        () -> new IllegalArgumentException(
+                                "Subject configuration not found."
+                        )
+                );
+
+
         if (repository
-                .existsBySubjectConfigurationIdAndAssessmentName(
+                .existsByTenantIdAndSubjectConfigurationIdAndAssessmentName(
+                        tenantId,
                         subjectConfigurationId,
                         assessmentName
                 )) {
@@ -60,11 +77,13 @@ public class AssessmentConfigurationService {
 
     @Transactional(readOnly = true)
     public List<AssessmentConfiguration> getBySubject(
+            UUID tenantId,
             UUID subjectConfigurationId
     ) {
 
         return repository
-                .findBySubjectConfigurationIdOrderByAssessmentNameAsc(
+                .findByTenantIdAndSubjectConfigurationIdOrderByAssessmentNameAsc(
+                        tenantId,
                         subjectConfigurationId
                 );
     }

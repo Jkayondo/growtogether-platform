@@ -1,0 +1,2 @@
+ALTER TABLE gts_result_publication
+ADD COLUMN status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE';

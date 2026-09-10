@@ -148,6 +148,11 @@ public class ExaminationCandidate extends AuditedTenantEntity {
     }
 
 
+    public LocalDate getRegistrationDate() {
+        return registrationDate;
+    }
+
+
     public String getEligibilityStatus() {
         return eligibilityStatus;
     }
