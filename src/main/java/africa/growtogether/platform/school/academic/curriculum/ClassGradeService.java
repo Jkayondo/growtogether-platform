@@ -14,12 +14,15 @@ public class ClassGradeService {
 
 
     private final ClassGradeRepository repository;
+    private final EducationLevelService educationLevels;
 
 
     public ClassGradeService(
-            ClassGradeRepository repository
+            ClassGradeRepository repository,
+            EducationLevelService educationLevels
     ) {
         this.repository = repository;
+        this.educationLevels = educationLevels;
     }
 
 
@@ -31,6 +34,12 @@ public class ClassGradeService {
             Integer sequenceNumber,
             Integer capacity
     ) {
+
+
+        educationLevels.get(
+                tenantId,
+                educationLevelId
+        );
 
 
         ClassGrade classGrade =
@@ -50,6 +59,26 @@ public class ClassGradeService {
 
     }
 
+
+
+    @Transactional(readOnly = true)
+    public ClassGrade get(
+            UUID tenantId,
+            UUID id
+    ) {
+
+        return repository
+                .findByTenantIdAndId(
+                        tenantId,
+                        id
+                )
+                .orElseThrow(
+                        () -> new IllegalArgumentException(
+                                "Class grade not found for tenant"
+                        )
+                );
+
+    }
 
 
     @Transactional(readOnly = true)

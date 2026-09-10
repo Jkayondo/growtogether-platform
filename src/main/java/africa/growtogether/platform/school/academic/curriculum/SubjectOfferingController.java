@@ -3,6 +3,7 @@ package africa.growtogether.platform.school.academic.curriculum;
 
 import africa.growtogether.platform.common.api.ApiResponse;
 import africa.growtogether.platform.common.api.ApiResponses;
+import africa.growtogether.platform.common.security.EnterpriseIdentityContext;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -19,14 +20,17 @@ public class SubjectOfferingController {
 
     private final SubjectOfferingService service;
     private final ApiResponses responses;
+    private final EnterpriseIdentityContext identity;
 
 
     public SubjectOfferingController(
             SubjectOfferingService service,
-            ApiResponses responses
+            ApiResponses responses,
+            EnterpriseIdentityContext identity
     ) {
         this.service = service;
         this.responses = responses;
+        this.identity = identity;
     }
 
 
@@ -47,6 +51,7 @@ public class SubjectOfferingController {
             @RequestParam(required = false) Integer maximumEnrollment
     ) {
 
+        identity.requireTenant(tenantId);
 
         return responses.success(
                 "GT-SCHOOL-SUBJECT-OFFERING-001",
@@ -76,6 +81,8 @@ public class SubjectOfferingController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return responses.success(
                 "GT-SCHOOL-SUBJECT-OFFERING-002",
                 "Subject offerings retrieved by class.",
@@ -93,6 +100,8 @@ public class SubjectOfferingController {
             @PathVariable UUID subjectId,
             @RequestParam UUID tenantId
     ) {
+
+        identity.requireTenant(tenantId);
 
         return responses.success(
                 "GT-SCHOOL-SUBJECT-OFFERING-003",
@@ -112,6 +121,8 @@ public class SubjectOfferingController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return responses.success(
                 "GT-SCHOOL-SUBJECT-OFFERING-004",
                 "Subject offering retrieved.",
@@ -129,6 +140,8 @@ public class SubjectOfferingController {
             @PathVariable String code,
             @RequestParam UUID tenantId
     ) {
+
+        identity.requireTenant(tenantId);
 
         SubjectOffering offering =
                 service.findByCode(
@@ -153,6 +166,8 @@ public class SubjectOfferingController {
             @PathVariable String code,
             @RequestParam UUID tenantId
     ) {
+
+        identity.requireTenant(tenantId);
 
         SubjectOffering offering =
                 service.findByCode(

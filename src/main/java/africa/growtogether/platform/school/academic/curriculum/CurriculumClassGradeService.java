@@ -13,12 +13,15 @@ public class CurriculumClassGradeService {
 
 
     private final CurriculumClassGradeRepository repository;
+    private final ClassGradeRepository classGradeRepository;
 
 
     public CurriculumClassGradeService(
-            CurriculumClassGradeRepository repository
+            CurriculumClassGradeRepository repository,
+            ClassGradeRepository classGradeRepository
     ) {
         this.repository = repository;
+        this.classGradeRepository = classGradeRepository;
     }
 
 
@@ -29,6 +32,23 @@ public class CurriculumClassGradeService {
             UUID classGradeId,
             Integer sequenceNumber
     ) {
+
+        if (!tenantId.equals(curriculumVersion.getTenantId())) {
+            throw new IllegalArgumentException(
+                    "Curriculum version does not belong to tenant"
+            );
+        }
+
+        classGradeRepository
+                .findByTenantIdAndId(
+                        tenantId,
+                        classGradeId
+                )
+                .orElseThrow(
+                        () -> new IllegalArgumentException(
+                                "Class grade not found"
+                        )
+                );
 
         CurriculumClassGrade mapping =
                 new CurriculumClassGrade(

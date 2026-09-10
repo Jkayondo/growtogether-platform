@@ -1,6 +1,5 @@
 package africa.growtogether.platform.school.academic.curriculum;
 
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,12 +12,18 @@ public class SubjectCatalogueService {
 
 
     private final SubjectCatalogueRepository repository;
+    private final CurriculumVersionRepository curriculumVersionRepository;
+    private final CurriculumLearningAreaRepository learningAreaRepository;
 
 
     public SubjectCatalogueService(
-            SubjectCatalogueRepository repository
+            SubjectCatalogueRepository repository,
+            CurriculumVersionRepository curriculumVersionRepository,
+            CurriculumLearningAreaRepository learningAreaRepository
     ) {
         this.repository = repository;
+        this.curriculumVersionRepository = curriculumVersionRepository;
+        this.learningAreaRepository = learningAreaRepository;
     }
 
 
@@ -34,6 +39,28 @@ public class SubjectCatalogueService {
             Integer sequenceNumber
     ) {
 
+        curriculumVersionRepository
+                .findByTenantIdAndId(
+                        tenantId,
+                        curriculumVersionId
+                )
+                .orElseThrow(
+                        () -> new IllegalArgumentException(
+                                "Curriculum version not found"
+                        )
+                );
+
+        learningAreaRepository
+                .findByTenantIdAndCurriculumVersionIdAndId(
+                        tenantId,
+                        curriculumVersionId,
+                        learningAreaId
+                )
+                .orElseThrow(
+                        () -> new IllegalArgumentException(
+                                "Learning area not found"
+                        )
+                );
 
         SubjectCatalogue subject =
                 new SubjectCatalogue(
@@ -46,11 +73,9 @@ public class SubjectCatalogueService {
                         sequenceNumber
                 );
 
-
         subject.setTenantId(
                 tenantId
         );
-
 
         return repository.save(
                 subject
@@ -131,5 +156,4 @@ public class SubjectCatalogueService {
                 subject
         );
     }
-
 }

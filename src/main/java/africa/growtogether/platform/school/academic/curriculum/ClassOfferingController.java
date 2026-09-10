@@ -3,6 +3,7 @@ package africa.growtogether.platform.school.academic.curriculum;
 
 import africa.growtogether.platform.common.api.ApiResponse;
 import africa.growtogether.platform.common.api.ApiResponses;
+import africa.growtogether.platform.common.security.EnterpriseIdentityContext;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -19,14 +20,17 @@ public class ClassOfferingController {
 
     private final ClassOfferingService service;
     private final ApiResponses responses;
+    private final EnterpriseIdentityContext identity;
 
 
     public ClassOfferingController(
             ClassOfferingService service,
-            ApiResponses responses
+            ApiResponses responses,
+            EnterpriseIdentityContext identity
     ) {
         this.service = service;
         this.responses = responses;
+        this.identity = identity;
     }
 
 
@@ -47,6 +51,8 @@ public class ClassOfferingController {
             @RequestParam(required = false) LocalDate enrollmentOpenDate,
             @RequestParam(required = false) LocalDate enrollmentCloseDate
     ) {
+
+        identity.requireTenant(tenantId);
 
         return responses.success(
                 "GT-SCHOOL-CLASS-OFFERING-001",
@@ -77,6 +83,8 @@ public class ClassOfferingController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return responses.success(
                 "GT-SCHOOL-CLASS-OFFERING-002",
                 "Class offering retrieved.",
@@ -94,6 +102,8 @@ public class ClassOfferingController {
             @PathVariable UUID academicYearId,
             @RequestParam UUID tenantId
     ) {
+
+        identity.requireTenant(tenantId);
 
         return responses.success(
                 "GT-SCHOOL-CLASS-OFFERING-003",
@@ -113,6 +123,8 @@ public class ClassOfferingController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return responses.success(
                 "GT-SCHOOL-CLASS-OFFERING-004",
                 "Class offerings retrieved by campus.",
@@ -131,6 +143,8 @@ public class ClassOfferingController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return responses.success(
                 "GT-SCHOOL-CLASS-OFFERING-005",
                 "Class offerings retrieved by class grade.",
@@ -148,6 +162,8 @@ public class ClassOfferingController {
             @PathVariable String code,
             @RequestParam UUID tenantId
     ) {
+
+        identity.requireTenant(tenantId);
 
         ClassOffering offering =
                 service.findByCode(
@@ -172,6 +188,8 @@ public class ClassOfferingController {
             @PathVariable String code,
             @RequestParam UUID tenantId
     ) {
+
+        identity.requireTenant(tenantId);
 
         ClassOffering offering =
                 service.findByCode(

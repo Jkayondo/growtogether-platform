@@ -152,6 +152,127 @@ class TeachingAssignmentServiceTest {
     }
 
     @Test
+    void rejectsAcademicYearNotFoundForTenant() {
+
+        Harness h = new Harness();
+        Ids ids = new Ids();
+
+        h.stubReferenceAvailable();
+
+        when(
+                h.teachers.findByTenantIdAndId(
+                        ids.tenantId,
+                        ids.teacherProfileId
+                )
+        ).thenReturn(
+                Optional.of(
+                        mock(TeacherProfile.class)
+                )
+        );
+
+        when(
+                h.academicYears.findByTenantIdAndId(
+                        ids.tenantId,
+                        ids.academicYearId
+                )
+        ).thenReturn(
+                Optional.empty()
+        );
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> h.createDefault(ids)
+                );
+
+        assertEquals(
+                "Academic year not found for tenant",
+                error.getMessage()
+        );
+
+        verify(
+                h.repository,
+                never()
+        ).save(
+                any(TeachingAssignment.class)
+        );
+    }
+
+    @Test
+    void rejectsAcademicTermNotFoundForTenant() {
+
+        Harness h = new Harness();
+        Ids ids = new Ids();
+
+        h.stubReferenceAvailable();
+
+        when(
+                h.teachers.findByTenantIdAndId(
+                        ids.tenantId,
+                        ids.teacherProfileId
+                )
+        ).thenReturn(
+                Optional.of(
+                        mock(TeacherProfile.class)
+                )
+        );
+
+        when(
+                h.academicYears.findByTenantIdAndId(
+                        ids.tenantId,
+                        ids.academicYearId
+                )
+        ).thenReturn(
+                Optional.of(
+                        mock(AcademicYear.class)
+                )
+        );
+
+        when(
+                h.academicTerms.findByTenantIdAndId(
+                        ids.tenantId,
+                        ids.academicTermId
+                )
+        ).thenReturn(
+                Optional.empty()
+        );
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> h.service.create(
+                                ids.tenantId,
+                                "TA-001",
+                                ids.teacherProfileId,
+                                ids.academicYearId,
+                                ids.academicTermId,
+                                ids.campusId,
+                                ids.classGradeId,
+                                null,
+                                ids.subjectId,
+                                "PRIMARY_TEACHER",
+                                8,
+                                null,
+                                LocalDate.of(2026, 2, 1),
+                                null,
+                                null
+                        )
+                );
+
+        assertEquals(
+                "Academic term not found for tenant",
+                error.getMessage()
+        );
+
+        verify(
+                h.repository,
+                never()
+        ).save(
+                any(TeachingAssignment.class)
+        );
+    }
+
+    @Test
     void rejectsAcademicTermBelongingToDifferentAcademicYear() {
 
         Harness h = new Harness();
@@ -232,6 +353,169 @@ class TeachingAssignmentServiceTest {
 
         assertEquals(
                 "Academic term does not belong to the selected academic year",
+                error.getMessage()
+        );
+
+        verify(
+                h.repository,
+                never()
+        ).save(
+                any(TeachingAssignment.class)
+        );
+    }
+
+    @Test
+    void rejectsCampusNotFoundForTenant() {
+
+        Harness h = new Harness();
+        Ids ids = new Ids();
+
+        h.stubReferenceAvailable();
+
+        when(
+                h.teachers.findByTenantIdAndId(
+                        ids.tenantId,
+                        ids.teacherProfileId
+                )
+        ).thenReturn(
+                Optional.of(
+                        mock(TeacherProfile.class)
+                )
+        );
+
+        when(
+                h.academicYears.findByTenantIdAndId(
+                        ids.tenantId,
+                        ids.academicYearId
+                )
+        ).thenReturn(
+                Optional.of(
+                        mock(AcademicYear.class)
+                )
+        );
+
+        when(
+                h.campuses.findByTenantIdAndId(
+                        ids.tenantId,
+                        ids.campusId
+                )
+        ).thenReturn(
+                Optional.empty()
+        );
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> h.createDefault(ids)
+                );
+
+        assertEquals(
+                "Campus not found for tenant",
+                error.getMessage()
+        );
+
+        verify(
+                h.repository,
+                never()
+        ).save(
+                any(TeachingAssignment.class)
+        );
+    }
+
+    @Test
+    void rejectsClassGradeNotFoundForTenant() {
+
+        Harness h = new Harness();
+        Ids ids = new Ids();
+
+        h.stubReferenceAvailable();
+
+        when(
+                h.teachers.findByTenantIdAndId(
+                        ids.tenantId,
+                        ids.teacherProfileId
+                )
+        ).thenReturn(
+                Optional.of(
+                        mock(TeacherProfile.class)
+                )
+        );
+
+        when(
+                h.academicYears.findByTenantIdAndId(
+                        ids.tenantId,
+                        ids.academicYearId
+                )
+        ).thenReturn(
+                Optional.of(
+                        mock(AcademicYear.class)
+                )
+        );
+
+        when(
+                h.campuses.findByTenantIdAndId(
+                        ids.tenantId,
+                        ids.campusId
+                )
+        ).thenReturn(
+                Optional.of(
+                        mock(Campus.class)
+                )
+        );
+
+        when(
+                h.classGrades.findByTenantIdAndId(
+                        ids.tenantId,
+                        ids.classGradeId
+                )
+        ).thenReturn(
+                Optional.empty()
+        );
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> h.createDefault(ids)
+                );
+
+        assertEquals(
+                "Class grade not found for tenant",
+                error.getMessage()
+        );
+
+        verify(
+                h.repository,
+                never()
+        ).save(
+                any(TeachingAssignment.class)
+        );
+    }
+
+    @Test
+    void rejectsStreamNotFoundForTenant() {
+
+        Harness h = new Harness();
+        Ids ids = new Ids();
+
+        h.stubRequiredBeforeStream(ids);
+
+        when(
+                h.streams.findByTenantIdAndId(
+                        ids.tenantId,
+                        ids.streamId
+                )
+        ).thenReturn(
+                Optional.empty()
+        );
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> h.createWithStream(ids)
+                );
+
+        assertEquals(
+                "Stream not found for tenant",
                 error.getMessage()
         );
 
@@ -334,6 +618,86 @@ class TeachingAssignmentServiceTest {
 
         assertEquals(
                 "Stream does not belong to the selected class grade",
+                error.getMessage()
+        );
+
+        verify(
+                h.repository,
+                never()
+        ).save(
+                any(TeachingAssignment.class)
+        );
+    }
+
+    @Test
+    void rejectsSubjectNotFoundForTenant() {
+
+        Harness h = new Harness();
+        Ids ids = new Ids();
+
+        h.stubReferenceAvailable();
+
+        when(
+                h.teachers.findByTenantIdAndId(
+                        ids.tenantId,
+                        ids.teacherProfileId
+                )
+        ).thenReturn(
+                Optional.of(
+                        mock(TeacherProfile.class)
+                )
+        );
+
+        when(
+                h.academicYears.findByTenantIdAndId(
+                        ids.tenantId,
+                        ids.academicYearId
+                )
+        ).thenReturn(
+                Optional.of(
+                        mock(AcademicYear.class)
+                )
+        );
+
+        when(
+                h.campuses.findByTenantIdAndId(
+                        ids.tenantId,
+                        ids.campusId
+                )
+        ).thenReturn(
+                Optional.of(
+                        mock(Campus.class)
+                )
+        );
+
+        when(
+                h.classGrades.findByTenantIdAndId(
+                        ids.tenantId,
+                        ids.classGradeId
+                )
+        ).thenReturn(
+                Optional.of(
+                        mock(ClassGrade.class)
+                )
+        );
+
+        when(
+                h.subjects.findByTenantIdAndId(
+                        ids.tenantId,
+                        ids.subjectId
+                )
+        ).thenReturn(
+                Optional.empty()
+        );
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> h.createDefault(ids)
+                );
+
+        assertEquals(
+                "Subject not found for tenant",
                 error.getMessage()
         );
 
@@ -684,6 +1048,104 @@ class TeachingAssignmentServiceTest {
                 assignment
         );
     }
+
+    @Test
+    void reactivationPreservesOriginalApprovalEvidence() {
+
+        Harness h = new Harness();
+        Ids ids = new Ids();
+
+        UUID assignmentId =
+                UUID.randomUUID();
+
+        UUID originalApprovedBy =
+                UUID.randomUUID();
+
+        UUID reactivatingUser =
+                UUID.randomUUID();
+
+        TeachingAssignment assignment =
+                new TeachingAssignment(
+                        "TA-REACTIVATE-001",
+                        ids.teacherProfileId,
+                        null,
+                        ids.academicYearId,
+                        null,
+                        ids.campusId,
+                        ids.classGradeId,
+                        null,
+                        ids.subjectId,
+                        "PRIMARY_TEACHER",
+                        8,
+                        null,
+                        LocalDate.of(2026, 2, 1),
+                        null,
+                        null,
+                        null,
+                        null
+                );
+
+        assignment.setTenantId(
+                ids.tenantId
+        );
+
+        assignment.activate(
+                originalApprovedBy
+        );
+
+        var originalApprovedAt =
+                assignment.getApprovedAt();
+
+        assignment.suspend();
+
+        when(
+                h.repository.findByTenantIdAndId(
+                        ids.tenantId,
+                        assignmentId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        assignment
+                )
+        );
+
+        when(
+                h.repository.save(
+                        assignment
+                )
+        ).thenReturn(
+                assignment
+        );
+
+        TeachingAssignment result =
+                h.service.activate(
+                        ids.tenantId,
+                        assignmentId,
+                        reactivatingUser
+                );
+
+        assertEquals(
+                "ACTIVE",
+                result.getAssignmentStatus()
+        );
+
+        assertEquals(
+                originalApprovedBy,
+                result.getApprovedBy()
+        );
+
+        assertEquals(
+                originalApprovedAt,
+                result.getApprovedAt()
+        );
+
+        verify(
+                h.repository
+        ).save(
+                assignment
+        );
+    }
+
 
     private static final class Ids {
 

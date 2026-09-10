@@ -24,6 +24,13 @@ public interface CurriculumLearningAreaRepository
     );
 
 
+    Optional<CurriculumLearningArea> findByTenantIdAndCurriculumVersionIdAndId(
+            UUID tenantId,
+            UUID curriculumVersionId,
+            UUID id
+    );
+
+
     List<CurriculumLearningArea> findByTenantIdAndCurriculumVersionIdAndStatus(
             UUID tenantId,
             UUID curriculumVersionId,

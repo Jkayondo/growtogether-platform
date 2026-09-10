@@ -1,8 +1,8 @@
 package africa.growtogether.platform.school.academic.curriculum;
 
-
 import africa.growtogether.platform.common.api.ApiResponse;
 import africa.growtogether.platform.common.api.ApiResponses;
+import africa.growtogether.platform.common.security.EnterpriseIdentityContext;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -20,14 +20,17 @@ public class CurriculumLearningAreaController {
 
     private final CurriculumLearningAreaService service;
     private final ApiResponses responses;
+    private final EnterpriseIdentityContext identity;
 
 
     public CurriculumLearningAreaController(
             CurriculumLearningAreaService service,
-            ApiResponses responses
+            ApiResponses responses,
+            EnterpriseIdentityContext identity
     ) {
         this.service = service;
         this.responses = responses;
+        this.identity = identity;
     }
 
 
@@ -43,6 +46,7 @@ public class CurriculumLearningAreaController {
             @RequestParam(defaultValue = "1") Integer sequenceNumber
     ) {
 
+        identity.requireTenant(tenantId);
 
         return responses.success(
                 "GT-SCHOOL-LEARNING-AREA-001",
@@ -60,7 +64,6 @@ public class CurriculumLearningAreaController {
     }
 
 
-
     @GetMapping
     @PreAuthorize("hasAuthority('school.academic.curriculum.learning-area.read')")
     public ApiResponse<List<CurriculumLearningArea>> list(
@@ -68,6 +71,7 @@ public class CurriculumLearningAreaController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
 
         return responses.success(
                 "GT-SCHOOL-LEARNING-AREA-002",
@@ -80,7 +84,6 @@ public class CurriculumLearningAreaController {
     }
 
 
-
     @GetMapping("/{code}")
     @PreAuthorize("hasAuthority('school.academic.curriculum.learning-area.read')")
     public ApiResponse<CurriculumLearningArea> get(
@@ -89,6 +92,7 @@ public class CurriculumLearningAreaController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
 
         return responses.success(
                 "GT-SCHOOL-LEARNING-AREA-003",
@@ -102,7 +106,6 @@ public class CurriculumLearningAreaController {
     }
 
 
-
     @PatchMapping("/{code}/activate")
     @PreAuthorize("hasAuthority('school.academic.curriculum.learning-area.manage')")
     public ApiResponse<CurriculumLearningArea> activate(
@@ -111,6 +114,7 @@ public class CurriculumLearningAreaController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
 
         CurriculumLearningArea learningArea =
                 service.findByCode(
@@ -118,7 +122,6 @@ public class CurriculumLearningAreaController {
                         curriculumVersionId,
                         code
                 );
-
 
         return responses.success(
                 "GT-SCHOOL-LEARNING-AREA-004",
@@ -130,7 +133,6 @@ public class CurriculumLearningAreaController {
     }
 
 
-
     @PatchMapping("/{code}/deactivate")
     @PreAuthorize("hasAuthority('school.academic.curriculum.learning-area.manage')")
     public ApiResponse<CurriculumLearningArea> deactivate(
@@ -139,6 +141,7 @@ public class CurriculumLearningAreaController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
 
         CurriculumLearningArea learningArea =
                 service.findByCode(
@@ -146,7 +149,6 @@ public class CurriculumLearningAreaController {
                         curriculumVersionId,
                         code
                 );
-
 
         return responses.success(
                 "GT-SCHOOL-LEARNING-AREA-005",
@@ -156,5 +158,4 @@ public class CurriculumLearningAreaController {
                 )
         );
     }
-
 }

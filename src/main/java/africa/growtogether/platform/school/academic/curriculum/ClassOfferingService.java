@@ -1,6 +1,8 @@
 package africa.growtogether.platform.school.academic.curriculum;
 
 
+import africa.growtogether.platform.school.academic.year.AcademicYearService;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,12 +16,21 @@ public class ClassOfferingService {
 
 
     private final ClassOfferingRepository repository;
+    private final AcademicYearService academicYears;
+    private final CampusService campuses;
+    private final ClassGradeService classGrades;
 
 
     public ClassOfferingService(
-            ClassOfferingRepository repository
+            ClassOfferingRepository repository,
+            AcademicYearService academicYears,
+            CampusService campuses,
+            ClassGradeService classGrades
     ) {
         this.repository = repository;
+        this.academicYears = academicYears;
+        this.campuses = campuses;
+        this.classGrades = classGrades;
     }
 
 
@@ -39,6 +50,22 @@ public class ClassOfferingService {
             LocalDate enrollmentOpenDate,
             LocalDate enrollmentCloseDate
     ) {
+
+
+        academicYears.get(
+                tenantId,
+                academicYearId
+        );
+
+        campuses.get(
+                tenantId,
+                campusId
+        );
+
+        classGrades.get(
+                tenantId,
+                classGradeId
+        );
 
 
         ClassOffering offering =
@@ -66,6 +93,25 @@ public class ClassOfferingService {
         return repository.save(
                 offering
         );
+    }
+
+
+    @Transactional(readOnly = true)
+    public ClassOffering get(
+            UUID tenantId,
+            UUID id
+    ) {
+
+        return repository
+                .findByTenantIdAndId(
+                        tenantId,
+                        id
+                )
+                .orElseThrow(
+                        () -> new IllegalArgumentException(
+                                "Class offering not found for tenant"
+                        )
+                );
     }
 
 

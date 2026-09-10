@@ -1,6 +1,5 @@
 package africa.growtogether.platform.school.academic.curriculum;
 
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,12 +12,15 @@ public class CurriculumLearningAreaService {
 
 
     private final CurriculumLearningAreaRepository repository;
+    private final CurriculumVersionRepository curriculumVersionRepository;
 
 
     public CurriculumLearningAreaService(
-            CurriculumLearningAreaRepository repository
+            CurriculumLearningAreaRepository repository,
+            CurriculumVersionRepository curriculumVersionRepository
     ) {
         this.repository = repository;
+        this.curriculumVersionRepository = curriculumVersionRepository;
     }
 
 
@@ -33,6 +35,16 @@ public class CurriculumLearningAreaService {
             Integer sequenceNumber
     ) {
 
+        curriculumVersionRepository
+                .findByTenantIdAndId(
+                        tenantId,
+                        curriculumVersionId
+                )
+                .orElseThrow(
+                        () -> new IllegalArgumentException(
+                                "Curriculum version not found"
+                        )
+                );
 
         CurriculumLearningArea learningArea =
                 new CurriculumLearningArea(
@@ -44,17 +56,14 @@ public class CurriculumLearningAreaService {
                         sequenceNumber
                 );
 
-
         learningArea.setTenantId(
                 tenantId
         );
-
 
         return repository.save(
                 learningArea
         );
     }
-
 
 
     @Transactional(readOnly = true)
@@ -68,9 +77,7 @@ public class CurriculumLearningAreaService {
                         tenantId,
                         curriculumVersionId
                 );
-
     }
-
 
 
     @Transactional(readOnly = true)
@@ -94,7 +101,6 @@ public class CurriculumLearningAreaService {
     }
 
 
-
     @Transactional
     public CurriculumLearningArea activate(
             CurriculumLearningArea learningArea
@@ -108,7 +114,6 @@ public class CurriculumLearningAreaService {
     }
 
 
-
     @Transactional
     public CurriculumLearningArea deactivate(
             CurriculumLearningArea learningArea
@@ -120,5 +125,4 @@ public class CurriculumLearningAreaService {
                 learningArea
         );
     }
-
 }

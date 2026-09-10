@@ -2,6 +2,7 @@ package africa.growtogether.platform.school.academic.teaching;
 
 import africa.growtogether.platform.common.api.ApiResponse;
 import africa.growtogether.platform.common.api.ApiResponses;
+import africa.growtogether.platform.common.security.EnterpriseIdentityContext;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -16,13 +17,16 @@ public class TeacherProfileController {
 
     private final TeacherProfileService service;
     private final ApiResponses responses;
+    private final EnterpriseIdentityContext identity;
 
     public TeacherProfileController(
             TeacherProfileService service,
-            ApiResponses responses
+            ApiResponses responses,
+            EnterpriseIdentityContext identity
     ) {
         this.service = service;
         this.responses = responses;
+        this.identity = identity;
     }
 
     @PostMapping
@@ -45,6 +49,8 @@ public class TeacherProfileController {
             @RequestParam(required = false) Integer maximumWeeklyPeriods,
             @RequestParam(required = false) String notes
     ) {
+
+        identity.requireTenant(tenantId);
 
         return responses.success(
                 "GT-SCHOOL-TEACHER-PROFILE-001",
@@ -77,6 +83,8 @@ public class TeacherProfileController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return responses.success(
                 "GT-SCHOOL-TEACHER-PROFILE-002",
                 "Teacher profile retrieved.",
@@ -93,6 +101,8 @@ public class TeacherProfileController {
             @PathVariable UUID workforceMemberId,
             @RequestParam UUID tenantId
     ) {
+
+        identity.requireTenant(tenantId);
 
         return responses.success(
                 "GT-SCHOOL-TEACHER-PROFILE-003",
@@ -111,6 +121,8 @@ public class TeacherProfileController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return responses.success(
                 "GT-SCHOOL-TEACHER-PROFILE-004",
                 "Teacher profiles retrieved by category.",
@@ -128,6 +140,8 @@ public class TeacherProfileController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return responses.success(
                 "GT-SCHOOL-TEACHER-PROFILE-005",
                 "Teacher profiles retrieved by teaching status.",
@@ -144,6 +158,8 @@ public class TeacherProfileController {
             @PathVariable String teacherNumber,
             @RequestParam UUID tenantId
     ) {
+
+        identity.requireTenant(tenantId);
 
         TeacherProfile profile =
                 service.findByTeacherNumber(
@@ -166,6 +182,8 @@ public class TeacherProfileController {
             @PathVariable String teacherNumber,
             @RequestParam UUID tenantId
     ) {
+
+        identity.requireTenant(tenantId);
 
         TeacherProfile profile =
                 service.findByTeacherNumber(

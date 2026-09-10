@@ -3,6 +3,7 @@ package africa.growtogether.platform.school.academic.curriculum;
 
 import africa.growtogether.platform.common.api.ApiResponse;
 import africa.growtogether.platform.common.api.ApiResponses;
+import africa.growtogether.platform.common.security.EnterpriseIdentityContext;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -20,16 +21,19 @@ public class CurriculumVersionController {
     private final CurriculumVersionService service;
     private final CurriculumRepository curriculumRepository;
     private final ApiResponses responses;
+    private final EnterpriseIdentityContext identity;
 
 
     public CurriculumVersionController(
             CurriculumVersionService service,
             CurriculumRepository curriculumRepository,
-            ApiResponses responses
+            ApiResponses responses,
+            EnterpriseIdentityContext identity
     ) {
         this.service = service;
         this.curriculumRepository = curriculumRepository;
         this.responses = responses;
+        this.identity = identity;
     }
 
 
@@ -43,9 +47,11 @@ public class CurriculumVersionController {
             @RequestParam LocalDate effectiveFrom
     ) {
 
+        identity.requireTenant(tenantId);
 
         Curriculum curriculum =
-                curriculumRepository.findById(
+                curriculumRepository.findByTenantIdAndId(
+                        tenantId,
                         curriculumId
                 )
                 .orElseThrow(
@@ -80,6 +86,8 @@ public class CurriculumVersionController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return responses.success(
                 "GT-SCHOOL-CURRICULUM-VERSION-002",
                 "Curriculum versions retrieved.",
@@ -99,6 +107,8 @@ public class CurriculumVersionController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return responses.success(
                 "GT-SCHOOL-CURRICULUM-VERSION-003",
                 "Curriculum version retrieved.",
@@ -117,10 +127,10 @@ public class CurriculumVersionController {
             @PathVariable UUID curriculumId,
             @PathVariable String versionCode,
             @RequestParam UUID tenantId,
-            @RequestParam UUID approvedBy,
             @RequestParam String approvalReference
     ) {
 
+        identity.requireTenant(tenantId);
 
         CurriculumVersion version =
                 service.findByCode(
@@ -135,7 +145,7 @@ public class CurriculumVersionController {
                 "Curriculum version approved.",
                 service.approve(
                         version,
-                        approvedBy,
+                        identity.requireUserId(),
                         approvalReference
                 )
         );
@@ -150,6 +160,7 @@ public class CurriculumVersionController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
 
         CurriculumVersion version =
                 service.findByCode(

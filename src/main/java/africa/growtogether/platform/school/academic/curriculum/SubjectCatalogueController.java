@@ -1,8 +1,8 @@
 package africa.growtogether.platform.school.academic.curriculum;
 
-
 import africa.growtogether.platform.common.api.ApiResponse;
 import africa.growtogether.platform.common.api.ApiResponses;
+import africa.growtogether.platform.common.security.EnterpriseIdentityContext;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -20,14 +20,17 @@ public class SubjectCatalogueController {
 
     private final SubjectCatalogueService service;
     private final ApiResponses responses;
+    private final EnterpriseIdentityContext identity;
 
 
     public SubjectCatalogueController(
             SubjectCatalogueService service,
-            ApiResponses responses
+            ApiResponses responses,
+            EnterpriseIdentityContext identity
     ) {
         this.service = service;
         this.responses = responses;
+        this.identity = identity;
     }
 
 
@@ -43,6 +46,8 @@ public class SubjectCatalogueController {
             @RequestParam(required = false) String description,
             @RequestParam(defaultValue = "1") Integer sequenceNumber
     ) {
+
+        identity.requireTenant(tenantId);
 
         return responses.success(
                 "GT-SCHOOL-SUBJECT-CATALOGUE-001",
@@ -68,6 +73,8 @@ public class SubjectCatalogueController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return responses.success(
                 "GT-SCHOOL-SUBJECT-CATALOGUE-002",
                 "Subject catalogue entries retrieved.",
@@ -86,6 +93,8 @@ public class SubjectCatalogueController {
             @PathVariable String code,
             @RequestParam UUID tenantId
     ) {
+
+        identity.requireTenant(tenantId);
 
         return responses.success(
                 "GT-SCHOOL-SUBJECT-CATALOGUE-003",
@@ -107,13 +116,14 @@ public class SubjectCatalogueController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         SubjectCatalogue subject =
                 service.findByCode(
                         tenantId,
                         curriculumVersionId,
                         code
                 );
-
 
         return responses.success(
                 "GT-SCHOOL-SUBJECT-CATALOGUE-004",
@@ -131,6 +141,8 @@ public class SubjectCatalogueController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         SubjectCatalogue subject =
                 service.findByCode(
                         tenantId,
@@ -138,12 +150,10 @@ public class SubjectCatalogueController {
                         code
                 );
 
-
         return responses.success(
                 "GT-SCHOOL-SUBJECT-CATALOGUE-005",
                 "Subject catalogue entry deactivated.",
                 service.deactivate(subject)
         );
     }
-
 }

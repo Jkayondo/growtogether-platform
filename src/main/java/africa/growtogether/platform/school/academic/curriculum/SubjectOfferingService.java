@@ -1,5 +1,8 @@
 package africa.growtogether.platform.school.academic.curriculum;
 
+import africa.growtogether.platform.school.academic.subject.SubjectService;
+import africa.growtogether.platform.school.academic.term.AcademicTermService;
+
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,12 +17,24 @@ public class SubjectOfferingService {
 
 
     private final SubjectOfferingRepository repository;
+    private final ClassOfferingService classOfferings;
+    private final SubjectService subjects;
+    private final AcademicTermService academicTerms;
+    private final StreamService streams;
 
 
     public SubjectOfferingService(
-            SubjectOfferingRepository repository
+            SubjectOfferingRepository repository,
+            ClassOfferingService classOfferings,
+            SubjectService subjects,
+            AcademicTermService academicTerms,
+            StreamService streams
     ) {
         this.repository = repository;
+        this.classOfferings = classOfferings;
+        this.subjects = subjects;
+        this.academicTerms = academicTerms;
+        this.streams = streams;
     }
 
 
@@ -38,6 +53,31 @@ public class SubjectOfferingService {
             Integer minimumEnrollment,
             Integer maximumEnrollment
     ) {
+
+
+        classOfferings.get(
+                tenantId,
+                classOfferingId
+        );
+
+        subjects.get(
+                tenantId,
+                subjectId
+        );
+
+        if (academicTermId != null) {
+            academicTerms.get(
+                    tenantId,
+                    academicTermId
+            );
+        }
+
+        if (streamId != null) {
+            streams.findById(
+                    tenantId,
+                    streamId
+            );
+        }
 
 
         SubjectOffering offering =

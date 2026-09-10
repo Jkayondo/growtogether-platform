@@ -14,6 +14,12 @@ public interface CurriculumVersionRepository
         extends JpaRepository<CurriculumVersion, UUID> {
 
 
+    Optional<CurriculumVersion> findByTenantIdAndId(
+            UUID tenantId,
+            UUID id
+    );
+
+
     List<CurriculumVersion> findByTenantIdAndCurriculumId(
             UUID tenantId,
             UUID curriculumId

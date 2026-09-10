@@ -1,6 +1,8 @@
 package africa.growtogether.platform.school.academic.curriculum;
 
+import africa.growtogether.platform.common.security.EnterpriseIdentityContext;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,21 +17,23 @@ public class CurriculumSubjectController {
 
 
     private final CurriculumSubjectService service;
-
-
     private final CurriculumVersionRepository versionRepository;
+    private final EnterpriseIdentityContext identity;
 
 
     public CurriculumSubjectController(
             CurriculumSubjectService service,
-            CurriculumVersionRepository versionRepository
+            CurriculumVersionRepository versionRepository,
+            EnterpriseIdentityContext identity
     ) {
         this.service = service;
         this.versionRepository = versionRepository;
+        this.identity = identity;
     }
 
 
     @PostMapping
+    @PreAuthorize("hasAuthority('school.academic.subject.create')")
     public CurriculumSubject create(
             @PathVariable UUID curriculumVersionId,
             @PathVariable UUID classGradeId,
@@ -37,8 +41,11 @@ public class CurriculumSubjectController {
             @RequestParam UUID subjectId
     ) {
 
+        identity.requireTenant(tenantId);
+
         CurriculumVersion version =
-                versionRepository.findById(
+                versionRepository.findByTenantIdAndId(
+                        tenantId,
                         curriculumVersionId
                 )
                 .orElseThrow(
@@ -58,11 +65,14 @@ public class CurriculumSubjectController {
 
 
     @GetMapping
+    @PreAuthorize("hasAuthority('school.academic.subject.read')")
     public List<CurriculumSubject> list(
             @PathVariable UUID curriculumVersionId,
             @PathVariable UUID classGradeId,
             @RequestParam UUID tenantId
     ) {
+
+        identity.requireTenant(tenantId);
 
         return service.findByGrade(
                 tenantId,
@@ -73,12 +83,15 @@ public class CurriculumSubjectController {
 
 
     @GetMapping("/{subjectId}")
+    @PreAuthorize("hasAuthority('school.academic.subject.read')")
     public CurriculumSubject get(
             @PathVariable UUID curriculumVersionId,
             @PathVariable UUID classGradeId,
             @PathVariable UUID subjectId,
             @RequestParam UUID tenantId
     ) {
+
+        identity.requireTenant(tenantId);
 
         return service.findMapping(
                 tenantId,
@@ -90,6 +103,7 @@ public class CurriculumSubjectController {
 
 
     @PatchMapping("/{subjectId}/requirement")
+    @PreAuthorize("hasAuthority('school.academic.subject.manage')")
     public CurriculumSubject changeRequirement(
             @PathVariable UUID curriculumVersionId,
             @PathVariable UUID classGradeId,
@@ -97,6 +111,8 @@ public class CurriculumSubjectController {
             @RequestParam UUID tenantId,
             @RequestParam String requirement
     ) {
+
+        identity.requireTenant(tenantId);
 
         CurriculumSubject subject =
                 service.findMapping(

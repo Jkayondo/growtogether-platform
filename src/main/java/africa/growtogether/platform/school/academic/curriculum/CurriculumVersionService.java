@@ -32,6 +32,11 @@ public class CurriculumVersionService {
             LocalDate effectiveFrom
     ) {
 
+        if (!tenantId.equals(curriculum.getTenantId())) {
+            throw new IllegalArgumentException(
+                    "Curriculum does not belong to tenant"
+            );
+        }
 
         CurriculumVersion version =
                 new CurriculumVersion(

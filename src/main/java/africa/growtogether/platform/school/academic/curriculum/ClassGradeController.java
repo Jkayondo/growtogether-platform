@@ -3,6 +3,7 @@ package africa.growtogether.platform.school.academic.curriculum;
 
 import africa.growtogether.platform.common.api.ApiResponse;
 import africa.growtogether.platform.common.api.ApiResponses;
+import africa.growtogether.platform.common.security.EnterpriseIdentityContext;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -18,14 +19,17 @@ public class ClassGradeController {
 
     private final ClassGradeService service;
     private final ApiResponses responses;
+    private final EnterpriseIdentityContext identity;
 
 
     public ClassGradeController(
             ClassGradeService service,
-            ApiResponses responses
+            ApiResponses responses,
+            EnterpriseIdentityContext identity
     ) {
         this.service = service;
         this.responses = responses;
+        this.identity = identity;
     }
 
 
@@ -39,6 +43,8 @@ public class ClassGradeController {
             @RequestParam Integer sequenceNumber,
             @RequestParam(required = false) Integer capacity
     ) {
+
+        identity.requireTenant(tenantId);
 
         return responses.success(
                 "GT-SCHOOL-CLASS-GRADE-001",
@@ -64,6 +70,8 @@ public class ClassGradeController {
             @RequestParam UUID educationLevelId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return responses.success(
                 "GT-SCHOOL-CLASS-GRADE-002",
                 "Class grades retrieved.",
@@ -84,6 +92,8 @@ public class ClassGradeController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return responses.success(
                 "GT-SCHOOL-CLASS-GRADE-003",
                 "Class grade retrieved.",
@@ -103,6 +113,8 @@ public class ClassGradeController {
             @PathVariable String code,
             @RequestParam UUID tenantId
     ) {
+
+        identity.requireTenant(tenantId);
 
         ClassGrade classGrade =
                 service.findByCode(
@@ -127,6 +139,8 @@ public class ClassGradeController {
             @PathVariable String code,
             @RequestParam UUID tenantId
     ) {
+
+        identity.requireTenant(tenantId);
 
         ClassGrade classGrade =
                 service.findByCode(

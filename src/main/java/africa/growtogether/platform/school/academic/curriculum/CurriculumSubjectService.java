@@ -1,10 +1,13 @@
 package africa.growtogether.platform.school.academic.curriculum;
 
+import africa.growtogether.platform.school.academic.subject.SubjectRepository;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 
@@ -12,13 +15,30 @@ import java.util.UUID;
 public class CurriculumSubjectService {
 
 
+    private static final Set<String> ALLOWED_REQUIREMENTS =
+            Set.of(
+                    "CORE",
+                    "COMPULSORY",
+                    "ELECTIVE",
+                    "OPTIONAL",
+                    "VOCATIONAL",
+                    "CO_CURRICULAR"
+            );
+
+
     private final CurriculumSubjectRepository repository;
+    private final ClassGradeRepository classGradeRepository;
+    private final SubjectRepository subjectRepository;
 
 
     public CurriculumSubjectService(
-            CurriculumSubjectRepository repository
+            CurriculumSubjectRepository repository,
+            ClassGradeRepository classGradeRepository,
+            SubjectRepository subjectRepository
     ) {
         this.repository = repository;
+        this.classGradeRepository = classGradeRepository;
+        this.subjectRepository = subjectRepository;
     }
 
 
@@ -29,6 +49,34 @@ public class CurriculumSubjectService {
             UUID classGradeId,
             UUID subjectId
     ) {
+
+        if (!tenantId.equals(curriculumVersion.getTenantId())) {
+            throw new IllegalArgumentException(
+                    "Curriculum version does not belong to tenant"
+            );
+        }
+
+        classGradeRepository
+                .findByTenantIdAndId(
+                        tenantId,
+                        classGradeId
+                )
+                .orElseThrow(
+                        () -> new IllegalArgumentException(
+                                "Class grade not found"
+                        )
+                );
+
+        subjectRepository
+                .findByTenantIdAndId(
+                        tenantId,
+                        subjectId
+                )
+                .orElseThrow(
+                        () -> new IllegalArgumentException(
+                                "Subject not found"
+                        )
+                );
 
 
         CurriculumSubject subject =
@@ -95,8 +143,35 @@ public class CurriculumSubjectService {
             String requirement
     ) {
 
-        subject.changeRequirement(
+        if (requirement == null
+                || requirement.isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "Subject requirement is required"
+            );
+        }
+
+
+        String normalizedRequirement =
                 requirement
+                        .trim()
+                        .toUpperCase(
+                                Locale.ROOT
+                        );
+
+
+        if (!ALLOWED_REQUIREMENTS.contains(
+                normalizedRequirement
+        )) {
+
+            throw new IllegalArgumentException(
+                    "Unsupported subject requirement"
+            );
+        }
+
+
+        subject.changeRequirement(
+                normalizedRequirement
         );
 
 
