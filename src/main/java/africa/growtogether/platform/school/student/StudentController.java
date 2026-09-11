@@ -1,7 +1,10 @@
 package africa.growtogether.platform.school.student;
 
+import africa.growtogether.platform.common.security.EnterpriseIdentityContext;
+
 import jakarta.validation.Valid;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
@@ -13,11 +16,14 @@ import org.springframework.web.bind.annotation.*;
 public class StudentController {
 
     private final StudentService service;
+    private final EnterpriseIdentityContext identity;
 
     public StudentController(
-            StudentService service
+            StudentService service,
+            EnterpriseIdentityContext identity
     ) {
         this.service = service;
+        this.identity = identity;
     }
 
     @PostMapping
@@ -29,10 +35,29 @@ public class StudentController {
             @Valid @RequestBody CreateStudentCommand command
     ) {
 
+        identity.requireTenant(tenantId);
+
         return ResponseEntity.ok(
                 service.create(
                         tenantId,
                         command
+                )
+        );
+    }
+
+    @GetMapping
+    @PreAuthorize(
+            "hasAuthority('school.student.read')"
+    )
+    public ResponseEntity<List<Student>> list(
+            @RequestParam UUID tenantId
+    ) {
+
+        identity.requireTenant(tenantId);
+
+        return ResponseEntity.ok(
+                service.findActiveStudents(
+                        tenantId
                 )
         );
     }
@@ -45,6 +70,8 @@ public class StudentController {
             @PathVariable UUID id,
             @RequestParam UUID tenantId
     ) {
+
+        identity.requireTenant(tenantId);
 
         return ResponseEntity.ok(
                 service.get(

@@ -323,6 +323,67 @@ class AdmissionApplicationServiceTest {
     }
 
     @Test
+    void rejectsStreamOutsideTenant() {
+
+        UUID tenantId = UUID.randomUUID();
+        UUID academicYearId = UUID.randomUUID();
+        UUID campusId = UUID.randomUUID();
+        UUID classGradeId = UUID.randomUUID();
+        UUID streamId = UUID.randomUUID();
+
+        CreateAdmissionApplicationCommand command =
+                new CreateAdmissionApplicationCommand(
+                        academicYearId,
+                        campusId,
+                        classGradeId,
+                        streamId,
+                        "ONLINE"
+                );
+
+        prepareScope(
+                tenantId,
+                academicYearId,
+                campusId,
+                classGradeId
+        );
+
+        when(
+                streams.findByTenantIdAndId(
+                        tenantId,
+                        streamId
+                )
+        ).thenReturn(
+                Optional.empty()
+        );
+
+        IllegalArgumentException exception =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () ->
+                                service.createDraft(
+                                        tenantId,
+                                        command
+                                )
+                );
+
+        assertEquals(
+                "Stream not found for tenant",
+                exception.getMessage()
+        );
+
+        verifyNoInteractions(
+                admissionNumbers
+        );
+
+        verify(
+                repository,
+                never()
+        ).save(
+                any()
+        );
+    }
+
+    @Test
     void rejectsStreamBelongingToDifferentCampus() {
 
         UUID tenantId = UUID.randomUUID();

@@ -1,5 +1,7 @@
 package africa.growtogether.platform.school.enrollment;
 
+import africa.growtogether.platform.common.security.EnterpriseIdentityContext;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -13,11 +15,14 @@ import java.util.UUID;
 public class StudentEnrollmentController {
 
     private final StudentEnrollmentService service;
+    private final EnterpriseIdentityContext identity;
 
     public StudentEnrollmentController(
-            StudentEnrollmentService service
+            StudentEnrollmentService service,
+            EnterpriseIdentityContext identity
     ) {
         this.service = service;
+        this.identity = identity;
     }
 
     @PostMapping
@@ -41,6 +46,8 @@ public class StudentEnrollmentController {
             @RequestParam(required = false) UUID workflowInstanceId,
             @RequestParam(required = false) UUID enrolledBy
     ) {
+
+        identity.requireTenant(tenantId);
 
         return ResponseEntity.ok(
                 service.create(
@@ -72,6 +79,8 @@ public class StudentEnrollmentController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return ResponseEntity.ok(
                 service.findById(
                         tenantId,
@@ -88,6 +97,8 @@ public class StudentEnrollmentController {
             @PathVariable String enrollmentNumber,
             @RequestParam UUID tenantId
     ) {
+
+        identity.requireTenant(tenantId);
 
         return ResponseEntity.ok(
                 service.findByEnrollmentNumber(
@@ -106,6 +117,8 @@ public class StudentEnrollmentController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return ResponseEntity.ok(
                 service.findByStudent(
                         tenantId,
@@ -122,6 +135,8 @@ public class StudentEnrollmentController {
             @PathVariable UUID academicYearId,
             @RequestParam UUID tenantId
     ) {
+
+        identity.requireTenant(tenantId);
 
         return ResponseEntity.ok(
                 service.findByAcademicYear(
@@ -140,6 +155,8 @@ public class StudentEnrollmentController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return ResponseEntity.ok(
                 service.findByCampus(
                         tenantId,
@@ -156,6 +173,8 @@ public class StudentEnrollmentController {
             @PathVariable UUID classGradeId,
             @RequestParam UUID tenantId
     ) {
+
+        identity.requireTenant(tenantId);
 
         return ResponseEntity.ok(
                 service.findByClassGrade(
@@ -174,6 +193,8 @@ public class StudentEnrollmentController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return ResponseEntity.ok(
                 service.findByStream(
                         tenantId,
@@ -191,6 +212,8 @@ public class StudentEnrollmentController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return ResponseEntity.ok(
                 service.findByStatus(
                         tenantId,
@@ -207,6 +230,8 @@ public class StudentEnrollmentController {
             @PathVariable UUID enrollmentId,
             @RequestParam UUID tenantId
     ) {
+
+        identity.requireTenant(tenantId);
 
         return ResponseEntity.ok(
                 service.markPending(
@@ -226,6 +251,8 @@ public class StudentEnrollmentController {
             @RequestParam UUID approvedBy
     ) {
 
+        identity.requireTenant(tenantId);
+
         return ResponseEntity.ok(
                 service.activate(
                         tenantId,
@@ -244,6 +271,8 @@ public class StudentEnrollmentController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return ResponseEntity.ok(
                 service.suspend(
                         tenantId,
@@ -261,6 +290,8 @@ public class StudentEnrollmentController {
             @RequestParam UUID tenantId,
             @RequestParam(required = false) LocalDate effectiveTo
     ) {
+
+        identity.requireTenant(tenantId);
 
         return ResponseEntity.ok(
                 service.complete(
@@ -281,6 +312,8 @@ public class StudentEnrollmentController {
             @RequestParam LocalDate exitDate,
             @RequestParam(required = false) String exitReason
     ) {
+
+        identity.requireTenant(tenantId);
 
         return ResponseEntity.ok(
                 service.withdraw(
@@ -303,6 +336,8 @@ public class StudentEnrollmentController {
             @RequestParam(required = false) String exitReason
     ) {
 
+        identity.requireTenant(tenantId);
+
         return ResponseEntity.ok(
                 service.transfer(
                         tenantId,
@@ -321,6 +356,8 @@ public class StudentEnrollmentController {
             @PathVariable UUID enrollmentId,
             @RequestParam UUID tenantId
     ) {
+
+        identity.requireTenant(tenantId);
 
         return ResponseEntity.ok(
                 service.cancel(

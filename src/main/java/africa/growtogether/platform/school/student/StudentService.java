@@ -1,5 +1,11 @@
 package africa.growtogether.platform.school.student;
 
+import africa.growtogether.platform.common.persistence.EntityStatus;
+import africa.growtogether.platform.school.admission.AdmissionApplicationRepository;
+import africa.growtogether.platform.school.profile.SchoolProfileRepository;
+import africa.growtogether.platform.school.student.identity.LearnerIdentityGenerator;
+
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -9,11 +15,20 @@ import org.springframework.transaction.annotation.Transactional;
 public class StudentService {
 
     private final StudentRepository repository;
+    private final AdmissionApplicationRepository admissionApplications;
+    private final LearnerIdentityGenerator identityGenerator;
+    private final SchoolProfileRepository schoolProfiles;
 
     public StudentService(
-            StudentRepository repository
+            StudentRepository repository,
+            AdmissionApplicationRepository admissionApplications,
+            LearnerIdentityGenerator identityGenerator,
+            SchoolProfileRepository schoolProfiles
     ) {
         this.repository = repository;
+        this.admissionApplications = admissionApplications;
+        this.identityGenerator = identityGenerator;
+        this.schoolProfiles = schoolProfiles;
     }
 
     @Transactional
@@ -22,21 +37,48 @@ public class StudentService {
             CreateStudentCommand command
     ) {
 
+        String permanentLearnerNumber =
+                identityGenerator.generatePermanentLearnerNumber();
+
+
+        String schoolCode =
+                schoolProfiles.findByTenantId(
+                        tenantId
+                )
+                .orElseThrow(
+                        () -> new IllegalArgumentException(
+                                "School profile not found for tenant"
+                        )
+                )
+                .getSchoolCode();
+
+
+        String studentNumber =
+                identityGenerator.generateStudentNumber(
+                        tenantId,
+                        schoolCode,
+                        command.admissionDate() != null
+                                ? command.admissionDate().getYear()
+                                : java.time.LocalDate.now().getYear()
+                );
+
+
         if (repository.existsByTenantIdAndStudentNumber(
                 tenantId,
-                command.studentNumber()
+                studentNumber
         )) {
             throw new IllegalArgumentException(
                     "Student number already exists for tenant"
             );
         }
 
+
         /*
          * Permanent learner number is intentionally globally unique
          * according to V034 and must NOT be tenant-scoped.
          */
         if (repository.existsByPermanentLearnerNumber(
-                command.permanentLearnerNumber()
+                permanentLearnerNumber
         )) {
             throw new IllegalArgumentException(
                     "Permanent learner number already exists"
@@ -44,6 +86,17 @@ public class StudentService {
         }
 
         if (command.admissionApplicationId() != null) {
+
+            admissionApplications
+                    .findByTenantIdAndId(
+                            tenantId,
+                            command.admissionApplicationId()
+                    )
+                    .orElseThrow(
+                            () -> new IllegalArgumentException(
+                                    "Admission application not found for tenant"
+                            )
+                    );
 
             repository
                     .findByTenantIdAndAdmissionApplicationId(
@@ -56,12 +109,11 @@ public class StudentService {
                         );
                     });
         }
-
         Student student =
                 new Student(
                         command.admissionApplicationId(),
-                        command.studentNumber(),
-                        command.permanentLearnerNumber(),
+                        studentNumber,
+                        permanentLearnerNumber,
                         command.firstName(),
                         command.middleName(),
                         command.lastName(),
@@ -89,6 +141,17 @@ public class StudentService {
 
         return repository.save(
                 student
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<Student> findActiveStudents(
+            UUID tenantId
+    ) {
+
+        return repository.findByTenantIdAndStatus(
+                tenantId,
+                EntityStatus.ACTIVE
         );
     }
 

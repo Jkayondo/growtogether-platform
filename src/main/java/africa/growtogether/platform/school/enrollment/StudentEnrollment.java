@@ -168,6 +168,7 @@ public class StudentEnrollment extends AuditedTenantEntity {
     }
 
     public void markPending() {
+        ensureLifecycleMutable();
         this.enrollmentStatus = "PENDING";
     }
 
@@ -175,18 +176,26 @@ public class StudentEnrollment extends AuditedTenantEntity {
             UUID approvedBy
     ) {
 
+        ensureLifecycleMutable();
+
+        if (this.approvedAt == null) {
+            this.approvedBy = approvedBy;
+            this.approvedAt = Instant.now();
+        }
+
         this.enrollmentStatus = "ACTIVE";
-        this.approvedBy = approvedBy;
-        this.approvedAt = Instant.now();
     }
 
     public void suspend() {
+        ensureLifecycleMutable();
         this.enrollmentStatus = "SUSPENDED";
     }
 
     public void complete(
             LocalDate effectiveTo
     ) {
+
+        ensureLifecycleMutable();
 
         if (
                 effectiveTo != null
@@ -206,6 +215,8 @@ public class StudentEnrollment extends AuditedTenantEntity {
             String exitReason
     ) {
 
+        ensureLifecycleMutable();
+
         validateExitDate(
                 exitDate
         );
@@ -220,6 +231,8 @@ public class StudentEnrollment extends AuditedTenantEntity {
             String exitReason
     ) {
 
+        ensureLifecycleMutable();
+
         validateExitDate(
                 exitDate
         );
@@ -230,7 +243,23 @@ public class StudentEnrollment extends AuditedTenantEntity {
     }
 
     public void cancel() {
+        ensureLifecycleMutable();
         this.enrollmentStatus = "CANCELLED";
+    }
+
+    private void ensureLifecycleMutable() {
+
+        if (
+                "COMPLETED".equals(this.enrollmentStatus)
+                || "WITHDRAWN".equals(this.enrollmentStatus)
+                || "TRANSFERRED".equals(this.enrollmentStatus)
+                || "CANCELLED".equals(this.enrollmentStatus)
+        ) {
+            throw new IllegalStateException(
+                    "Enrollment lifecycle is terminal: "
+                            + this.enrollmentStatus
+            );
+        }
     }
 
     private void validateExitDate(

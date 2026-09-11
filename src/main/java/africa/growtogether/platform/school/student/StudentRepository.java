@@ -1,5 +1,8 @@
 package africa.growtogether.platform.school.student;
 
+import africa.growtogether.platform.common.persistence.EntityStatus;
+
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -25,5 +28,10 @@ public interface StudentRepository
     Optional<Student> findByTenantIdAndAdmissionApplicationId(
             UUID tenantId,
             UUID admissionApplicationId
+    );
+
+    List<Student> findByTenantIdAndStatus(
+            UUID tenantId,
+            EntityStatus status
     );
 }

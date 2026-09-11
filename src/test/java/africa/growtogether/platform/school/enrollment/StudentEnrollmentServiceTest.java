@@ -232,6 +232,301 @@ class StudentEnrollmentServiceTest {
     }
 
     @Test
+    void rejectsAcademicYearOutsideTenantBoundary() {
+
+        Fixture f = new Fixture();
+
+        when(
+                f.students.findByTenantIdAndId(
+                        f.tenantId,
+                        f.studentId
+                )
+        ).thenReturn(
+                Optional.of(
+                        mock(Student.class)
+                )
+        );
+
+        when(
+                f.academicYears.findByTenantIdAndId(
+                        f.tenantId,
+                        f.academicYearId
+                )
+        ).thenReturn(
+                Optional.empty()
+        );
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        f::create
+                );
+
+        assertEquals(
+                "Academic year not found for tenant",
+                error.getMessage()
+        );
+
+        verify(
+                f.repository,
+                never()
+        ).save(
+                any(StudentEnrollment.class)
+        );
+    }
+
+
+    @Test
+    void rejectsAcademicTermOutsideTenantBoundary() {
+
+        Fixture f = new Fixture();
+
+        f.stubStudentAndYear();
+
+        when(
+                f.academicTerms.findByTenantIdAndId(
+                        f.tenantId,
+                        f.academicTermId
+                )
+        ).thenReturn(
+                Optional.empty()
+        );
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        f::create
+                );
+
+        assertEquals(
+                "Academic term not found for tenant",
+                error.getMessage()
+        );
+
+        verify(
+                f.repository,
+                never()
+        ).save(
+                any(StudentEnrollment.class)
+        );
+    }
+
+
+    @Test
+    void rejectsCampusOutsideTenantBoundary() {
+
+        Fixture f = new Fixture();
+
+        f.stubThroughClassGrade();
+
+        when(
+                f.campuses.findByTenantIdAndId(
+                        f.tenantId,
+                        f.campusId
+                )
+        ).thenReturn(
+                Optional.empty()
+        );
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        f::create
+                );
+
+        assertEquals(
+                "Campus not found for tenant",
+                error.getMessage()
+        );
+
+        verify(
+                f.repository,
+                never()
+        ).save(
+                any(StudentEnrollment.class)
+        );
+    }
+
+
+    @Test
+    void rejectsClassGradeOutsideTenantBoundary() {
+
+        Fixture f = new Fixture();
+
+        f.stubThroughClassGrade();
+
+        when(
+                f.classGrades.findByTenantIdAndId(
+                        f.tenantId,
+                        f.classGradeId
+                )
+        ).thenReturn(
+                Optional.empty()
+        );
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        f::create
+                );
+
+        assertEquals(
+                "Class grade not found for tenant",
+                error.getMessage()
+        );
+
+        verify(
+                f.repository,
+                never()
+        ).save(
+                any(StudentEnrollment.class)
+        );
+    }
+
+
+    @Test
+    void rejectsStreamOutsideTenantBoundary() {
+
+        Fixture f = new Fixture();
+
+        f.stubThroughClassGrade();
+
+        when(
+                f.streams.findByTenantIdAndId(
+                        f.tenantId,
+                        f.streamId
+                )
+        ).thenReturn(
+                Optional.empty()
+        );
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        f::create
+                );
+
+        assertEquals(
+                "Stream not found for tenant",
+                error.getMessage()
+        );
+
+        verify(
+                f.repository,
+                never()
+        ).save(
+                any(StudentEnrollment.class)
+        );
+    }
+
+
+    @Test
+    void rejectsStreamFromDifferentClassGrade() {
+
+        Fixture f = new Fixture();
+
+        f.stubThroughClassGrade();
+
+        Stream stream =
+                mock(Stream.class);
+
+        when(
+                stream.getCampusId()
+        ).thenReturn(
+                f.campusId
+        );
+
+        when(
+                stream.getClassGradeId()
+        ).thenReturn(
+                UUID.randomUUID()
+        );
+
+        when(
+                f.streams.findByTenantIdAndId(
+                        f.tenantId,
+                        f.streamId
+                )
+        ).thenReturn(
+                Optional.of(stream)
+        );
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        f::create
+                );
+
+        assertEquals(
+                "Stream does not belong to class grade",
+                error.getMessage()
+        );
+
+        verify(
+                f.repository,
+                never()
+        ).save(
+                any(StudentEnrollment.class)
+        );
+    }
+
+
+    @Test
+    void rejectsPreviousEnrollmentOutsideTenantBoundary() {
+
+        Fixture f = new Fixture();
+
+        f.stubValidDependencies();
+
+        UUID previousEnrollmentId =
+                UUID.randomUUID();
+
+        when(
+                f.repository.findByTenantIdAndId(
+                        f.tenantId,
+                        previousEnrollmentId
+                )
+        ).thenReturn(
+                Optional.empty()
+        );
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> f.service.create(
+                                f.tenantId,
+                                f.studentId,
+                                f.academicYearId,
+                                f.academicTermId,
+                                f.campusId,
+                                f.classGradeId,
+                                f.streamId,
+                                "ENR-2026-002",
+                                LocalDate.of(2026, 2, 1),
+                                LocalDate.of(2026, 2, 1),
+                                null,
+                                "CONTINUING",
+                                previousEnrollmentId,
+                                null,
+                                UUID.randomUUID()
+                        )
+                );
+
+        assertEquals(
+                "Previous enrollment not found for tenant",
+                error.getMessage()
+        );
+
+        verify(
+                f.repository,
+                never()
+        ).save(
+                any(StudentEnrollment.class)
+        );
+    }
+
+
+    @Test
     void rejectsDuplicateEnrollmentNumberWithinTenant() {
 
         Fixture f = new Fixture();
@@ -772,6 +1067,86 @@ class StudentEnrollmentServiceTest {
     }
 
     @Test
+    void reactivationPreservesOriginalApprovalEvidence() {
+
+        Fixture f = new Fixture();
+
+        StudentEnrollment enrollment =
+                new StudentEnrollment(
+                        f.studentId,
+                        f.academicYearId,
+                        f.academicTermId,
+                        f.campusId,
+                        f.classGradeId,
+                        f.streamId,
+                        "ENR-LIFE-REACTIVATE",
+                        LocalDate.of(2026, 2, 1),
+                        LocalDate.of(2026, 2, 1),
+                        null,
+                        "NEW",
+                        null,
+                        null,
+                        UUID.randomUUID()
+                );
+
+        UUID originalApprover =
+                UUID.randomUUID();
+
+        enrollment.markPending();
+
+        enrollment.activate(
+                originalApprover
+        );
+
+        var originalApprovedAt =
+                enrollment.getApprovedAt();
+
+        enrollment.suspend();
+
+        UUID enrollmentId =
+                UUID.randomUUID();
+
+        UUID secondApprover =
+                UUID.randomUUID();
+
+        when(
+                f.repository.findByTenantIdAndId(
+                        f.tenantId,
+                        enrollmentId
+                )
+        ).thenReturn(
+                Optional.of(enrollment)
+        );
+
+        when(
+                f.repository.save(enrollment)
+        ).thenReturn(enrollment);
+
+        StudentEnrollment result =
+                f.service.activate(
+                        f.tenantId,
+                        enrollmentId,
+                        secondApprover
+                );
+
+        assertEquals(
+                "ACTIVE",
+                result.getEnrollmentStatus()
+        );
+
+        assertEquals(
+                originalApprover,
+                result.getApprovedBy()
+        );
+
+        assertEquals(
+                originalApprovedAt,
+                result.getApprovedAt()
+        );
+    }
+
+
+    @Test
     void rejectsActivationWithoutApprover() {
 
         Fixture f = new Fixture();
@@ -978,6 +1353,73 @@ class StudentEnrollmentServiceTest {
     }
 
     @Test
+    void transfersEnrollmentAndRecordsExit() {
+
+        Fixture f = new Fixture();
+
+        UUID enrollmentId =
+                UUID.randomUUID();
+
+        StudentEnrollment enrollment =
+                new StudentEnrollment(
+                        f.studentId,
+                        f.academicYearId,
+                        f.academicTermId,
+                        f.campusId,
+                        f.classGradeId,
+                        f.streamId,
+                        "ENR-LIFE-TRANSFER",
+                        LocalDate.of(2026, 2, 1),
+                        LocalDate.of(2026, 2, 1),
+                        null,
+                        "NEW",
+                        null,
+                        null,
+                        UUID.randomUUID()
+                );
+
+        when(
+                f.repository.findByTenantIdAndId(
+                        f.tenantId,
+                        enrollmentId
+                )
+        ).thenReturn(
+                Optional.of(enrollment)
+        );
+
+        when(
+                f.repository.save(enrollment)
+        ).thenReturn(enrollment);
+
+        LocalDate exitDate =
+                LocalDate.of(2026, 7, 10);
+
+        StudentEnrollment result =
+                f.service.transfer(
+                        f.tenantId,
+                        enrollmentId,
+                        exitDate,
+                        "Transferred to another institution"
+                );
+
+        assertEquals(
+                "TRANSFERRED",
+                result.getEnrollmentStatus()
+        );
+
+        assertEquals(
+                exitDate,
+                result.getExitDate()
+        );
+
+        assertEquals(
+                "Transferred to another institution",
+                result.getExitReason()
+        );
+    }
+
+
+    @Test
     void cancelsEnrollment() {
 
         Fixture f = new Fixture();
@@ -1027,5 +1469,127 @@ class StudentEnrollmentServiceTest {
                 result.getEnrollmentStatus()
         );
     }
+
+    @Test
+    void terminalEnrollmentStatesRejectFurtherLifecycleChanges() {
+
+        Fixture f = new Fixture();
+
+        StudentEnrollment completed =
+                lifecycleEnrollment(
+                        f,
+                        "ENR-TERM-COMPLETED"
+                );
+
+        completed.complete(
+                LocalDate.of(2026, 12, 5)
+        );
+
+        IllegalStateException completedError =
+                assertThrows(
+                        IllegalStateException.class,
+                        completed::suspend
+                );
+
+        assertEquals(
+                "Enrollment lifecycle is terminal: COMPLETED",
+                completedError.getMessage()
+        );
+
+
+        StudentEnrollment withdrawn =
+                lifecycleEnrollment(
+                        f,
+                        "ENR-TERM-WITHDRAWN"
+                );
+
+        withdrawn.withdraw(
+                LocalDate.of(2026, 6, 15),
+                "Withdrawal test"
+        );
+
+        IllegalStateException withdrawnError =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> withdrawn.activate(
+                                UUID.randomUUID()
+                        )
+                );
+
+        assertEquals(
+                "Enrollment lifecycle is terminal: WITHDRAWN",
+                withdrawnError.getMessage()
+        );
+
+
+        StudentEnrollment transferred =
+                lifecycleEnrollment(
+                        f,
+                        "ENR-TERM-TRANSFERRED"
+                );
+
+        transferred.transfer(
+                LocalDate.of(2026, 6, 15),
+                "Transfer test"
+        );
+
+        IllegalStateException transferredError =
+                assertThrows(
+                        IllegalStateException.class,
+                        transferred::markPending
+                );
+
+        assertEquals(
+                "Enrollment lifecycle is terminal: TRANSFERRED",
+                transferredError.getMessage()
+        );
+
+
+        StudentEnrollment cancelled =
+                lifecycleEnrollment(
+                        f,
+                        "ENR-TERM-CANCELLED"
+                );
+
+        cancelled.cancel();
+
+        IllegalStateException cancelledError =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> cancelled.complete(
+                                LocalDate.of(2026, 12, 5)
+                        )
+                );
+
+        assertEquals(
+                "Enrollment lifecycle is terminal: CANCELLED",
+                cancelledError.getMessage()
+        );
+    }
+
+
+    private StudentEnrollment lifecycleEnrollment(
+            Fixture f,
+            String enrollmentNumber
+    ) {
+
+        return new StudentEnrollment(
+                f.studentId,
+                f.academicYearId,
+                f.academicTermId,
+                f.campusId,
+                f.classGradeId,
+                f.streamId,
+                enrollmentNumber,
+                LocalDate.of(2026, 2, 1),
+                LocalDate.of(2026, 2, 1),
+                null,
+                "NEW",
+                null,
+                null,
+                UUID.randomUUID()
+        );
+    }
+
 
 }
