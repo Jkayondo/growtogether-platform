@@ -252,19 +252,57 @@ public class TimetableEntry extends AuditedTenantEntity {
     }
 
     public void complete() {
+
+        if (!"ACTIVE".equals(entryStatus)) {
+            throw new IllegalStateException(
+                    "Only ACTIVE entries can be completed"
+            );
+        }
+
         entryStatus = "COMPLETED";
     }
 
     public void cancel() {
+
+        requireOpenLifecycleState(
+                "cancelled"
+        );
+
         entryStatus = "CANCELLED";
     }
 
     public void markMoved() {
+
+        requireOpenLifecycleState(
+                "moved"
+        );
+
         entryStatus = "MOVED";
     }
 
     public void markReplaced() {
+
+        requireOpenLifecycleState(
+                "replaced"
+        );
+
         entryStatus = "REPLACED";
+    }
+
+    private void requireOpenLifecycleState(
+            String operation
+    ) {
+
+        if (
+                !"SCHEDULED".equals(entryStatus)
+                && !"CONFIRMED".equals(entryStatus)
+                && !"ACTIVE".equals(entryStatus)
+        ) {
+            throw new IllegalStateException(
+                    "Only SCHEDULED, CONFIRMED or ACTIVE entries can be "
+                            + operation
+            );
+        }
     }
 
     private String requireText(

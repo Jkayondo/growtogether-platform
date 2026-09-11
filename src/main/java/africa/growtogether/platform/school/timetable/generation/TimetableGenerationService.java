@@ -7,6 +7,7 @@ import africa.growtogether.platform.eaif.AiRequest;
 import africa.growtogether.platform.school.academic.curriculum.CampusRepository;
 import africa.growtogether.platform.school.academic.term.AcademicTerm;
 import africa.growtogether.platform.school.academic.term.AcademicTermRepository;
+import africa.growtogether.platform.school.academic.year.AcademicYear;
 import africa.growtogether.platform.school.academic.year.AcademicYearRepository;
 
 import africa.growtogether.platform.school.timetable.bell.BellSchedule;
@@ -101,16 +102,23 @@ public class TimetableGenerationService {
             );
         }
 
-        academicYears
-                .findByTenantIdAndId(
-                        tenantId,
-                        command.academicYearId()
-                )
-                .orElseThrow(
-                        () -> new IllegalArgumentException(
-                                "Academic year not found for tenant"
+        AcademicYear academicYear =
+                academicYears
+                        .findByTenantIdAndId(
+                                tenantId,
+                                command.academicYearId()
                         )
-                );
+                        .orElseThrow(
+                                () -> new IllegalArgumentException(
+                                        "Academic year not found for tenant"
+                                )
+                        );
+
+        validateEffectiveDatesAgainstAcademicYear(
+                academicYear,
+                command.effectiveFrom(),
+                command.effectiveTo()
+        );
 
         AcademicTerm term = null;
 
@@ -276,6 +284,50 @@ public class TimetableGenerationService {
                         )
                 );
     }
+
+    private void validateEffectiveDatesAgainstAcademicYear(
+            AcademicYear academicYear,
+            LocalDate effectiveFrom,
+            LocalDate effectiveTo
+    ) {
+
+        if (
+                academicYear.getStartDate() != null
+                && effectiveFrom != null
+                && effectiveFrom.isBefore(
+                        academicYear.getStartDate()
+                )
+        ) {
+            throw new IllegalArgumentException(
+                    "Generation effectiveFrom is before academic year"
+            );
+        }
+
+        if (
+                academicYear.getEndDate() != null
+                && effectiveFrom != null
+                && effectiveFrom.isAfter(
+                        academicYear.getEndDate()
+                )
+        ) {
+            throw new IllegalArgumentException(
+                    "Generation effectiveFrom is after academic year"
+            );
+        }
+
+        if (
+                academicYear.getEndDate() != null
+                && effectiveTo != null
+                && effectiveTo.isAfter(
+                        academicYear.getEndDate()
+                )
+        ) {
+            throw new IllegalArgumentException(
+                    "Generation effectiveTo is after academic year"
+            );
+        }
+    }
+
 
     private void validateEffectiveDatesAgainstTerm(
             AcademicTerm term,

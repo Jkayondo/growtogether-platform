@@ -12,6 +12,8 @@ import africa.growtogether.platform.common.security.TenantBoundaryFilter;
 import africa.growtogether.platform.common.web.RequestContextFilter;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -30,7 +32,9 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
@@ -520,6 +524,339 @@ class TimetableControllerSecurityTest {
 
         assertNull(
                 command.generationReference()
+        );
+    }
+
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                    "read-by-id",
+                    "read-by-academic-year",
+                    "read-by-campus",
+                    "submit-review",
+                    "publish",
+                    "activate",
+                    "suspend"
+            }
+    )
+    void remainingTimetableEndpointsAcceptOnlyTheirAuthoritativePermission(
+            String operation
+    ) throws Exception {
+
+        UUID tenantId =
+                UUID.randomUUID();
+
+        UUID userId =
+                UUID.randomUUID();
+
+        UUID targetId =
+                UUID.randomUUID();
+
+        String permission =
+                switch (operation) {
+                    case "read-by-id",
+                         "read-by-academic-year",
+                         "read-by-campus" ->
+                            "school.timetable.read";
+
+                    case "submit-review" ->
+                            "school.timetable.review";
+
+                    case "publish" ->
+                            "school.timetable.publish";
+
+                    case "activate" ->
+                            "school.timetable.activate";
+
+                    case "suspend" ->
+                            "school.timetable.suspend";
+
+                    default ->
+                            throw new IllegalArgumentException(
+                                    "Unknown test operation: "
+                                            + operation
+                            );
+                };
+
+        String token =
+                token(
+                        userId,
+                        tenantId,
+                        Set.of(
+                                permission
+                        )
+                );
+
+        var request =
+                switch (operation) {
+
+                    case "read-by-id" ->
+                            get(
+                                    "/api/v1/school/timetables/"
+                                            + targetId
+                            );
+
+                    case "read-by-academic-year" ->
+                            get(
+                                    "/api/v1/school/timetables/academic-year/"
+                                            + targetId
+                            );
+
+                    case "read-by-campus" ->
+                            get(
+                                    "/api/v1/school/timetables/campus/"
+                                            + targetId
+                            );
+
+                    case "submit-review" ->
+                            patch(
+                                    "/api/v1/school/timetables/"
+                                            + targetId
+                                            + "/submit-review"
+                            );
+
+                    case "publish" ->
+                            patch(
+                                    "/api/v1/school/timetables/"
+                                            + targetId
+                                            + "/publish"
+                            );
+
+                    case "activate" ->
+                            patch(
+                                    "/api/v1/school/timetables/"
+                                            + targetId
+                                            + "/activate"
+                            );
+
+                    case "suspend" ->
+                            patch(
+                                    "/api/v1/school/timetables/"
+                                            + targetId
+                                            + "/suspend"
+                            );
+
+                    default ->
+                            throw new IllegalArgumentException(
+                                    "Unknown test operation: "
+                                            + operation
+                            );
+                };
+
+        mockMvc.perform(
+                        request
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .header(
+                                        "X-Tenant-ID",
+                                        tenantId.toString()
+                                )
+                )
+                .andExpect(
+                        status().isOk()
+                )
+                .andExpect(
+                        jsonPath("$.success")
+                                .value(true)
+                );
+
+        switch (operation) {
+
+            case "read-by-id" ->
+                    verify(
+                            service
+                    ).get(
+                            tenantId,
+                            targetId
+                    );
+
+            case "read-by-academic-year" ->
+                    verify(
+                            service
+                    ).findByAcademicYear(
+                            tenantId,
+                            targetId
+                    );
+
+            case "read-by-campus" ->
+                    verify(
+                            service
+                    ).findByCampus(
+                            tenantId,
+                            targetId
+                    );
+
+            case "submit-review" ->
+                    verify(
+                            service
+                    ).submitForReview(
+                            tenantId,
+                            targetId,
+                            userId
+                    );
+
+            case "publish" ->
+                    verify(
+                            service
+                    ).publish(
+                            tenantId,
+                            targetId,
+                            userId
+                    );
+
+            case "activate" ->
+                    verify(
+                            service
+                    ).activate(
+                            tenantId,
+                            targetId,
+                            userId
+                    );
+
+            case "suspend" ->
+                    verify(
+                            service
+                    ).suspend(
+                            tenantId,
+                            targetId,
+                            userId
+                    );
+
+            default ->
+                    throw new IllegalArgumentException(
+                            "Unknown test operation: "
+                                    + operation
+                    );
+        }
+    }
+
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                    "read-by-id",
+                    "read-by-academic-year",
+                    "read-by-campus",
+                    "submit-review",
+                    "publish",
+                    "activate",
+                    "suspend"
+            }
+    )
+    void remainingTimetableEndpointsRejectMissingOperationPermission(
+            String operation
+    ) throws Exception {
+
+        UUID tenantId =
+                UUID.randomUUID();
+
+        UUID userId =
+                UUID.randomUUID();
+
+        UUID targetId =
+                UUID.randomUUID();
+
+        /*
+         * Deliberately give an unrelated Timetable permission.
+         *
+         * This proves each endpoint's own @PreAuthorize rule rather
+         * than merely proving that the caller is authenticated.
+         */
+        String token =
+                token(
+                        userId,
+                        tenantId,
+                        Set.of(
+                                "school.timetable.create"
+                        )
+                );
+
+        var request =
+                switch (operation) {
+
+                    case "read-by-id" ->
+                            get(
+                                    "/api/v1/school/timetables/"
+                                            + targetId
+                            );
+
+                    case "read-by-academic-year" ->
+                            get(
+                                    "/api/v1/school/timetables/academic-year/"
+                                            + targetId
+                            );
+
+                    case "read-by-campus" ->
+                            get(
+                                    "/api/v1/school/timetables/campus/"
+                                            + targetId
+                            );
+
+                    case "submit-review" ->
+                            patch(
+                                    "/api/v1/school/timetables/"
+                                            + targetId
+                                            + "/submit-review"
+                            );
+
+                    case "publish" ->
+                            patch(
+                                    "/api/v1/school/timetables/"
+                                            + targetId
+                                            + "/publish"
+                            );
+
+                    case "activate" ->
+                            patch(
+                                    "/api/v1/school/timetables/"
+                                            + targetId
+                                            + "/activate"
+                            );
+
+                    case "suspend" ->
+                            patch(
+                                    "/api/v1/school/timetables/"
+                                            + targetId
+                                            + "/suspend"
+                            );
+
+                    default ->
+                            throw new IllegalArgumentException(
+                                    "Unknown test operation: "
+                                            + operation
+                            );
+                };
+
+        mockMvc.perform(
+                        request
+                                .header(
+                                        "Authorization",
+                                        "Bearer " + token
+                                )
+                                .header(
+                                        "X-Tenant-ID",
+                                        tenantId.toString()
+                                )
+                )
+                .andExpect(
+                        status().isForbidden()
+                )
+                .andExpect(
+                        jsonPath("$.success")
+                                .value(false)
+                )
+                .andExpect(
+                        jsonPath("$.code")
+                                .value(
+                                        "GT-AUTH-003"
+                                )
+                );
+
+        verifyNoInteractions(
+                service
         );
     }
 

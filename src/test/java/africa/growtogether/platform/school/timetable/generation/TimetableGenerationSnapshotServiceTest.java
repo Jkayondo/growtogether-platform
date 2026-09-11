@@ -716,6 +716,145 @@ class TimetableGenerationSnapshotServiceTest {
     }
 
     @Test
+    void excludesTeachingAssignmentThatStartsAfterGenerationScopeBegins() {
+
+        Fixture f = new Fixture();
+
+        f.stubBase();
+
+        when(
+                f.request.getEffectiveFrom()
+        ).thenReturn(
+                LocalDate.of(
+                        2026,
+                        2,
+                        1
+                )
+        );
+
+        when(
+                f.request.getEffectiveTo()
+        ).thenReturn(
+                LocalDate.of(
+                        2026,
+                        4,
+                        30
+                )
+        );
+
+        TeachingAssignment lateStarting =
+                f.assignment(
+                        "TA-LATE-START",
+                        f.campusId,
+                        f.academicTermId,
+                        "ACTIVE",
+                        LocalDate.of(
+                                2026,
+                                3,
+                                1
+                        ),
+                        LocalDate.of(
+                                2026,
+                                4,
+                                30
+                        )
+                );
+
+        when(
+                f.teachingAssignments
+                        .findByTenantIdAndAcademicYearId(
+                                f.tenantId,
+                                f.academicYearId
+                        )
+        ).thenReturn(
+                List.of(
+                        lateStarting
+                )
+        );
+
+        TimetableGenerationSnapshot result =
+                f.service.build(
+                        f.tenantId,
+                        f.requestId
+                );
+
+        assertTrue(
+                result.teachingAssignments()
+                        .isEmpty()
+        );
+    }
+
+    @Test
+    void excludesTeachingAssignmentThatEndsBeforeGenerationScopeEnds() {
+
+        Fixture f = new Fixture();
+
+        f.stubBase();
+
+        when(
+                f.request.getEffectiveFrom()
+        ).thenReturn(
+                LocalDate.of(
+                        2026,
+                        2,
+                        1
+                )
+        );
+
+        when(
+                f.request.getEffectiveTo()
+        ).thenReturn(
+                LocalDate.of(
+                        2026,
+                        4,
+                        30
+                )
+        );
+
+        TeachingAssignment earlyEnding =
+                f.assignment(
+                        "TA-EARLY-END",
+                        f.campusId,
+                        f.academicTermId,
+                        "ACTIVE",
+                        LocalDate.of(
+                                2026,
+                                2,
+                                1
+                        ),
+                        LocalDate.of(
+                                2026,
+                                3,
+                                31
+                        )
+                );
+
+        when(
+                f.teachingAssignments
+                        .findByTenantIdAndAcademicYearId(
+                                f.tenantId,
+                                f.academicYearId
+                        )
+        ).thenReturn(
+                List.of(
+                        earlyEnding
+                )
+        );
+
+        TimetableGenerationSnapshot result =
+                f.service.build(
+                        f.tenantId,
+                        f.requestId
+                );
+
+        assertTrue(
+                result.teachingAssignments()
+                        .isEmpty()
+        );
+    }
+
+
+    @Test
     void rejectsNonReadyGenerationRequestBeforeReadingSchedulingInputs() {
 
         Fixture f = new Fixture();

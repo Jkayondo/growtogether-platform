@@ -506,6 +506,195 @@ class TimetableGenerationServiceTest {
         );
     }
 
+    @Test
+    void rejectsYearLevelGenerationBeforeAcademicYearStart() {
+
+        Fixture f = new Fixture();
+
+        f.stubValidDependencies();
+
+        AcademicYear year =
+                f.academicYears
+                        .findByTenantIdAndId(
+                                f.tenantId,
+                                f.academicYearId
+                        )
+                        .orElseThrow();
+
+        when(
+                year.getStartDate()
+        ).thenReturn(
+                LocalDate.of(
+                        2026,
+                        1,
+                        1
+                )
+        );
+
+        when(
+                year.getEndDate()
+        ).thenReturn(
+                LocalDate.of(
+                        2026,
+                        12,
+                        31
+                )
+        );
+
+        CreateTimetableGenerationRequestCommand command =
+                new CreateTimetableGenerationRequestCommand(
+                        "gen-year-before",
+                        f.academicYearId,
+                        null,
+                        f.campusId,
+                        f.bellScheduleId,
+                        "MASTER",
+                        LocalDate.of(
+                                2025,
+                                12,
+                                31
+                        ),
+                        LocalDate.of(
+                                2026,
+                                4,
+                                30
+                        ),
+                        "AI_ASSISTED",
+                        "GT-TIMETABLE-AI",
+                        "Year-level generation boundary test",
+                        f.requestedBy
+                );
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> f.service.create(
+                                f.tenantId,
+                                command
+                        )
+                );
+
+        assertEquals(
+                "Generation effectiveFrom is before academic year",
+                error.getMessage()
+        );
+
+        verify(
+                f.repository,
+                never()
+        ).save(
+                any(TimetableGenerationRequest.class)
+        );
+
+        verify(
+                f.aiFoundation,
+                never()
+        ).submit(
+                any(UUID.class),
+                anyString(),
+                anyString(),
+                anyString(),
+                anyString(),
+                any(AiEnums.RiskLevel.class),
+                anyString()
+        );
+    }
+
+    @Test
+    void rejectsYearLevelGenerationAfterAcademicYearEnd() {
+
+        Fixture f = new Fixture();
+
+        f.stubValidDependencies();
+
+        AcademicYear year =
+                f.academicYears
+                        .findByTenantIdAndId(
+                                f.tenantId,
+                                f.academicYearId
+                        )
+                        .orElseThrow();
+
+        when(
+                year.getStartDate()
+        ).thenReturn(
+                LocalDate.of(
+                        2026,
+                        1,
+                        1
+                )
+        );
+
+        when(
+                year.getEndDate()
+        ).thenReturn(
+                LocalDate.of(
+                        2026,
+                        12,
+                        31
+                )
+        );
+
+        CreateTimetableGenerationRequestCommand command =
+                new CreateTimetableGenerationRequestCommand(
+                        "gen-year-after",
+                        f.academicYearId,
+                        null,
+                        f.campusId,
+                        f.bellScheduleId,
+                        "MASTER",
+                        LocalDate.of(
+                                2027,
+                                1,
+                                1
+                        ),
+                        LocalDate.of(
+                                2027,
+                                1,
+                                31
+                        ),
+                        "AI_ASSISTED",
+                        "GT-TIMETABLE-AI",
+                        "Year-level generation boundary test",
+                        f.requestedBy
+                );
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> f.service.create(
+                                f.tenantId,
+                                command
+                        )
+                );
+
+        assertEquals(
+                "Generation effectiveFrom is after academic year",
+                error.getMessage()
+        );
+
+        verify(
+                f.repository,
+                never()
+        ).save(
+                any(TimetableGenerationRequest.class)
+        );
+
+        verify(
+                f.aiFoundation,
+                never()
+        ).submit(
+                any(UUID.class),
+                anyString(),
+                anyString(),
+                anyString(),
+                anyString(),
+                any(AiEnums.RiskLevel.class),
+                anyString()
+        );
+    }
+
+
     private static class Fixture {
 
         final TimetableGenerationRequestRepository repository =

@@ -306,7 +306,7 @@ public class TimetableGenerationSnapshotService {
                         )
                         .filter(
                                 item ->
-                                        overlaps(
+                                        coversGenerationScope(
                                                 item.getEffectiveFrom(),
                                                 item.getEffectiveTo(),
                                                 request.getEffectiveFrom(),
@@ -554,7 +554,7 @@ public class TimetableGenerationSnapshotService {
                 );
     }
 
-    private boolean overlaps(
+    private boolean coversGenerationScope(
             LocalDate itemFrom,
             LocalDate itemTo,
             LocalDate scopeFrom,
@@ -562,9 +562,9 @@ public class TimetableGenerationSnapshotService {
     ) {
 
         if (
-                itemTo != null
+                itemFrom != null
                 && scopeFrom != null
-                && itemTo.isBefore(
+                && itemFrom.isAfter(
                         scopeFrom
                 )
         ) {
@@ -572,9 +572,9 @@ public class TimetableGenerationSnapshotService {
         }
 
         if (
-                scopeTo != null
-                && itemFrom != null
-                && itemFrom.isAfter(
+                itemTo != null
+                && scopeTo != null
+                && itemTo.isBefore(
                         scopeTo
                 )
         ) {

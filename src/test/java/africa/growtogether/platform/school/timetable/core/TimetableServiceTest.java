@@ -122,6 +122,122 @@ class TimetableServiceTest {
     }
 
     @Test
+    void rejectsYearLevelTimetableBeforeAcademicYearStart() {
+
+        Fixture f = new Fixture();
+
+        AcademicYear academicYear =
+                mock(AcademicYear.class);
+
+        when(
+                academicYear.getStartDate()
+        ).thenReturn(
+                LocalDate.of(2026, 1, 1)
+        );
+
+        when(
+                academicYear.getEndDate()
+        ).thenReturn(
+                LocalDate.of(2026, 12, 31)
+        );
+
+        when(
+                f.academicYears.findByTenantIdAndId(
+                        f.tenantId,
+                        f.academicYearId
+                )
+        ).thenReturn(
+                Optional.of(academicYear)
+        );
+
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> f.service.create(
+                                f.tenantId,
+                                f.command(
+                                        null,
+                                        LocalDate.of(2025, 12, 31),
+                                        LocalDate.of(2026, 4, 30)
+                                )
+                        )
+                );
+
+
+        assertEquals(
+                "Timetable effectiveFrom is before academic year",
+                error.getMessage()
+        );
+
+        verify(
+                f.repository,
+                never()
+        ).save(
+                any(Timetable.class)
+        );
+    }
+
+
+    @Test
+    void rejectsYearLevelTimetableAfterAcademicYearEnd() {
+
+        Fixture f = new Fixture();
+
+        AcademicYear academicYear =
+                mock(AcademicYear.class);
+
+        when(
+                academicYear.getStartDate()
+        ).thenReturn(
+                LocalDate.of(2026, 1, 1)
+        );
+
+        when(
+                academicYear.getEndDate()
+        ).thenReturn(
+                LocalDate.of(2026, 12, 31)
+        );
+
+        when(
+                f.academicYears.findByTenantIdAndId(
+                        f.tenantId,
+                        f.academicYearId
+                )
+        ).thenReturn(
+                Optional.of(academicYear)
+        );
+
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> f.service.create(
+                                f.tenantId,
+                                f.command(
+                                        null,
+                                        LocalDate.of(2026, 1, 1),
+                                        LocalDate.of(2027, 1, 1)
+                                )
+                        )
+                );
+
+
+        assertEquals(
+                "Timetable effectiveTo is after academic year",
+                error.getMessage()
+        );
+
+        verify(
+                f.repository,
+                never()
+        ).save(
+                any(Timetable.class)
+        );
+    }
+
+
+    @Test
     void rejectsAcademicTermThatDoesNotBelongToAcademicYear() {
 
         Fixture f = new Fixture();
