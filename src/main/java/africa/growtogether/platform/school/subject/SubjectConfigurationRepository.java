@@ -16,6 +16,12 @@ public interface SubjectConfigurationRepository
     );
 
 
+    java.util.Optional<SubjectConfiguration> findByIdAndTenantId(
+            UUID id,
+            UUID tenantId
+    );
+
+
     List<SubjectConfiguration> findByAcademicGradeId(
             UUID academicGradeId
     );

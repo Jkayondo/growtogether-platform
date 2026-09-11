@@ -50,6 +50,18 @@ public class CurriculumService {
 
 
     @Transactional(readOnly = true)
+    public List<Curriculum> findAllCurricula(
+            UUID tenantId
+    ) {
+
+        return repository
+                .findByTenantIdOrderByCurriculumNameAsc(
+                        tenantId
+                );
+    }
+
+
+    @Transactional(readOnly = true)
     public Curriculum findByCode(
             UUID tenantId,
             String curriculumCode

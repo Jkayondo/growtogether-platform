@@ -12,6 +12,12 @@ public interface EducationLevelRepository
         extends JpaRepository<EducationLevel, UUID> {
 
 
+    Optional<EducationLevel> findByTenantIdAndId(
+            UUID tenantId,
+            UUID id
+    );
+
+
     Optional<EducationLevel> findByTenantIdAndLevelCode(
             UUID tenantId,
             String levelCode

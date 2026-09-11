@@ -52,6 +52,25 @@ public class EducationLevelService {
 
 
     @Transactional(readOnly = true)
+    public EducationLevel get(
+            UUID tenantId,
+            UUID id
+    ) {
+
+        return repository
+                .findByTenantIdAndId(
+                        tenantId,
+                        id
+                )
+                .orElseThrow(
+                        () -> new IllegalArgumentException(
+                                "Education level not found for tenant"
+                        )
+                );
+    }
+
+
+    @Transactional(readOnly = true)
     public EducationLevel findByCode(
             UUID tenantId,
             String levelCode

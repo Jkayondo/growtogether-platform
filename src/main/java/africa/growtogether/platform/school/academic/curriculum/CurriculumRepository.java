@@ -14,6 +14,12 @@ public interface CurriculumRepository
         extends JpaRepository<Curriculum, UUID> {
 
 
+    Optional<Curriculum> findByTenantIdAndId(
+            UUID tenantId,
+            UUID id
+    );
+
+
     Optional<Curriculum> findByTenantIdAndCurriculumCode(
             UUID tenantId,
             String curriculumCode
@@ -23,6 +29,11 @@ public interface CurriculumRepository
     List<Curriculum> findByTenantIdAndCurriculumStatus(
             UUID tenantId,
             String curriculumStatus
+    );
+
+
+    List<Curriculum> findByTenantIdOrderByCurriculumNameAsc(
+            UUID tenantId
     );
 
 

@@ -1,5 +1,7 @@
 package africa.growtogether.platform.school.academic.subject;
 
+import africa.growtogether.platform.common.persistence.EntityStatus;
+
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -26,7 +28,7 @@ public interface SubjectRepository
 
     List<Subject> findByTenantIdAndStatus(
             UUID tenantId,
-            String status
+            EntityStatus status
     );
 
 }

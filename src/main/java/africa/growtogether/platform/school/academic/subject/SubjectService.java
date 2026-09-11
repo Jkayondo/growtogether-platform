@@ -1,5 +1,7 @@
 package africa.growtogether.platform.school.academic.subject;
 
+import africa.growtogether.platform.common.persistence.EntityStatus;
+
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,6 +57,25 @@ public class SubjectService {
 
 
     @Transactional(readOnly = true)
+    public Subject get(
+            UUID tenantId,
+            UUID id
+    ) {
+
+        return repository
+                .findByTenantIdAndId(
+                        tenantId,
+                        id
+                )
+                .orElseThrow(
+                        () -> new IllegalArgumentException(
+                                "Subject not found for tenant"
+                        )
+                );
+    }
+
+
+    @Transactional(readOnly = true)
     public Subject findByCode(
             UUID tenantId,
             String subjectCode
@@ -81,7 +102,7 @@ public class SubjectService {
         return repository
                 .findByTenantIdAndStatus(
                         tenantId,
-                        "ACTIVE"
+                        EntityStatus.ACTIVE
                 );
     }
 

@@ -67,6 +67,25 @@ public class AcademicTermService {
 
 
     @Transactional(readOnly = true)
+    public AcademicTerm get(
+            UUID tenantId,
+            UUID id
+    ) {
+
+        return repository
+                .findByTenantIdAndId(
+                        tenantId,
+                        id
+                )
+                .orElseThrow(
+                        () -> new IllegalArgumentException(
+                                "Academic term not found for tenant"
+                        )
+                );
+    }
+
+
+    @Transactional(readOnly = true)
     public List<AcademicTerm> findByAcademicYear(
             UUID academicYearId
     ) {

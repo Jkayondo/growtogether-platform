@@ -74,6 +74,26 @@ public class CampusService {
 
 
     @Transactional(readOnly = true)
+    public Campus get(
+            UUID tenantId,
+            UUID id
+    ) {
+
+        return repository
+                .findByTenantIdAndId(
+                        tenantId,
+                        id
+                )
+                .orElseThrow(
+                        () -> new IllegalArgumentException(
+                                "Campus not found for tenant"
+                        )
+                );
+
+    }
+
+
+    @Transactional(readOnly = true)
     public List<Campus> findBySchoolProfile(
             UUID tenantId,
             UUID schoolProfileId
