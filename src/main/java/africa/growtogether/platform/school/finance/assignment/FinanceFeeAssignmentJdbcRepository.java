@@ -289,4 +289,201 @@ public class FinanceFeeAssignmentJdbcRepository {
                 )
         );
     }
+
+@org.springframework.transaction.annotation.Transactional
+    public Optional<StudentFeeAssignmentView> suspendStudentFeeAssignment(
+            UUID tenantId,
+            UUID assignmentId,
+            String actor
+    ) {
+
+        int updated =
+                jdbc.update(
+                        """
+                        UPDATE gts_student_fee_assignment
+                        SET
+                            assignment_status = 'SUSPENDED',
+                            updated_at = CURRENT_TIMESTAMP,
+                            updated_by = ?,
+                            version = version + 1
+                        WHERE tenant_id = ?
+                          AND id = ?
+                          AND assignment_status = 'ACTIVE'
+                          AND status = 'ACTIVE'
+                        """,
+                        actor,
+                        tenantId,
+                        assignmentId
+                );
+
+        if (updated != 1) {
+            return Optional.empty();
+        }
+
+        return findStudentFeeAssignment(
+                tenantId,
+                assignmentId
+        );
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public Optional<StudentFeeAssignmentView> activateStudentFeeAssignment(
+            UUID tenantId,
+            UUID assignmentId,
+            String actor
+    ) {
+
+        int updated =
+                jdbc.update(
+                        """
+                        UPDATE gts_student_fee_assignment
+                        SET
+                            assignment_status = 'ACTIVE',
+                            status = 'ACTIVE',
+                            updated_at = CURRENT_TIMESTAMP,
+                            updated_by = ?,
+                            version = version + 1
+                        WHERE tenant_id = ?
+                          AND id = ?
+                          AND assignment_status IN (
+                              'PENDING',
+                              'SUSPENDED'
+                          )
+                          AND status = 'ACTIVE'
+                        """,
+                        actor,
+                        tenantId,
+                        assignmentId
+                );
+
+        if (updated != 1) {
+            return Optional.empty();
+        }
+
+        return findStudentFeeAssignment(
+                tenantId,
+                assignmentId
+        );
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public Optional<StudentFeeAssignmentView> completeStudentFeeAssignment(
+            UUID tenantId,
+            UUID assignmentId,
+            String actor
+    ) {
+
+        int updated =
+                jdbc.update(
+                        """
+                        UPDATE gts_student_fee_assignment
+                        SET
+                            assignment_status = 'COMPLETED',
+                            status = 'INACTIVE',
+                            updated_at = CURRENT_TIMESTAMP,
+                            updated_by = ?,
+                            version = version + 1
+                        WHERE tenant_id = ?
+                          AND id = ?
+                          AND assignment_status IN (
+                              'ACTIVE',
+                              'SUSPENDED'
+                          )
+                          AND status = 'ACTIVE'
+                        """,
+                        actor,
+                        tenantId,
+                        assignmentId
+                );
+
+        if (updated != 1) {
+            return Optional.empty();
+        }
+
+        return findStudentFeeAssignment(
+                tenantId,
+                assignmentId
+        );
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public Optional<StudentFeeAssignmentView> cancelStudentFeeAssignment(
+            UUID tenantId,
+            UUID assignmentId,
+            String actor
+    ) {
+
+        int updated =
+                jdbc.update(
+                        """
+                        UPDATE gts_student_fee_assignment
+                        SET
+                            assignment_status = 'CANCELLED',
+                            status = 'INACTIVE',
+                            updated_at = CURRENT_TIMESTAMP,
+                            updated_by = ?,
+                            version = version + 1
+                        WHERE tenant_id = ?
+                          AND id = ?
+                          AND assignment_status IN (
+                              'PENDING',
+                              'ACTIVE',
+                              'SUSPENDED'
+                          )
+                          AND status = 'ACTIVE'
+                        """,
+                        actor,
+                        tenantId,
+                        assignmentId
+                );
+
+        if (updated != 1) {
+            return Optional.empty();
+        }
+
+        return findStudentFeeAssignment(
+                tenantId,
+                assignmentId
+        );
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public Optional<StudentFeeAssignmentView> archiveStudentFeeAssignment(
+            UUID tenantId,
+            UUID assignmentId,
+            String actor
+    ) {
+
+        int updated =
+                jdbc.update(
+                        """
+                        UPDATE gts_student_fee_assignment
+                        SET
+                            assignment_status = 'ARCHIVED',
+                            status = 'ARCHIVED',
+                            updated_at = CURRENT_TIMESTAMP,
+                            updated_by = ?,
+                            version = version + 1
+                        WHERE tenant_id = ?
+                          AND id = ?
+                          AND assignment_status IN (
+                              'COMPLETED',
+                              'CANCELLED'
+                          )
+                          AND status = 'INACTIVE'
+                        """,
+                        actor,
+                        tenantId,
+                        assignmentId
+                );
+
+        if (updated != 1) {
+            return Optional.empty();
+        }
+
+        return findStudentFeeAssignment(
+                tenantId,
+                assignmentId
+        );
+    }
 }

@@ -443,4 +443,152 @@ public class FinanceFeeAssignmentService {
 
         return normalized;
     }
+
+public StudentFeeAssignmentView suspendStudentFeeAssignment(
+            UUID tenantId,
+            UUID assignmentId,
+            String actor
+    ) {
+
+        requireLifecycleInput(
+                tenantId,
+                assignmentId,
+                actor
+        );
+
+        return repository.suspendStudentFeeAssignment(
+                tenantId,
+                assignmentId,
+                actor
+        ).orElseThrow(
+                () ->
+                        new IllegalStateException(
+                                "Only an active fee assignment may be suspended."
+                        )
+        );
+    }
+
+    public StudentFeeAssignmentView activateStudentFeeAssignment(
+            UUID tenantId,
+            UUID assignmentId,
+            String actor
+    ) {
+
+        requireLifecycleInput(
+                tenantId,
+                assignmentId,
+                actor
+        );
+
+        return repository.activateStudentFeeAssignment(
+                tenantId,
+                assignmentId,
+                actor
+        ).orElseThrow(
+                () ->
+                        new IllegalStateException(
+                                "Only a pending or suspended fee assignment may be activated."
+                        )
+        );
+    }
+
+    public StudentFeeAssignmentView completeStudentFeeAssignment(
+            UUID tenantId,
+            UUID assignmentId,
+            String actor
+    ) {
+
+        requireLifecycleInput(
+                tenantId,
+                assignmentId,
+                actor
+        );
+
+        return repository.completeStudentFeeAssignment(
+                tenantId,
+                assignmentId,
+                actor
+        ).orElseThrow(
+                () ->
+                        new IllegalStateException(
+                                "Only an active or suspended fee assignment may be completed."
+                        )
+        );
+    }
+
+    public StudentFeeAssignmentView cancelStudentFeeAssignment(
+            UUID tenantId,
+            UUID assignmentId,
+            String actor
+    ) {
+
+        requireLifecycleInput(
+                tenantId,
+                assignmentId,
+                actor
+        );
+
+        return repository.cancelStudentFeeAssignment(
+                tenantId,
+                assignmentId,
+                actor
+        ).orElseThrow(
+                () ->
+                        new IllegalStateException(
+                                "Only a pending, active or suspended fee assignment may be cancelled."
+                        )
+        );
+    }
+
+    public StudentFeeAssignmentView archiveStudentFeeAssignment(
+            UUID tenantId,
+            UUID assignmentId,
+            String actor
+    ) {
+
+        requireLifecycleInput(
+                tenantId,
+                assignmentId,
+                actor
+        );
+
+        return repository.archiveStudentFeeAssignment(
+                tenantId,
+                assignmentId,
+                actor
+        ).orElseThrow(
+                () ->
+                        new IllegalStateException(
+                                "Only a completed or cancelled fee assignment may be archived."
+                        )
+        );
+    }
+
+    private void requireLifecycleInput(
+            UUID tenantId,
+            UUID assignmentId,
+            String actor
+    ) {
+
+        if (tenantId == null) {
+            throw new IllegalArgumentException(
+                    "tenantId must not be null"
+            );
+        }
+
+        if (assignmentId == null) {
+            throw new IllegalArgumentException(
+                    "assignmentId must not be null"
+            );
+        }
+
+        if (
+                actor == null
+                        || actor.isBlank()
+        ) {
+            throw new IllegalArgumentException(
+                    "actor must not be blank"
+            );
+        }
+    }
 }

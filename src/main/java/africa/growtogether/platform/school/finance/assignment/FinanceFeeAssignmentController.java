@@ -106,4 +106,154 @@ public class FinanceFeeAssignmentController {
                 )
         );
     }
+
+@org.springframework.web.bind.annotation.PatchMapping(
+            "/{assignmentId}/suspend"
+    )
+    @org.springframework.security.access.prepost.PreAuthorize(
+            "hasAuthority('school.finance.approve')"
+    )
+    public africa.growtogether.platform.common.api.ApiResponse<StudentFeeAssignmentView>
+    suspendStudentFeeAssignment(
+            @org.springframework.web.bind.annotation.PathVariable
+            java.util.UUID assignmentId,
+            @org.springframework.web.bind.annotation.RequestParam
+            java.util.UUID tenantId
+    ) {
+
+        identity.requireTenant(
+                tenantId
+        );
+
+        return responses.success(
+                "GT-SCHOOL-FIN-016",
+                "Learner fee assignment suspended.",
+                service.suspendStudentFeeAssignment(
+                        tenantId,
+                        assignmentId,
+                        identity.requireUserId()
+                                .toString()
+                )
+        );
+    }
+
+    @org.springframework.web.bind.annotation.PatchMapping(
+            "/{assignmentId}/activate"
+    )
+    @org.springframework.security.access.prepost.PreAuthorize(
+            "hasAuthority('school.finance.approve')"
+    )
+    public africa.growtogether.platform.common.api.ApiResponse<StudentFeeAssignmentView>
+    activateStudentFeeAssignment(
+            @org.springframework.web.bind.annotation.PathVariable
+            java.util.UUID assignmentId,
+            @org.springframework.web.bind.annotation.RequestParam
+            java.util.UUID tenantId
+    ) {
+
+        identity.requireTenant(
+                tenantId
+        );
+
+        return responses.success(
+                "GT-SCHOOL-FIN-017",
+                "Learner fee assignment activated.",
+                service.activateStudentFeeAssignment(
+                        tenantId,
+                        assignmentId,
+                        identity.requireUserId()
+                                .toString()
+                )
+        );
+    }
+
+    @org.springframework.web.bind.annotation.PatchMapping(
+            "/{assignmentId}/complete"
+    )
+    @org.springframework.security.access.prepost.PreAuthorize(
+            "hasAuthority('school.finance.approve')"
+    )
+    public africa.growtogether.platform.common.api.ApiResponse<StudentFeeAssignmentView>
+    completeStudentFeeAssignment(
+            @org.springframework.web.bind.annotation.PathVariable
+            java.util.UUID assignmentId,
+            @org.springframework.web.bind.annotation.RequestParam
+            java.util.UUID tenantId
+    ) {
+
+        identity.requireTenant(
+                tenantId
+        );
+
+        return responses.success(
+                "GT-SCHOOL-FIN-018",
+                "Learner fee assignment completed.",
+                service.completeStudentFeeAssignment(
+                        tenantId,
+                        assignmentId,
+                        identity.requireUserId()
+                                .toString()
+                )
+        );
+    }
+
+    @org.springframework.web.bind.annotation.PatchMapping(
+            "/{assignmentId}/cancel"
+    )
+    @org.springframework.security.access.prepost.PreAuthorize(
+            "hasAuthority('school.finance.approve')"
+    )
+    public africa.growtogether.platform.common.api.ApiResponse<StudentFeeAssignmentView>
+    cancelStudentFeeAssignment(
+            @org.springframework.web.bind.annotation.PathVariable
+            java.util.UUID assignmentId,
+            @org.springframework.web.bind.annotation.RequestParam
+            java.util.UUID tenantId
+    ) {
+
+        identity.requireTenant(
+                tenantId
+        );
+
+        return responses.success(
+                "GT-SCHOOL-FIN-019",
+                "Learner fee assignment cancelled.",
+                service.cancelStudentFeeAssignment(
+                        tenantId,
+                        assignmentId,
+                        identity.requireUserId()
+                                .toString()
+                )
+        );
+    }
+
+    @org.springframework.web.bind.annotation.PatchMapping(
+            "/{assignmentId}/archive"
+    )
+    @org.springframework.security.access.prepost.PreAuthorize(
+            "hasAuthority('school.finance.approve')"
+    )
+    public africa.growtogether.platform.common.api.ApiResponse<StudentFeeAssignmentView>
+    archiveStudentFeeAssignment(
+            @org.springframework.web.bind.annotation.PathVariable
+            java.util.UUID assignmentId,
+            @org.springframework.web.bind.annotation.RequestParam
+            java.util.UUID tenantId
+    ) {
+
+        identity.requireTenant(
+                tenantId
+        );
+
+        return responses.success(
+                "GT-SCHOOL-FIN-020",
+                "Learner fee assignment archived.",
+                service.archiveStudentFeeAssignment(
+                        tenantId,
+                        assignmentId,
+                        identity.requireUserId()
+                                .toString()
+                )
+        );
+    }
 }
