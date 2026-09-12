@@ -1,0 +1,466 @@
+package africa.growtogether.platform.school.finance.invoice;
+
+import static africa.growtogether.platform.school.finance.invoice.FinanceInvoiceDtos.*;
+
+import africa.growtogether.platform.school.finance.assignment.FinanceFeeAssignmentDtos.StudentFeeAssignmentView;
+import africa.growtogether.platform.school.finance.foundation.FinanceFoundationDtos.FeeStructureView;
+import africa.growtogether.platform.school.finance.foundation.FinanceFoundationDtos.StudentFinancialAccountView;
+
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+@Repository
+public class FinanceInvoiceJdbcRepository {
+
+    private final JdbcTemplate jdbc;
+
+    public FinanceInvoiceJdbcRepository(
+            JdbcTemplate jdbc
+    ) {
+        this.jdbc = jdbc;
+    }
+
+    public record DraftInvoiceLine(
+            UUID feeItemId,
+            UUID feeStructureItemId,
+            String description,
+            BigDecimal quantity,
+            BigDecimal unitAmount,
+            BigDecimal grossAmount,
+            BigDecimal netAmount,
+            LocalDate dueDate
+    ) {
+    }
+
+    @Transactional(readOnly = true)
+    public boolean existsInvoiceNumber(
+            UUID tenantId,
+            String invoiceNumber
+    ) {
+        Boolean result =
+                jdbc.queryForObject(
+                        """
+                        SELECT EXISTS (
+                            SELECT 1
+                            FROM gts_student_invoice
+                            WHERE tenant_id = ?
+                              AND invoice_number = ?
+                        )
+                        """,
+                        Boolean.class,
+                        tenantId,
+                        invoiceNumber
+                );
+
+        return Boolean.TRUE.equals(result);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean studentExists(
+            UUID tenantId,
+            UUID studentId
+    ) {
+        Boolean result =
+                jdbc.queryForObject(
+                        """
+                        SELECT EXISTS (
+                            SELECT 1
+                            FROM gts_student
+                            WHERE tenant_id = ?
+                              AND id = ?
+                        )
+                        """,
+                        Boolean.class,
+                        tenantId,
+                        studentId
+                );
+
+        return Boolean.TRUE.equals(result);
+    }
+
+    @Transactional
+    public StudentInvoiceView createDraftInvoice(
+            UUID tenantId,
+            String invoiceNumber,
+            StudentFeeAssignmentView assignment,
+            FeeStructureView structure,
+            StudentFinancialAccountView account,
+            LocalDate invoiceDate,
+            LocalDate dueDate,
+            BigDecimal totalAmount,
+            List<DraftInvoiceLine> lines,
+            String actor
+    ) {
+
+        UUID invoiceId =
+                jdbc.queryForObject(
+                        """
+                        INSERT INTO gts_student_invoice (
+                            tenant_id,
+                            invoice_number,
+                            student_financial_account_id,
+                            student_id,
+                            student_enrollment_id,
+                            academic_year_id,
+                            academic_term_id,
+                            fee_structure_id,
+                            invoice_date,
+                            due_date,
+                            currency_code,
+                            subtotal_amount,
+                            discount_amount,
+                            tax_amount,
+                            total_amount,
+                            paid_amount,
+                            outstanding_amount,
+                            invoice_status,
+                            status,
+                            created_at,
+                            created_by,
+                            updated_at,
+                            updated_by,
+                            version
+                        )
+                        VALUES (
+                            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                            ?, 0, 0, ?, 0, ?,
+                            'DRAFT',
+                            'ACTIVE',
+                            CURRENT_TIMESTAMP,
+                            ?,
+                            CURRENT_TIMESTAMP,
+                            ?,
+                            0
+                        )
+                        RETURNING id
+                        """,
+                        UUID.class,
+                        tenantId,
+                        invoiceNumber,
+                        account.id(),
+                        assignment.studentId(),
+                        assignment.studentEnrollmentId(),
+                        structure.academicYearId(),
+                        structure.academicTermId(),
+                        structure.id(),
+                        invoiceDate,
+                        dueDate,
+                        structure.currencyCode(),
+                        totalAmount,
+                        totalAmount,
+                        totalAmount,
+                        actor,
+                        actor
+                );
+
+        if (invoiceId == null) {
+            throw new IllegalStateException(
+                    "Draft invoice insert did not return an identifier."
+            );
+        }
+
+        for (DraftInvoiceLine line : lines) {
+            jdbc.update(
+                    """
+                    INSERT INTO gts_student_invoice_line (
+                        tenant_id,
+                        invoice_id,
+                        fee_item_id,
+                        fee_structure_item_id,
+                        line_description,
+                        quantity,
+                        unit_amount,
+                        gross_amount,
+                        discount_amount,
+                        tax_amount,
+                        net_amount,
+                        due_date,
+                        line_status,
+                        status,
+                        created_at,
+                        created_by,
+                        updated_at,
+                        updated_by,
+                        version
+                    )
+                    VALUES (
+                        ?, ?, ?, ?, ?, ?, ?, ?,
+                        0, 0, ?, ?,
+                        'ACTIVE',
+                        'ACTIVE',
+                        CURRENT_TIMESTAMP,
+                        ?,
+                        CURRENT_TIMESTAMP,
+                        ?,
+                        0
+                    )
+                    """,
+                    tenantId,
+                    invoiceId,
+                    line.feeItemId(),
+                    line.feeStructureItemId(),
+                    line.description(),
+                    line.quantity(),
+                    line.unitAmount(),
+                    line.grossAmount(),
+                    line.netAmount(),
+                    line.dueDate(),
+                    actor,
+                    actor
+            );
+        }
+
+        return findStudentInvoice(
+                tenantId,
+                invoiceId
+        ).orElseThrow(
+                () -> new IllegalStateException(
+                        "Created draft invoice could not be reloaded."
+                )
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<StudentInvoiceView> findStudentInvoice(
+            UUID tenantId,
+            UUID invoiceId
+    ) {
+
+        List<StudentInvoiceView> invoices =
+                jdbc.query(
+                        """
+                        SELECT
+                            id,
+                            tenant_id,
+                            invoice_number,
+                            student_financial_account_id,
+                            student_id,
+                            student_enrollment_id,
+                            academic_year_id,
+                            academic_term_id,
+                            fee_structure_id,
+                            invoice_date,
+                            due_date,
+                            currency_code,
+                            subtotal_amount,
+                            discount_amount,
+                            tax_amount,
+                            total_amount,
+                            paid_amount,
+                            outstanding_amount,
+                            invoice_status,
+                            status
+                        FROM gts_student_invoice
+                        WHERE tenant_id = ?
+                          AND id = ?
+                        """,
+                        (rs, rowNum) ->
+                                new StudentInvoiceView(
+                                        rs.getObject("id", UUID.class),
+                                        rs.getObject("tenant_id", UUID.class),
+                                        rs.getString("invoice_number"),
+                                        rs.getObject(
+                                                "student_financial_account_id",
+                                                UUID.class
+                                        ),
+                                        rs.getObject("student_id", UUID.class),
+                                        rs.getObject(
+                                                "student_enrollment_id",
+                                                UUID.class
+                                        ),
+                                        rs.getObject(
+                                                "academic_year_id",
+                                                UUID.class
+                                        ),
+                                        rs.getObject(
+                                                "academic_term_id",
+                                                UUID.class
+                                        ),
+                                        rs.getObject(
+                                                "fee_structure_id",
+                                                UUID.class
+                                        ),
+                                        rs.getObject(
+                                                "invoice_date",
+                                                LocalDate.class
+                                        ),
+                                        rs.getObject(
+                                                "due_date",
+                                                LocalDate.class
+                                        ),
+                                        rs.getString("currency_code"),
+                                        rs.getBigDecimal("subtotal_amount"),
+                                        rs.getBigDecimal("discount_amount"),
+                                        rs.getBigDecimal("tax_amount"),
+                                        rs.getBigDecimal("total_amount"),
+                                        rs.getBigDecimal("paid_amount"),
+                                        rs.getBigDecimal(
+                                                "outstanding_amount"
+                                        ),
+                                        rs.getString("invoice_status"),
+                                        rs.getString("status"),
+                                        List.of()
+                                ),
+                        tenantId,
+                        invoiceId
+                );
+
+        if (invoices.isEmpty()) {
+            return Optional.empty();
+        }
+
+        StudentInvoiceView header =
+                invoices.getFirst();
+
+        return Optional.of(
+                withLines(
+                        header,
+                        listInvoiceLines(
+                                tenantId,
+                                header.id()
+                        )
+                )
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<StudentInvoiceView> listStudentInvoices(
+            UUID tenantId,
+            UUID studentId
+    ) {
+
+        List<UUID> invoiceIds =
+                jdbc.query(
+                        """
+                        SELECT id
+                        FROM gts_student_invoice
+                        WHERE tenant_id = ?
+                          AND student_id = ?
+                        ORDER BY invoice_date DESC,
+                                 invoice_number DESC,
+                                 id DESC
+                        """,
+                        (rs, rowNum) ->
+                                rs.getObject(
+                                        "id",
+                                        UUID.class
+                                ),
+                        tenantId,
+                        studentId
+                );
+
+        List<StudentInvoiceView> result =
+                new ArrayList<>(
+                        invoiceIds.size()
+                );
+
+        for (UUID invoiceId : invoiceIds) {
+            findStudentInvoice(
+                    tenantId,
+                    invoiceId
+            ).ifPresent(
+                    result::add
+            );
+        }
+
+        return List.copyOf(
+                result
+        );
+    }
+
+    private List<StudentInvoiceLineView> listInvoiceLines(
+            UUID tenantId,
+            UUID invoiceId
+    ) {
+
+        return jdbc.query(
+                """
+                SELECT
+                    id,
+                    tenant_id,
+                    invoice_id,
+                    fee_item_id,
+                    fee_structure_item_id,
+                    line_description,
+                    quantity,
+                    unit_amount,
+                    gross_amount,
+                    discount_amount,
+                    tax_amount,
+                    net_amount,
+                    due_date,
+                    line_status,
+                    status
+                FROM gts_student_invoice_line
+                WHERE tenant_id = ?
+                  AND invoice_id = ?
+                ORDER BY created_at ASC,
+                         id ASC
+                """,
+                (rs, rowNum) ->
+                        new StudentInvoiceLineView(
+                                rs.getObject("id", UUID.class),
+                                rs.getObject("tenant_id", UUID.class),
+                                rs.getObject("invoice_id", UUID.class),
+                                rs.getObject("fee_item_id", UUID.class),
+                                rs.getObject(
+                                        "fee_structure_item_id",
+                                        UUID.class
+                                ),
+                                rs.getString("line_description"),
+                                rs.getBigDecimal("quantity"),
+                                rs.getBigDecimal("unit_amount"),
+                                rs.getBigDecimal("gross_amount"),
+                                rs.getBigDecimal("discount_amount"),
+                                rs.getBigDecimal("tax_amount"),
+                                rs.getBigDecimal("net_amount"),
+                                rs.getObject(
+                                        "due_date",
+                                        LocalDate.class
+                                ),
+                                rs.getString("line_status"),
+                                rs.getString("status")
+                        ),
+                tenantId,
+                invoiceId
+        );
+    }
+
+    private static StudentInvoiceView withLines(
+            StudentInvoiceView source,
+            List<StudentInvoiceLineView> lines
+    ) {
+
+        return new StudentInvoiceView(
+                source.id(),
+                source.tenantId(),
+                source.invoiceNumber(),
+                source.studentFinancialAccountId(),
+                source.studentId(),
+                source.studentEnrollmentId(),
+                source.academicYearId(),
+                source.academicTermId(),
+                source.feeStructureId(),
+                source.invoiceDate(),
+                source.dueDate(),
+                source.currencyCode(),
+                source.subtotalAmount(),
+                source.discountAmount(),
+                source.taxAmount(),
+                source.totalAmount(),
+                source.paidAmount(),
+                source.outstandingAmount(),
+                source.invoiceStatus(),
+                source.status(),
+                List.copyOf(lines)
+        );
+    }
+}
