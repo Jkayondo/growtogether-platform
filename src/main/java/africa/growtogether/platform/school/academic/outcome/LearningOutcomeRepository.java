@@ -39,4 +39,10 @@ public interface LearningOutcomeRepository
             String outcomeCode
     );
 
+
+    Optional<LearningOutcome> findByIdAndTenantId(
+            UUID id,
+            UUID tenantId
+    );
+
 }

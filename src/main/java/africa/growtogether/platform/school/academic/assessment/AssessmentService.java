@@ -1,5 +1,6 @@
 package africa.growtogether.platform.school.academic.assessment;
 
+import africa.growtogether.platform.school.academic.outcome.LearningOutcomeRepository;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,12 +14,15 @@ public class AssessmentService {
 
 
     private final AssessmentRepository repository;
+    private final LearningOutcomeRepository learningOutcomeRepository;
 
 
     public AssessmentService(
-            AssessmentRepository repository
+            AssessmentRepository repository,
+            LearningOutcomeRepository learningOutcomeRepository
     ) {
         this.repository = repository;
+        this.learningOutcomeRepository = learningOutcomeRepository;
     }
 
 
@@ -29,6 +33,18 @@ public class AssessmentService {
             String assessmentCode,
             String assessmentTitle
     ) {
+
+
+        learningOutcomeRepository
+                .findByIdAndTenantId(
+                        learningOutcomeId,
+                        tenantId
+                )
+                .orElseThrow(
+                        () -> new IllegalArgumentException(
+                                "Learning outcome not found."
+                        )
+                );
 
 
         repository
