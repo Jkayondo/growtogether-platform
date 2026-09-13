@@ -1,0 +1,687 @@
+package africa.growtogether.platform.school.finance.discount;
+
+import africa.growtogether.platform.school.finance.foundation.FinanceFoundationJdbcRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+import static africa.growtogether.platform.school.finance.discount.FinanceStudentDiscountDtos.CreateStudentDiscountRequest;
+import static africa.growtogether.platform.school.finance.discount.FinanceStudentDiscountDtos.StudentDiscountRequestView;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+class FinanceStudentDiscountServiceTest {
+
+    private FinanceStudentDiscountJdbcRepository repository;
+    private FinanceFoundationJdbcRepository foundationRepository;
+    private FinanceDiscountService discountService;
+    private FinanceStudentDiscountService service;
+
+    private UUID tenantId;
+    private UUID studentId;
+    private UUID accountId;
+    private UUID schemeId;
+    private UUID actorId;
+
+    @BeforeEach
+    void setUp() {
+        repository = mock(
+                FinanceStudentDiscountJdbcRepository.class
+        );
+
+        foundationRepository = mock(
+                FinanceFoundationJdbcRepository.class
+        );
+
+        discountService = mock(
+                FinanceDiscountService.class
+        );
+
+        service = new FinanceStudentDiscountService(
+                repository,
+                foundationRepository,
+                discountService
+        );
+
+        tenantId = UUID.randomUUID();
+        studentId = UUID.randomUUID();
+        accountId = UUID.randomUUID();
+        schemeId = UUID.randomUUID();
+        actorId = UUID.randomUUID();
+    }
+
+    @Test
+    void createsNormalizedPendingRequest() {
+        CreateStudentDiscountRequest request =
+                request(
+                        "  DISC-001  ",
+                        LocalDate.of(
+                                2026,
+                                1,
+                                1
+                        ),
+                        null
+                );
+
+        StudentDiscountRequestView persisted =
+                view(
+                        "DISC-001"
+                );
+
+        allowValidDependencies();
+
+        when(
+                repository.createStudentDiscountRequest(
+                        eq(tenantId),
+                        eq("DISC-001"),
+                        eq(studentId),
+                        eq(accountId),
+                        eq(schemeId),
+                        eq(
+                                LocalDate.of(
+                                        2026,
+                                        1,
+                                        1
+                                )
+                        ),
+                        eq(null),
+                        eq(null),
+                        eq(null),
+                        eq(actorId),
+                        eq(actorId.toString())
+                )
+        ).thenReturn(
+                persisted
+        );
+
+        StudentDiscountRequestView result =
+                service.createStudentDiscountRequest(
+                        tenantId,
+                        request,
+                        actorId
+                );
+
+        assertSame(
+                persisted,
+                result
+        );
+
+        verify(repository).createStudentDiscountRequest(
+                tenantId,
+                "DISC-001",
+                studentId,
+                accountId,
+                schemeId,
+                LocalDate.of(
+                        2026,
+                        1,
+                        1
+                ),
+                null,
+                null,
+                null,
+                actorId,
+                actorId.toString()
+        );
+    }
+
+    @Test
+    void rejectsDuplicateTenantReference() {
+        when(
+                repository.existsStudentDiscountReference(
+                        tenantId,
+                        "DISC-001"
+                )
+        ).thenReturn(
+                true
+        );
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () ->
+                                service.createStudentDiscountRequest(
+                                        tenantId,
+                                        request(
+                                                "DISC-001",
+                                                LocalDate.now(),
+                                                null
+                                        ),
+                                        actorId
+                                )
+                );
+
+        assertEquals(
+                "discountReference already exists in this tenant.",
+                error.getMessage()
+        );
+
+        verify(
+                foundationRepository,
+                never()
+        ).existsTenantReference(
+                anyString(),
+                any(),
+                any()
+        );
+    }
+
+    @Test
+    void rejectsUnavailableStudent() {
+        when(
+                foundationRepository.existsTenantReference(
+                        "gts_student",
+                        tenantId,
+                        studentId
+                )
+        ).thenReturn(
+                false
+        );
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () ->
+                                service.createStudentDiscountRequest(
+                                        tenantId,
+                                        request(
+                                                "DISC-001",
+                                                LocalDate.now(),
+                                                null
+                                        ),
+                                        actorId
+                                )
+                );
+
+        assertEquals(
+                "studentId is not available in this tenant.",
+                error.getMessage()
+        );
+    }
+
+    @Test
+    void rejectsUnavailableStudentFinancialAccount() {
+        when(
+                foundationRepository.existsTenantReference(
+                        "gts_student",
+                        tenantId,
+                        studentId
+                )
+        ).thenReturn(
+                true
+        );
+
+        when(
+                repository.findStudentFinancialAccountScope(
+                        tenantId,
+                        accountId
+                )
+        ).thenReturn(
+                Optional.empty()
+        );
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () ->
+                                service.createStudentDiscountRequest(
+                                        tenantId,
+                                        request(
+                                                "DISC-001",
+                                                LocalDate.now(),
+                                                null
+                                        ),
+                                        actorId
+                                )
+                );
+
+        assertEquals(
+                "Student financial account is not available in this tenant.",
+                error.getMessage()
+        );
+    }
+
+    @Test
+    void rejectsAccountStudentMismatch() {
+        when(
+                foundationRepository.existsTenantReference(
+                        "gts_student",
+                        tenantId,
+                        studentId
+                )
+        ).thenReturn(
+                true
+        );
+
+        when(
+                repository.findStudentFinancialAccountScope(
+                        tenantId,
+                        accountId
+                )
+        ).thenReturn(
+                Optional.of(
+                        new FinanceStudentDiscountJdbcRepository.StudentFinancialAccountScope(
+                                UUID.randomUUID(),
+                                "ACTIVE",
+                                "ACTIVE"
+                        )
+                )
+        );
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () ->
+                                service.createStudentDiscountRequest(
+                                        tenantId,
+                                        request(
+                                                "DISC-001",
+                                                LocalDate.now(),
+                                                null
+                                        ),
+                                        actorId
+                                )
+                );
+
+        assertEquals(
+                "Student financial account does not belong to the requested student.",
+                error.getMessage()
+        );
+    }
+
+    @Test
+    void rejectsInactiveStudentFinancialAccount() {
+        when(
+                foundationRepository.existsTenantReference(
+                        "gts_student",
+                        tenantId,
+                        studentId
+                )
+        ).thenReturn(
+                true
+        );
+
+        when(
+                repository.findStudentFinancialAccountScope(
+                        tenantId,
+                        accountId
+                )
+        ).thenReturn(
+                Optional.of(
+                        new FinanceStudentDiscountJdbcRepository.StudentFinancialAccountScope(
+                                studentId,
+                                "ON_HOLD",
+                                "ACTIVE"
+                        )
+                )
+        );
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () ->
+                                service.createStudentDiscountRequest(
+                                        tenantId,
+                                        request(
+                                                "DISC-001",
+                                                LocalDate.now(),
+                                                null
+                                        ),
+                                        actorId
+                                )
+                );
+
+        assertEquals(
+                "The student financial account is not active.",
+                error.getMessage()
+        );
+    }
+
+    @Test
+    void rejectsUnavailableDiscountScheme() {
+        allowStudentAndAccount();
+
+        when(
+                discountService.getFeeDiscountScheme(
+                        tenantId,
+                        schemeId
+                )
+        ).thenThrow(
+                new IllegalArgumentException(
+                        "Fee discount scheme is not available in this tenant."
+                )
+        );
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () ->
+                                service.createStudentDiscountRequest(
+                                        tenantId,
+                                        request(
+                                                "DISC-001",
+                                                LocalDate.now(),
+                                                null
+                                        ),
+                                        actorId
+                                )
+                );
+
+        assertEquals(
+                "Fee discount scheme is not available in this tenant.",
+                error.getMessage()
+        );
+    }
+
+    @Test
+    void rejectsInactiveDiscountScheme() {
+        allowStudentAndAccount();
+
+        when(
+                discountService.getFeeDiscountScheme(
+                        tenantId,
+                        schemeId
+                )
+        ).thenReturn(
+                scheme(
+                        false,
+                        "ACTIVE"
+                )
+        );
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () ->
+                                service.createStudentDiscountRequest(
+                                        tenantId,
+                                        request(
+                                                "DISC-001",
+                                                LocalDate.now(),
+                                                null
+                                        ),
+                                        actorId
+                                )
+                );
+
+        assertEquals(
+                "Fee discount scheme is not active.",
+                error.getMessage()
+        );
+    }
+
+    @Test
+    void rejectsNonActiveDiscountSchemeStatus() {
+        allowStudentAndAccount();
+
+        when(
+                discountService.getFeeDiscountScheme(
+                        tenantId,
+                        schemeId
+                )
+        ).thenReturn(
+                scheme(
+                        true,
+                        "INACTIVE"
+                )
+        );
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () ->
+                                service.createStudentDiscountRequest(
+                                        tenantId,
+                                        request(
+                                                "DISC-001",
+                                                LocalDate.now(),
+                                                null
+                                        ),
+                                        actorId
+                                )
+                );
+
+        assertEquals(
+                "Fee discount scheme is not active.",
+                error.getMessage()
+        );
+    }
+
+    @Test
+    void rejectsInvalidEffectiveDateRange() {
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () ->
+                                service.createStudentDiscountRequest(
+                                        tenantId,
+                                        request(
+                                                "DISC-001",
+                                                LocalDate.of(
+                                                        2026,
+                                                        2,
+                                                        2
+                                                ),
+                                                LocalDate.of(
+                                                        2026,
+                                                        2,
+                                                        1
+                                                )
+                                        ),
+                                        actorId
+                                )
+                );
+
+        assertEquals(
+                "effectiveTo must not be before effectiveFrom",
+                error.getMessage()
+        );
+    }
+
+    @Test
+    void rejectsMissingOrCrossTenantRead() {
+        UUID requestId = UUID.randomUUID();
+
+        when(
+                repository.getStudentDiscountRequest(
+                        tenantId,
+                        requestId
+                )
+        ).thenReturn(
+                Optional.empty()
+        );
+
+        IllegalArgumentException error =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () ->
+                                service.getStudentDiscountRequest(
+                                        tenantId,
+                                        requestId
+                                )
+                );
+
+        assertEquals(
+                "Student discount request is not available in this tenant.",
+                error.getMessage()
+        );
+    }
+
+    @Test
+    void delegatesTenantScopedList() {
+        List<StudentDiscountRequestView> expected =
+                List.of(
+                        view(
+                                "DISC-001"
+                        )
+                );
+
+        when(
+                repository.listStudentDiscountRequests(
+                        tenantId
+                )
+        ).thenReturn(
+                expected
+        );
+
+        List<StudentDiscountRequestView> result =
+                service.listStudentDiscountRequests(
+                        tenantId
+                );
+
+        assertSame(
+                expected,
+                result
+        );
+
+        verify(repository).listStudentDiscountRequests(
+                tenantId
+        );
+    }
+
+    private void allowValidDependencies() {
+        allowStudentAndAccount();
+
+        when(
+                discountService.getFeeDiscountScheme(
+                        tenantId,
+                        schemeId
+                )
+        ).thenReturn(
+                scheme(
+                        true,
+                        "ACTIVE"
+                )
+        );
+    }
+
+    private void allowStudentAndAccount() {
+        when(
+                foundationRepository.existsTenantReference(
+                        "gts_student",
+                        tenantId,
+                        studentId
+                )
+        ).thenReturn(
+                true
+        );
+
+        when(
+                repository.findStudentFinancialAccountScope(
+                        tenantId,
+                        accountId
+                )
+        ).thenReturn(
+                Optional.of(
+                        new FinanceStudentDiscountJdbcRepository.StudentFinancialAccountScope(
+                                studentId,
+                                "ACTIVE",
+                                "ACTIVE"
+                        )
+                )
+        );
+    }
+
+    private CreateStudentDiscountRequest request(
+            String reference,
+            LocalDate effectiveFrom,
+            LocalDate effectiveTo
+    ) {
+        return new CreateStudentDiscountRequest(
+                reference,
+                studentId,
+                accountId,
+                schemeId,
+                effectiveFrom,
+                effectiveTo,
+                null,
+                null
+        );
+    }
+
+    private FinanceDiscountDtos.FeeDiscountSchemeView scheme(
+            boolean active,
+            String status
+    ) {
+        Instant now = Instant.now();
+
+        return new FinanceDiscountDtos.FeeDiscountSchemeView(
+                schemeId,
+                tenantId,
+                "SCHEME-001",
+                "Scholarship",
+                null,
+                "PERCENTAGE",
+                BigDecimal.TEN,
+                null,
+                null,
+                null,
+                Map.of(),
+                LocalDate.of(
+                        2026,
+                        1,
+                        1
+                ),
+                null,
+                true,
+                active,
+                status,
+                now,
+                actorId.toString(),
+                now,
+                actorId.toString(),
+                0L
+        );
+    }
+
+    private StudentDiscountRequestView view(
+            String reference
+    ) {
+        Instant now = Instant.now();
+
+        return new StudentDiscountRequestView(
+                UUID.randomUUID(),
+                tenantId,
+                reference,
+                studentId,
+                accountId,
+                schemeId,
+                null,
+                null,
+                LocalDate.of(
+                        2026,
+                        1,
+                        1
+                ),
+                null,
+                null,
+                null,
+                now,
+                actorId,
+                null,
+                null,
+                "PENDING",
+                "ACTIVE",
+                now,
+                actorId.toString(),
+                now,
+                actorId.toString(),
+                0L
+        );
+    }
+}
