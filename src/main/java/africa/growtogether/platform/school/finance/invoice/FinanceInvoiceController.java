@@ -80,6 +80,35 @@ public class FinanceInvoiceController {
         );
     }
 
+    @PatchMapping("/{invoiceId}/cancel")
+    @PreAuthorize("hasAuthority('school.finance.approve')")
+    public ApiResponse<StudentInvoiceView> cancelStudentInvoice(
+            @PathVariable UUID invoiceId,
+            @RequestParam UUID tenantId,
+            @org.springframework.web.bind.annotation.RequestBody
+            CancelStudentInvoiceRequest request
+    ) {
+
+        identity.requireTenant(
+                tenantId
+        );
+
+        UUID actorId =
+                identity.requireUserId();
+
+        return responses.success(
+                "GT-SCHOOL-FIN-025",
+                "Student invoice cancelled.",
+                service.cancelStudentInvoice(
+                        tenantId,
+                        invoiceId,
+                        request,
+                        actorId,
+                        actorId.toString()
+                )
+        );
+    }
+
     @GetMapping("/{invoiceId}")
     @PreAuthorize("hasAuthority('school.finance.read')")
     public ApiResponse<Optional<StudentInvoiceView>> findStudentInvoice(

@@ -816,6 +816,495 @@ class FinanceInvoiceServiceTest {
         );
     }
 
+    @Test
+    void cancelsActiveUnpaidDraftInvoiceWithTrimmedReason() {
+
+        java.util.UUID tenantId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID invoiceId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID cancellerId =
+                java.util.UUID.randomUUID();
+
+        String actor =
+                cancellerId.toString();
+
+        StudentInvoiceView draft =
+                issuanceInvoiceView(
+                        tenantId,
+                        invoiceId,
+                        "DRAFT",
+                        "ACTIVE",
+                        null,
+                        null
+                );
+
+        StudentInvoiceView cancelled =
+                issuanceInvoiceView(
+                        tenantId,
+                        invoiceId,
+                        "CANCELLED",
+                        "ACTIVE",
+                        null,
+                        null
+                );
+
+        org.mockito.Mockito.when(
+                repository.findStudentInvoice(
+                        tenantId,
+                        invoiceId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        draft
+                )
+        );
+
+        org.mockito.Mockito.when(
+                repository.cancelStudentInvoice(
+                        tenantId,
+                        invoiceId,
+                        cancellerId,
+                        "Administrative correction",
+                        actor
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        cancelled
+                )
+        );
+
+        StudentInvoiceView result =
+                service.cancelStudentInvoice(
+                        tenantId,
+                        invoiceId,
+                        new FinanceInvoiceDtos.CancelStudentInvoiceRequest(
+                                "  Administrative correction  "
+                        ),
+                        cancellerId,
+                        actor
+                );
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "CANCELLED",
+                result.invoiceStatus()
+        );
+
+        org.mockito.Mockito.verify(
+                repository
+        ).cancelStudentInvoice(
+                tenantId,
+                invoiceId,
+                cancellerId,
+                "Administrative correction",
+                actor
+        );
+    }
+
+    @Test
+    void cancelsActiveUnpaidIssuedInvoiceWithoutChangingIssueMetadata() {
+
+        java.util.UUID tenantId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID invoiceId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID issuerId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID cancellerId =
+                java.util.UUID.randomUUID();
+
+        java.time.Instant issuedAt =
+                java.time.Instant.parse(
+                        "2026-09-13T10:00:00Z"
+                );
+
+        String actor =
+                cancellerId.toString();
+
+        StudentInvoiceView issued =
+                issuanceInvoiceView(
+                        tenantId,
+                        invoiceId,
+                        "ISSUED",
+                        "ACTIVE",
+                        issuedAt,
+                        issuerId
+                );
+
+        StudentInvoiceView cancelled =
+                issuanceInvoiceView(
+                        tenantId,
+                        invoiceId,
+                        "CANCELLED",
+                        "ACTIVE",
+                        issuedAt,
+                        issuerId
+                );
+
+        org.mockito.Mockito.when(
+                repository.findStudentInvoice(
+                        tenantId,
+                        invoiceId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        issued
+                )
+        );
+
+        org.mockito.Mockito.when(
+                repository.cancelStudentInvoice(
+                        tenantId,
+                        invoiceId,
+                        cancellerId,
+                        "Duplicate billing",
+                        actor
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        cancelled
+                )
+        );
+
+        StudentInvoiceView result =
+                service.cancelStudentInvoice(
+                        tenantId,
+                        invoiceId,
+                        new FinanceInvoiceDtos.CancelStudentInvoiceRequest(
+                                "Duplicate billing"
+                        ),
+                        cancellerId,
+                        actor
+                );
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "CANCELLED",
+                result.invoiceStatus()
+        );
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                issuedAt,
+                result.issuedAt()
+        );
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                issuerId,
+                result.issuedBy()
+        );
+    }
+
+    @Test
+    void rejectsCancellingInvoiceWithPayment() {
+
+        java.util.UUID tenantId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID invoiceId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID cancellerId =
+                java.util.UUID.randomUUID();
+
+        StudentInvoiceView paidDraft =
+                withPaidAmount(
+                        issuanceInvoiceView(
+                                tenantId,
+                                invoiceId,
+                                "DRAFT",
+                                "ACTIVE",
+                                null,
+                                null
+                        ),
+                        new java.math.BigDecimal(
+                                "1.00"
+                        )
+                );
+
+        org.mockito.Mockito.when(
+                repository.findStudentInvoice(
+                        tenantId,
+                        invoiceId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        paidDraft
+                )
+        );
+
+        IllegalStateException error =
+                org.junit.jupiter.api.Assertions.assertThrows(
+                        IllegalStateException.class,
+                        () ->
+                                service.cancelStudentInvoice(
+                                        tenantId,
+                                        invoiceId,
+                                        new FinanceInvoiceDtos.CancelStudentInvoiceRequest(
+                                                "Correction"
+                                        ),
+                                        cancellerId,
+                                        cancellerId.toString()
+                                )
+                );
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "Only an active unpaid draft or issued invoice may be cancelled.",
+                error.getMessage()
+        );
+
+        org.mockito.Mockito.verify(
+                repository,
+                org.mockito.Mockito.never()
+        ).cancelStudentInvoice(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
+    }
+
+    @Test
+    void rejectsCancellingInactiveInvoice() {
+
+        java.util.UUID tenantId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID invoiceId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID cancellerId =
+                java.util.UUID.randomUUID();
+
+        StudentInvoiceView inactive =
+                issuanceInvoiceView(
+                        tenantId,
+                        invoiceId,
+                        "DRAFT",
+                        "INACTIVE",
+                        null,
+                        null
+                );
+
+        org.mockito.Mockito.when(
+                repository.findStudentInvoice(
+                        tenantId,
+                        invoiceId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        inactive
+                )
+        );
+
+        IllegalStateException error =
+                org.junit.jupiter.api.Assertions.assertThrows(
+                        IllegalStateException.class,
+                        () ->
+                                service.cancelStudentInvoice(
+                                        tenantId,
+                                        invoiceId,
+                                        new FinanceInvoiceDtos.CancelStudentInvoiceRequest(
+                                                "Correction"
+                                        ),
+                                        cancellerId,
+                                        cancellerId.toString()
+                                )
+                );
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "Only an active unpaid draft or issued invoice may be cancelled.",
+                error.getMessage()
+        );
+    }
+
+    @Test
+    void rejectsRepeatOrOtherIneligibleCancellation() {
+
+        java.util.UUID tenantId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID invoiceId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID cancellerId =
+                java.util.UUID.randomUUID();
+
+        StudentInvoiceView cancelled =
+                issuanceInvoiceView(
+                        tenantId,
+                        invoiceId,
+                        "CANCELLED",
+                        "ACTIVE",
+                        null,
+                        null
+                );
+
+        org.mockito.Mockito.when(
+                repository.findStudentInvoice(
+                        tenantId,
+                        invoiceId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        cancelled
+                )
+        );
+
+        IllegalStateException error =
+                org.junit.jupiter.api.Assertions.assertThrows(
+                        IllegalStateException.class,
+                        () ->
+                                service.cancelStudentInvoice(
+                                        tenantId,
+                                        invoiceId,
+                                        new FinanceInvoiceDtos.CancelStudentInvoiceRequest(
+                                                "Again"
+                                        ),
+                                        cancellerId,
+                                        cancellerId.toString()
+                                )
+                );
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "Only an active unpaid draft or issued invoice may be cancelled.",
+                error.getMessage()
+        );
+    }
+
+    @Test
+    void rejectsBlankAndOverlongCancellationReason() {
+
+        java.util.UUID tenantId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID invoiceId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID cancellerId =
+                java.util.UUID.randomUUID();
+
+        IllegalArgumentException blank =
+                org.junit.jupiter.api.Assertions.assertThrows(
+                        IllegalArgumentException.class,
+                        () ->
+                                service.cancelStudentInvoice(
+                                        tenantId,
+                                        invoiceId,
+                                        new FinanceInvoiceDtos.CancelStudentInvoiceRequest(
+                                                "   "
+                                        ),
+                                        cancellerId,
+                                        cancellerId.toString()
+                                )
+                );
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "cancellationReason must not be blank",
+                blank.getMessage()
+        );
+
+        IllegalArgumentException overlong =
+                org.junit.jupiter.api.Assertions.assertThrows(
+                        IllegalArgumentException.class,
+                        () ->
+                                service.cancelStudentInvoice(
+                                        tenantId,
+                                        invoiceId,
+                                        new FinanceInvoiceDtos.CancelStudentInvoiceRequest(
+                                                "x".repeat(
+                                                        1001
+                                                )
+                                        ),
+                                        cancellerId,
+                                        cancellerId.toString()
+                                )
+                );
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "cancellationReason must not exceed 1000 characters.",
+                overlong.getMessage()
+        );
+    }
+
+    @Test
+    void rejectsTenantUnavailableInvoiceBeforeCancellation() {
+
+        java.util.UUID tenantId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID invoiceId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID cancellerId =
+                java.util.UUID.randomUUID();
+
+        org.mockito.Mockito.when(
+                repository.findStudentInvoice(
+                        tenantId,
+                        invoiceId
+                )
+        ).thenReturn(
+                java.util.Optional.empty()
+        );
+
+        IllegalArgumentException error =
+                org.junit.jupiter.api.Assertions.assertThrows(
+                        IllegalArgumentException.class,
+                        () ->
+                                service.cancelStudentInvoice(
+                                        tenantId,
+                                        invoiceId,
+                                        new FinanceInvoiceDtos.CancelStudentInvoiceRequest(
+                                                "Correction"
+                                        ),
+                                        cancellerId,
+                                        cancellerId.toString()
+                                )
+                );
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "Student invoice is not available in this tenant.",
+                error.getMessage()
+        );
+    }
+
+    private static StudentInvoiceView withPaidAmount(
+            StudentInvoiceView source,
+            java.math.BigDecimal paidAmount
+    ) {
+
+        return new StudentInvoiceView(
+                source.id(),
+                source.tenantId(),
+                source.invoiceNumber(),
+                source.studentFinancialAccountId(),
+                source.studentId(),
+                source.studentEnrollmentId(),
+                source.academicYearId(),
+                source.academicTermId(),
+                source.feeStructureId(),
+                source.invoiceDate(),
+                source.dueDate(),
+                source.currencyCode(),
+                source.subtotalAmount(),
+                source.discountAmount(),
+                source.taxAmount(),
+                source.totalAmount(),
+                paidAmount,
+                source.outstandingAmount(),
+                source.invoiceStatus(),
+                source.issuedAt(),
+                source.issuedBy(),
+                source.status(),
+                source.lines()
+        );
+    }
+
     private static StudentInvoiceView issuanceInvoiceView(
             java.util.UUID tenantId,
             java.util.UUID invoiceId,

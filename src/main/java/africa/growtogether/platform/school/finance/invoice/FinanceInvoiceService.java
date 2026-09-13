@@ -383,6 +383,115 @@ public class FinanceInvoiceService {
         );
     }
 
+    @Transactional
+    public StudentInvoiceView cancelStudentInvoice(
+            UUID tenantId,
+            UUID invoiceId,
+            CancelStudentInvoiceRequest request,
+            UUID cancellerId,
+            String actor
+    ) {
+
+        if (tenantId == null) {
+            throw new IllegalArgumentException(
+                    "tenantId must not be null"
+            );
+        }
+
+        if (invoiceId == null) {
+            throw new IllegalArgumentException(
+                    "invoiceId must not be null"
+            );
+        }
+
+        if (request == null) {
+            throw new IllegalArgumentException(
+                    "request must not be null"
+            );
+        }
+
+        if (cancellerId == null) {
+            throw new IllegalArgumentException(
+                    "cancellerId must not be null"
+            );
+        }
+
+        if (actor == null || actor.isBlank()) {
+            throw new IllegalArgumentException(
+                    "actor must not be blank"
+            );
+        }
+
+        if (
+                request.cancellationReason() == null
+                || request.cancellationReason().isBlank()
+        ) {
+            throw new IllegalArgumentException(
+                    "cancellationReason must not be blank"
+            );
+        }
+
+        String cancellationReason =
+                request.cancellationReason().trim();
+
+        if (cancellationReason.length() > 1000) {
+            throw new IllegalArgumentException(
+                    "cancellationReason must not exceed 1000 characters."
+            );
+        }
+
+        StudentInvoiceView existing =
+                repository.findStudentInvoice(
+                        tenantId,
+                        invoiceId
+                ).orElseThrow(
+                        () ->
+                                new IllegalArgumentException(
+                                        "Student invoice is not available in this tenant."
+                                )
+                );
+
+        boolean cancellableLifecycle =
+                "DRAFT".equals(
+                        existing.invoiceStatus()
+                )
+                || "ISSUED".equals(
+                        existing.invoiceStatus()
+                );
+
+        boolean unpaid =
+                existing.paidAmount() != null
+                && existing.paidAmount()
+                        .compareTo(
+                                BigDecimal.ZERO
+                        ) == 0;
+
+        if (
+                !cancellableLifecycle
+                || !"ACTIVE".equals(
+                        existing.status()
+                )
+                || !unpaid
+        ) {
+            throw new IllegalStateException(
+                    "Only an active unpaid draft or issued invoice may be cancelled."
+            );
+        }
+
+        return repository.cancelStudentInvoice(
+                tenantId,
+                invoiceId,
+                cancellerId,
+                cancellationReason,
+                actor
+        ).orElseThrow(
+                () ->
+                        new IllegalStateException(
+                                "Only an active unpaid draft or issued invoice may be cancelled."
+                        )
+        );
+    }
+
     @Transactional(readOnly = true)
     public Optional<StudentInvoiceView> findStudentInvoice(
             UUID tenantId,

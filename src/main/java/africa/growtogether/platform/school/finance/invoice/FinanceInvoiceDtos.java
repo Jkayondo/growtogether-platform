@@ -19,6 +19,11 @@ public final class FinanceInvoiceDtos {
     ) {
     }
 
+    public record CancelStudentInvoiceRequest(
+            String cancellationReason
+    ) {
+    }
+
     public record StudentInvoiceLineView(
             UUID id,
             UUID tenantId,

@@ -268,6 +268,50 @@ public class FinanceInvoiceJdbcRepository {
         );
     }
 
+    @Transactional
+    public Optional<StudentInvoiceView> cancelStudentInvoice(
+            UUID tenantId,
+            UUID invoiceId,
+            UUID cancellerId,
+            String cancellationReason,
+            String actor
+    ) {
+
+        int updated =
+                jdbc.update(
+                        """
+                        UPDATE gts_student_invoice
+                        SET
+                            invoice_status = 'CANCELLED',
+                            cancelled_at = CURRENT_TIMESTAMP,
+                            cancelled_by = ?,
+                            cancellation_reason = ?,
+                            updated_at = CURRENT_TIMESTAMP,
+                            updated_by = ?,
+                            version = version + 1
+                        WHERE tenant_id = ?
+                          AND id = ?
+                          AND invoice_status IN ('DRAFT', 'ISSUED')
+                          AND status = 'ACTIVE'
+                          AND paid_amount = 0
+                        """,
+                        cancellerId,
+                        cancellationReason,
+                        actor,
+                        tenantId,
+                        invoiceId
+                );
+
+        if (updated != 1) {
+            return Optional.empty();
+        }
+
+        return findStudentInvoice(
+                tenantId,
+                invoiceId
+        );
+    }
+
     @Transactional(readOnly = true)
     public Optional<StudentInvoiceView> findStudentInvoice(
             UUID tenantId,

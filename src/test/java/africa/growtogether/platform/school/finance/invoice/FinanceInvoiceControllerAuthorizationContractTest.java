@@ -58,6 +58,21 @@ class FinanceInvoiceControllerAuthorizationContractTest {
         );
     }
 
+    @Test
+    void invoiceCancellationUsesFinanceApproveAuthority()
+            throws Exception {
+
+        assertAuthority(
+                FinanceInvoiceController.class.getDeclaredMethod(
+                        "cancelStudentInvoice",
+                        UUID.class,
+                        UUID.class,
+                        FinanceInvoiceDtos.CancelStudentInvoiceRequest.class
+                ),
+                "hasAuthority('school.finance.approve')"
+        );
+    }
+
     private static void assertAuthority(
             Method method,
             String expected
