@@ -44,6 +44,20 @@ class FinanceInvoiceControllerAuthorizationContractTest {
         );
     }
 
+    @org.junit.jupiter.api.Test
+    void invoiceIssuanceUsesFinanceApproveAuthority()
+            throws NoSuchMethodException {
+
+        assertAuthority(
+                FinanceInvoiceController.class.getMethod(
+                        "issueStudentInvoice",
+                        java.util.UUID.class,
+                        java.util.UUID.class
+                ),
+                "hasAuthority('school.finance.approve')"
+        );
+    }
+
     private static void assertAuthority(
             Method method,
             String expected

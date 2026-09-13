@@ -54,6 +54,32 @@ public class FinanceInvoiceController {
         );
     }
 
+    @PatchMapping("/{invoiceId}/issue")
+    @PreAuthorize("hasAuthority('school.finance.approve')")
+    public ApiResponse<StudentInvoiceView> issueStudentInvoice(
+            @PathVariable UUID invoiceId,
+            @RequestParam UUID tenantId
+    ) {
+
+        identity.requireTenant(
+                tenantId
+        );
+
+        UUID actorId =
+                identity.requireUserId();
+
+        return responses.success(
+                "GT-SCHOOL-FIN-024",
+                "Student invoice issued.",
+                service.issueStudentInvoice(
+                        tenantId,
+                        invoiceId,
+                        actorId,
+                        actorId.toString()
+                )
+        );
+    }
+
     @GetMapping("/{invoiceId}")
     @PreAuthorize("hasAuthority('school.finance.read')")
     public ApiResponse<Optional<StudentInvoiceView>> findStudentInvoice(

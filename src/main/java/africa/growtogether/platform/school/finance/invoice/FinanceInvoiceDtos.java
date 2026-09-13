@@ -1,6 +1,7 @@
 package africa.growtogether.platform.school.finance.invoice;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -57,8 +58,60 @@ public final class FinanceInvoiceDtos {
             BigDecimal paidAmount,
             BigDecimal outstandingAmount,
             String invoiceStatus,
+            Instant issuedAt,
+            UUID issuedBy,
             String status,
             List<StudentInvoiceLineView> lines
     ) {
+
+        public StudentInvoiceView(
+                UUID id,
+                UUID tenantId,
+                String invoiceNumber,
+                UUID studentFinancialAccountId,
+                UUID studentId,
+                UUID studentEnrollmentId,
+                UUID academicYearId,
+                UUID academicTermId,
+                UUID feeStructureId,
+                LocalDate invoiceDate,
+                LocalDate dueDate,
+                String currencyCode,
+                BigDecimal subtotalAmount,
+                BigDecimal discountAmount,
+                BigDecimal taxAmount,
+                BigDecimal totalAmount,
+                BigDecimal paidAmount,
+                BigDecimal outstandingAmount,
+                String invoiceStatus,
+                String status,
+                List<StudentInvoiceLineView> lines
+        ) {
+            this(
+                    id,
+                    tenantId,
+                    invoiceNumber,
+                    studentFinancialAccountId,
+                    studentId,
+                    studentEnrollmentId,
+                    academicYearId,
+                    academicTermId,
+                    feeStructureId,
+                    invoiceDate,
+                    dueDate,
+                    currencyCode,
+                    subtotalAmount,
+                    discountAmount,
+                    taxAmount,
+                    totalAmount,
+                    paidAmount,
+                    outstandingAmount,
+                    invoiceStatus,
+                    null,
+                    null,
+                    status,
+                    lines
+            );
+        }
     }
 }

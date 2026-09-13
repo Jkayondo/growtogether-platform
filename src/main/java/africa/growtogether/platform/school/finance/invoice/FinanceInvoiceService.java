@@ -314,6 +314,75 @@ public class FinanceInvoiceService {
         );
     }
 
+    @org.springframework.transaction.annotation.Transactional
+    public StudentInvoiceView issueStudentInvoice(
+            UUID tenantId,
+            UUID invoiceId,
+            UUID issuerId,
+            String actor
+    ) {
+
+        if (tenantId == null) {
+            throw new IllegalArgumentException(
+                    "tenantId must not be null"
+            );
+        }
+
+        if (invoiceId == null) {
+            throw new IllegalArgumentException(
+                    "invoiceId must not be null"
+            );
+        }
+
+        if (issuerId == null) {
+            throw new IllegalArgumentException(
+                    "issuerId must not be null"
+            );
+        }
+
+        if (actor == null || actor.isBlank()) {
+            throw new IllegalArgumentException(
+                    "actor must not be blank"
+            );
+        }
+
+        StudentInvoiceView existing =
+                repository.findStudentInvoice(
+                        tenantId,
+                        invoiceId
+                ).orElseThrow(
+                        () ->
+                                new IllegalArgumentException(
+                                        "Student invoice is not available in this tenant."
+                                )
+                );
+
+        if (
+                !"DRAFT".equals(
+                        existing.invoiceStatus()
+                )
+                || !"ACTIVE".equals(
+                        existing.status()
+                )
+        ) {
+            throw new IllegalStateException(
+                    "Only an active draft invoice may be issued."
+            );
+        }
+
+        return repository.issueStudentInvoice(
+                tenantId,
+                invoiceId,
+                issuerId,
+                actor
+        ).orElseThrow(
+                () ->
+                        new IllegalStateException(
+                                "Only an active draft invoice may be issued."
+                        )
+        );
+    }
+
     @Transactional(readOnly = true)
     public Optional<StudentInvoiceView> findStudentInvoice(
             UUID tenantId,

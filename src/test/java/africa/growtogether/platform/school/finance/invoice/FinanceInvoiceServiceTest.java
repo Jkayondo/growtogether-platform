@@ -549,4 +549,320 @@ class FinanceInvoiceServiceTest {
                 )
         );
     }
+
+    @org.junit.jupiter.api.Test
+    void issuesActiveDraftInvoiceAndReturnsIssuanceMetadata() {
+
+        java.util.UUID tenantId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID invoiceId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID issuerId =
+                java.util.UUID.randomUUID();
+
+        String actor =
+                issuerId.toString();
+
+        StudentInvoiceView draft =
+                issuanceInvoiceView(
+                        tenantId,
+                        invoiceId,
+                        "DRAFT",
+                        "ACTIVE",
+                        null,
+                        null
+                );
+
+        java.time.Instant issuedAt =
+                java.time.Instant.parse(
+                        "2026-09-13T00:00:00Z"
+                );
+
+        StudentInvoiceView issued =
+                issuanceInvoiceView(
+                        tenantId,
+                        invoiceId,
+                        "ISSUED",
+                        "ACTIVE",
+                        issuedAt,
+                        issuerId
+                );
+
+        org.mockito.Mockito.when(
+                repository.findStudentInvoice(
+                        tenantId,
+                        invoiceId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        draft
+                )
+        );
+
+        org.mockito.Mockito.when(
+                repository.issueStudentInvoice(
+                        tenantId,
+                        invoiceId,
+                        issuerId,
+                        actor
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        issued
+                )
+        );
+
+        StudentInvoiceView result =
+                service.issueStudentInvoice(
+                        tenantId,
+                        invoiceId,
+                        issuerId,
+                        actor
+                );
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "ISSUED",
+                result.invoiceStatus()
+        );
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "ACTIVE",
+                result.status()
+        );
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                issuedAt,
+                result.issuedAt()
+        );
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                issuerId,
+                result.issuedBy()
+        );
+
+        org.mockito.Mockito.verify(
+                repository
+        ).issueStudentInvoice(
+                tenantId,
+                invoiceId,
+                issuerId,
+                actor
+        );
+    }
+
+    @org.junit.jupiter.api.Test
+    void rejectsIssuingNonDraftInvoice() {
+
+        java.util.UUID tenantId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID invoiceId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID issuerId =
+                java.util.UUID.randomUUID();
+
+        String actor =
+                issuerId.toString();
+
+        StudentInvoiceView issued =
+                issuanceInvoiceView(
+                        tenantId,
+                        invoiceId,
+                        "ISSUED",
+                        "ACTIVE",
+                        java.time.Instant.parse(
+                                "2026-09-13T00:00:00Z"
+                        ),
+                        issuerId
+                );
+
+        org.mockito.Mockito.when(
+                repository.findStudentInvoice(
+                        tenantId,
+                        invoiceId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        issued
+                )
+        );
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalStateException.class,
+                () ->
+                        service.issueStudentInvoice(
+                                tenantId,
+                                invoiceId,
+                                issuerId,
+                                actor
+                        )
+        );
+
+        org.mockito.Mockito.verify(
+                repository,
+                org.mockito.Mockito.never()
+        ).issueStudentInvoice(
+                tenantId,
+                invoiceId,
+                issuerId,
+                actor
+        );
+    }
+
+    @org.junit.jupiter.api.Test
+    void rejectsIssuingInactiveDraftInvoice() {
+
+        java.util.UUID tenantId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID invoiceId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID issuerId =
+                java.util.UUID.randomUUID();
+
+        String actor =
+                issuerId.toString();
+
+        StudentInvoiceView inactiveDraft =
+                issuanceInvoiceView(
+                        tenantId,
+                        invoiceId,
+                        "DRAFT",
+                        "INACTIVE",
+                        null,
+                        null
+                );
+
+        org.mockito.Mockito.when(
+                repository.findStudentInvoice(
+                        tenantId,
+                        invoiceId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        inactiveDraft
+                )
+        );
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalStateException.class,
+                () ->
+                        service.issueStudentInvoice(
+                                tenantId,
+                                invoiceId,
+                                issuerId,
+                                actor
+                        )
+        );
+
+        org.mockito.Mockito.verify(
+                repository,
+                org.mockito.Mockito.never()
+        ).issueStudentInvoice(
+                tenantId,
+                invoiceId,
+                issuerId,
+                actor
+        );
+    }
+
+    @org.junit.jupiter.api.Test
+    void rejectsTenantUnavailableInvoiceBeforeIssuance() {
+
+        java.util.UUID tenantId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID invoiceId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID issuerId =
+                java.util.UUID.randomUUID();
+
+        String actor =
+                issuerId.toString();
+
+        org.mockito.Mockito.when(
+                repository.findStudentInvoice(
+                        tenantId,
+                        invoiceId
+                )
+        ).thenReturn(
+                java.util.Optional.empty()
+        );
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        service.issueStudentInvoice(
+                                tenantId,
+                                invoiceId,
+                                issuerId,
+                                actor
+                        )
+        );
+
+        org.mockito.Mockito.verify(
+                repository,
+                org.mockito.Mockito.never()
+        ).issueStudentInvoice(
+                tenantId,
+                invoiceId,
+                issuerId,
+                actor
+        );
+    }
+
+    private static StudentInvoiceView issuanceInvoiceView(
+            java.util.UUID tenantId,
+            java.util.UUID invoiceId,
+            String invoiceStatus,
+            String status,
+            java.time.Instant issuedAt,
+            java.util.UUID issuedBy
+    ) {
+
+        java.math.BigDecimal amount =
+                new java.math.BigDecimal(
+                        "500000.00"
+                );
+
+        return new StudentInvoiceView(
+                invoiceId,
+                tenantId,
+                "INV-S2-001",
+                java.util.UUID.randomUUID(),
+                java.util.UUID.randomUUID(),
+                null,
+                null,
+                null,
+                null,
+                java.time.LocalDate.of(
+                        2026,
+                        9,
+                        13
+                ),
+                java.time.LocalDate.of(
+                        2026,
+                        9,
+                        30
+                ),
+                "UGX",
+                amount,
+                java.math.BigDecimal.ZERO,
+                java.math.BigDecimal.ZERO,
+                amount,
+                java.math.BigDecimal.ZERO,
+                amount,
+                invoiceStatus,
+                issuedAt,
+                issuedBy,
+                status,
+                java.util.List.of()
+        );
+    }
+
 }

@@ -449,6 +449,412 @@ class FinanceInvoiceExistingDatabaseIntegrationTest {
                 provenanceLineCount
         );
 
+        Map<String, Object> headerBeforeIssuance =
+                jdbc.queryForMap(
+                        """
+                        SELECT
+                            invoice_date,
+                            due_date,
+                            currency_code,
+                            subtotal_amount,
+                            discount_amount,
+                            tax_amount,
+                            total_amount,
+                            paid_amount,
+                            outstanding_amount,
+                            invoice_status,
+                            issued_at,
+                            issued_by,
+                            status,
+                            updated_by,
+                            version
+                        FROM gts_student_invoice
+                        WHERE tenant_id = ?
+                          AND id = ?
+                        """,
+                        tenantId,
+                        invoice.id()
+                );
+
+        var lineStateBeforeIssuance =
+                jdbc.queryForList(
+                        """
+                        SELECT
+                            id,
+                            fee_item_id,
+                            fee_structure_item_id,
+                            line_description,
+                            quantity,
+                            unit_amount,
+                            gross_amount,
+                            discount_amount,
+                            tax_amount,
+                            net_amount,
+                            due_date,
+                            line_status,
+                            status,
+                            updated_at,
+                            updated_by,
+                            version
+                        FROM gts_student_invoice_line
+                        WHERE tenant_id = ?
+                          AND invoice_id = ?
+                        ORDER BY id
+                        """,
+                        tenantId,
+                        invoice.id()
+                );
+
+        assertEquals(
+                "DRAFT",
+                headerBeforeIssuance.get(
+                        "invoice_status"
+                )
+        );
+
+        assertEquals(
+                0L,
+                ((Number) headerBeforeIssuance.get(
+                        "version"
+                )).longValue()
+        );
+
+        assertEquals(
+                null,
+                headerBeforeIssuance.get(
+                        "issued_at"
+                )
+        );
+
+        assertEquals(
+                null,
+                headerBeforeIssuance.get(
+                        "issued_by"
+                )
+        );
+
+        IllegalArgumentException crossTenantIssue =
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () ->
+                                invoiceService.issueStudentInvoice(
+                                        otherTenantId,
+                                        invoice.id(),
+                                        actorId,
+                                        actor
+                                )
+                );
+
+        assertEquals(
+                "Student invoice is not available in this tenant.",
+                crossTenantIssue.getMessage()
+        );
+
+        Long versionAfterCrossTenantAttempt =
+                jdbc.queryForObject(
+                        """
+                        SELECT version
+                        FROM gts_student_invoice
+                        WHERE tenant_id = ?
+                          AND id = ?
+                        """,
+                        Long.class,
+                        tenantId,
+                        invoice.id()
+                );
+
+        assertEquals(
+                0L,
+                versionAfterCrossTenantAttempt
+        );
+
+        StudentInvoiceView issued =
+                invoiceService.issueStudentInvoice(
+                        tenantId,
+                        invoice.id(),
+                        actorId,
+                        actor
+                );
+
+        assertEquals(
+                invoice.id(),
+                issued.id()
+        );
+
+        assertEquals(
+                tenantId,
+                issued.tenantId()
+        );
+
+        assertEquals(
+                "ISSUED",
+                issued.invoiceStatus()
+        );
+
+        assertEquals(
+                "ACTIVE",
+                issued.status()
+        );
+
+        assertNotNull(
+                issued.issuedAt()
+        );
+
+        assertEquals(
+                actorId,
+                issued.issuedBy()
+        );
+
+        assertEquals(
+                0,
+                issued.subtotalAmount()
+                        .compareTo(
+                                invoice.subtotalAmount()
+                        )
+        );
+
+        assertEquals(
+                0,
+                issued.discountAmount()
+                        .compareTo(
+                                invoice.discountAmount()
+                        )
+        );
+
+        assertEquals(
+                0,
+                issued.taxAmount()
+                        .compareTo(
+                                invoice.taxAmount()
+                        )
+        );
+
+        assertEquals(
+                0,
+                issued.totalAmount()
+                        .compareTo(
+                                invoice.totalAmount()
+                        )
+        );
+
+        assertEquals(
+                0,
+                issued.paidAmount()
+                        .compareTo(
+                                invoice.paidAmount()
+                        )
+        );
+
+        assertEquals(
+                0,
+                issued.outstandingAmount()
+                        .compareTo(
+                                invoice.outstandingAmount()
+                        )
+        );
+
+        Map<String, Object> headerAfterIssuance =
+                jdbc.queryForMap(
+                        """
+                        SELECT
+                            invoice_date,
+                            due_date,
+                            currency_code,
+                            subtotal_amount,
+                            discount_amount,
+                            tax_amount,
+                            total_amount,
+                            paid_amount,
+                            outstanding_amount,
+                            invoice_status,
+                            issued_at,
+                            issued_by,
+                            status,
+                            updated_by,
+                            version
+                        FROM gts_student_invoice
+                        WHERE tenant_id = ?
+                          AND id = ?
+                        """,
+                        tenantId,
+                        invoice.id()
+                );
+
+        assertEquals(
+                "ISSUED",
+                headerAfterIssuance.get(
+                        "invoice_status"
+                )
+        );
+
+        assertEquals(
+                "ACTIVE",
+                headerAfterIssuance.get(
+                        "status"
+                )
+        );
+
+        assertNotNull(
+                headerAfterIssuance.get(
+                        "issued_at"
+                )
+        );
+
+        assertEquals(
+                actorId,
+                headerAfterIssuance.get(
+                        "issued_by"
+                )
+        );
+
+        assertEquals(
+                actor,
+                headerAfterIssuance.get(
+                        "updated_by"
+                )
+        );
+
+        assertEquals(
+                1L,
+                ((Number) headerAfterIssuance.get(
+                        "version"
+                )).longValue()
+        );
+
+        for (String immutableHeaderField : new String[] {
+                "invoice_date",
+                "due_date",
+                "currency_code",
+                "subtotal_amount",
+                "discount_amount",
+                "tax_amount",
+                "total_amount",
+                "paid_amount",
+                "outstanding_amount"
+        }) {
+            assertEquals(
+                    headerBeforeIssuance.get(
+                            immutableHeaderField
+                    ),
+                    headerAfterIssuance.get(
+                            immutableHeaderField
+                    ),
+                    "Issuance must not mutate "
+                            + immutableHeaderField
+            );
+        }
+
+        var lineStateAfterIssuance =
+                jdbc.queryForList(
+                        """
+                        SELECT
+                            id,
+                            fee_item_id,
+                            fee_structure_item_id,
+                            line_description,
+                            quantity,
+                            unit_amount,
+                            gross_amount,
+                            discount_amount,
+                            tax_amount,
+                            net_amount,
+                            due_date,
+                            line_status,
+                            status,
+                            updated_at,
+                            updated_by,
+                            version
+                        FROM gts_student_invoice_line
+                        WHERE tenant_id = ?
+                          AND invoice_id = ?
+                        ORDER BY id
+                        """,
+                        tenantId,
+                        invoice.id()
+                );
+
+        assertEquals(
+                lineStateBeforeIssuance,
+                lineStateAfterIssuance,
+                "Invoice issuance must not mutate invoice lines."
+        );
+
+        IllegalStateException repeatIssue =
+                assertThrows(
+                        IllegalStateException.class,
+                        () ->
+                                invoiceService.issueStudentInvoice(
+                                        tenantId,
+                                        invoice.id(),
+                                        actorId,
+                                        actor
+                                )
+                );
+
+        assertEquals(
+                "Only an active draft invoice may be issued.",
+                repeatIssue.getMessage()
+        );
+
+        Map<String, Object> afterRepeatAttempt =
+                jdbc.queryForMap(
+                        """
+                        SELECT
+                            invoice_status,
+                            issued_at,
+                            issued_by,
+                            status,
+                            updated_by,
+                            version
+                        FROM gts_student_invoice
+                        WHERE tenant_id = ?
+                          AND id = ?
+                        """,
+                        tenantId,
+                        invoice.id()
+                );
+
+        assertEquals(
+                "ISSUED",
+                afterRepeatAttempt.get(
+                        "invoice_status"
+                )
+        );
+
+        assertNotNull(
+                afterRepeatAttempt.get(
+                        "issued_at"
+                )
+        );
+
+        assertEquals(
+                actorId,
+                afterRepeatAttempt.get(
+                        "issued_by"
+                )
+        );
+
+        assertEquals(
+                "ACTIVE",
+                afterRepeatAttempt.get(
+                        "status"
+                )
+        );
+
+        assertEquals(
+                actor,
+                afterRepeatAttempt.get(
+                        "updated_by"
+                )
+        );
+
+        assertEquals(
+                1L,
+                ((Number) afterRepeatAttempt.get(
+                        "version"
+                )).longValue()
+        );
+
         IllegalStateException duplicate =
                 assertThrows(
                         IllegalStateException.class,

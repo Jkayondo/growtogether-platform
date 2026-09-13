@@ -228,6 +228,46 @@ public class FinanceInvoiceJdbcRepository {
         );
     }
 
+    @org.springframework.transaction.annotation.Transactional
+    public Optional<StudentInvoiceView> issueStudentInvoice(
+            UUID tenantId,
+            UUID invoiceId,
+            UUID issuerId,
+            String actor
+    ) {
+
+        int updated =
+                jdbc.update(
+                        """
+                        UPDATE gts_student_invoice
+                        SET
+                            invoice_status = 'ISSUED',
+                            issued_at = CURRENT_TIMESTAMP,
+                            issued_by = ?,
+                            updated_at = CURRENT_TIMESTAMP,
+                            updated_by = ?,
+                            version = version + 1
+                        WHERE tenant_id = ?
+                          AND id = ?
+                          AND invoice_status = 'DRAFT'
+                          AND status = 'ACTIVE'
+                        """,
+                        issuerId,
+                        actor,
+                        tenantId,
+                        invoiceId
+                );
+
+        if (updated != 1) {
+            return Optional.empty();
+        }
+
+        return findStudentInvoice(
+                tenantId,
+                invoiceId
+        );
+    }
+
     @Transactional(readOnly = true)
     public Optional<StudentInvoiceView> findStudentInvoice(
             UUID tenantId,
@@ -257,6 +297,8 @@ public class FinanceInvoiceJdbcRepository {
                             paid_amount,
                             outstanding_amount,
                             invoice_status,
+                            issued_at,
+                            issued_by,
                             status
                         FROM gts_student_invoice
                         WHERE tenant_id = ?
@@ -306,6 +348,10 @@ public class FinanceInvoiceJdbcRepository {
                                                 "outstanding_amount"
                                         ),
                                         rs.getString("invoice_status"),
+                                        rs.getTimestamp("issued_at") == null
+                                                ? null
+                                                : rs.getTimestamp("issued_at").toInstant(),
+                                        rs.getObject("issued_by", UUID.class),
                                         rs.getString("status"),
                                         List.of()
                                 ),
@@ -459,6 +505,8 @@ public class FinanceInvoiceJdbcRepository {
                 source.paidAmount(),
                 source.outstandingAmount(),
                 source.invoiceStatus(),
+                source.issuedAt(),
+                source.issuedBy(),
                 source.status(),
                 List.copyOf(lines)
         );
