@@ -41,3 +41,14 @@ export interface TeacherAiRunResult {
   submission: TeacherAiSubmission;
   execution: TeacherAiRequestStatus;
 }
+
+export interface TeacherAiDisplayContext
+  extends TeacherAiAssignmentContext {
+  className: string;
+  subjectName: string;
+}
+
+export interface TeacherAiDisplayContextResult {
+  contexts: TeacherAiDisplayContext[];
+  notices: string[];
+}

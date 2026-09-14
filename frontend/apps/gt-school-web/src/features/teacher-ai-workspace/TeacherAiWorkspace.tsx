@@ -9,15 +9,15 @@ import type {
 } from "react";
 
 import {
-  loadTeacherAiAssignmentContexts
-} from "../../services/teacherAiContextService";
+  loadTeacherAiDisplayContexts
+} from "../../services/teacherAiDisplayContextService";
 
 import {
   runTeacherAiRequest
 } from "../../services/teacherAiWorkflowService";
 
 import type {
-  TeacherAiAssignmentContext,
+  TeacherAiDisplayContext,
   TeacherAiRunResult
 } from "../../types/teacherAi";
 
@@ -48,7 +48,7 @@ export default function TeacherAiWorkspace() {
     assignments,
     setAssignments
   ] =
-    useState<TeacherAiAssignmentContext[]>([]);
+    useState<TeacherAiDisplayContext[]>([]);
 
   const [
     selectedAssignmentId,
@@ -87,6 +87,12 @@ export default function TeacherAiWorkspace() {
     useState<string | null>(null);
 
   const [
+    contextNotices,
+    setContextNotices
+  ] =
+    useState<string[]>([]);
+
+  const [
     actionError,
     setActionError
   ] =
@@ -106,23 +112,29 @@ export default function TeacherAiWorkspace() {
       setLoadError(null);
 
       try {
-        const contexts =
-          await loadTeacherAiAssignmentContexts();
+        const display =
+          await loadTeacherAiDisplayContexts();
 
         if (!active) {
           return;
         }
 
-        setAssignments(contexts);
+        setAssignments(
+          display.contexts
+        );
+
+        setContextNotices(
+          display.notices
+        );
 
         setSelectedAssignmentId(
           current =>
-            contexts.some(
+            display.contexts.some(
               item =>
                 item.assignmentId === current
             )
               ? current
-              : contexts[0]?.assignmentId ?? ""
+              : display.contexts[0]?.assignmentId ?? ""
         );
       } catch (cause) {
         if (!active) {
@@ -131,6 +143,7 @@ export default function TeacherAiWorkspace() {
 
         setAssignments([]);
         setSelectedAssignmentId("");
+        setContextNotices([]);
 
         setLoadError(
           friendlyError(
@@ -354,7 +367,7 @@ export default function TeacherAiWorkspace() {
                             }
                           >
                             {
-                              assignment.assignmentId
+                              `${assignment.className} — ${assignment.subjectName}`
                             }
                           </option>
                         )
@@ -362,6 +375,25 @@ export default function TeacherAiWorkspace() {
                     }
                   </select>
                 </label>
+
+                {
+                  contextNotices.length > 0 && (
+                    <div
+                      className="teacher-ai-context-notice"
+                      role="status"
+                    >
+                      {
+                        contextNotices.map(
+                          notice => (
+                            <p key={notice}>
+                              {notice}
+                            </p>
+                          )
+                        )
+                      }
+                    </div>
+                  )
+                }
 
                 {
                   selectedAssignment && (
@@ -383,7 +415,7 @@ export default function TeacherAiWorkspace() {
                         </dt>
                         <dd>
                           {
-                            selectedAssignment.classGradeId
+                            selectedAssignment.className
                           }
                         </dd>
                       </div>
@@ -394,7 +426,7 @@ export default function TeacherAiWorkspace() {
                         </dt>
                         <dd>
                           {
-                            selectedAssignment.subjectId
+                            selectedAssignment.subjectName
                           }
                         </dd>
                       </div>

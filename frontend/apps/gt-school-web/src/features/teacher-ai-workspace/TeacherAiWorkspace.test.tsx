@@ -23,9 +23,9 @@ const api = vi.hoisted(
 );
 
 vi.mock(
-  "../../services/teacherAiContextService",
+  "../../services/teacherAiDisplayContextService",
   () => ({
-    loadTeacherAiAssignmentContexts:
+    loadTeacherAiDisplayContexts:
       api.contexts
   })
 );
@@ -55,6 +55,14 @@ function context(
       assignmentId === "assignment-2"
         ? "subject-2"
         : "subject-1",
+    className:
+      assignmentId === "assignment-2"
+        ? "Senior One"
+        : "Primary One",
+    subjectName:
+      assignmentId === "assignment-2"
+        ? "Physics"
+        : "Mathematics",
     weeklyPeriods: 5,
     assignmentStatus: "ACTIVE"
   };
@@ -79,9 +87,12 @@ describe(
       api.contexts.mockReset();
       api.run.mockReset();
 
-      api.contexts.mockResolvedValue([
-        context()
-      ]);
+      api.contexts.mockResolvedValue({
+        contexts: [
+          context()
+        ],
+        notices: []
+      });
     });
 
     afterEach(cleanup);
@@ -107,13 +118,13 @@ describe(
 
         expect(
           screen.getByText(
-            "class-1"
+            "Primary One"
           )
         ).toBeTruthy();
 
         expect(
           screen.getByText(
-            "subject-1"
+            "Mathematics"
           )
         ).toBeTruthy();
 
@@ -131,10 +142,13 @@ describe(
     it(
       "allows the teacher to switch active assignment context",
       async () => {
-        api.contexts.mockResolvedValue([
-          context("assignment-1"),
-          context("assignment-2")
-        ]);
+        api.contexts.mockResolvedValue({
+          contexts: [
+            context("assignment-1"),
+            context("assignment-2")
+          ],
+          notices: []
+        });
 
         render(<TeacherAiWorkspace />);
 
@@ -153,13 +167,13 @@ describe(
 
         expect(
           screen.getByText(
-            "class-2"
+            "Senior One"
           )
         ).toBeTruthy();
 
         expect(
           screen.getByText(
-            "subject-2"
+            "Physics"
           )
         ).toBeTruthy();
       }
@@ -168,7 +182,10 @@ describe(
     it(
       "shows a governed empty state when no assignment exists",
       async () => {
-        api.contexts.mockResolvedValue([]);
+        api.contexts.mockResolvedValue({
+          contexts: [],
+          notices: []
+        });
 
         render(<TeacherAiWorkspace />);
 
@@ -306,9 +323,12 @@ describe(
 
         first.unmount();
 
-        api.contexts.mockResolvedValue([
-          context()
-        ]);
+        api.contexts.mockResolvedValue({
+          contexts: [
+            context()
+          ],
+          notices: []
+        });
 
         api.run.mockRejectedValue(
           new Error(

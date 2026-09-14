@@ -304,3 +304,20 @@
     width: 100%;
   }
 }
+
+.teacher-ai-context-notice {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(120, 90, 0, 0.08);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.teacher-ai-context-notice p {
+  margin: 0;
+}
+
+.teacher-ai-context-notice p + p {
+  margin-top: 6px;
+}
