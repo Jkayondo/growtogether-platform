@@ -1,0 +1,306 @@
+.teacher-ai-workspace {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  padding: 28px;
+  box-sizing: border-box;
+}
+
+.teacher-ai-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 28px;
+  margin-bottom: 26px;
+}
+
+.teacher-ai-eyebrow {
+  margin: 0 0 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.teacher-ai-hero h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  line-height: 1;
+}
+
+.teacher-ai-lead {
+  max-width: 700px;
+  margin: 14px 0 0;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  opacity: 0.78;
+}
+
+.teacher-ai-governance {
+  width: min(320px, 100%);
+  padding: 16px 18px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 16px;
+  display: grid;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.teacher-ai-governance span {
+  font-size: 0.88rem;
+  line-height: 1.45;
+  opacity: 0.72;
+}
+
+.teacher-ai-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.75fr) minmax(0, 1.65fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.teacher-ai-context-panel,
+.teacher-ai-interaction,
+.teacher-ai-result {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.055);
+}
+
+.teacher-ai-context-panel,
+.teacher-ai-interaction {
+  padding: 22px;
+}
+
+.teacher-ai-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.teacher-ai-status-pill,
+.teacher-ai-result-status {
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.teacher-ai-field {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.teacher-ai-field > span {
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.teacher-ai-field input,
+.teacher-ai-field select,
+.teacher-ai-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  border-radius: 12px;
+  padding: 12px 13px;
+  font: inherit;
+  background: inherit;
+}
+
+.teacher-ai-field textarea {
+  resize: vertical;
+  min-height: 170px;
+  line-height: 1.5;
+}
+
+.teacher-ai-field input:focus,
+.teacher-ai-field select:focus,
+.teacher-ai-field textarea:focus {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+.teacher-ai-field small {
+  opacity: 0.65;
+  line-height: 1.45;
+}
+
+.teacher-ai-field-help {
+  display: block;
+  margin: -10px 0 18px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  opacity: 0.65;
+}
+
+.teacher-ai-context-list,
+.teacher-ai-result-details {
+  margin: 0;
+  display: grid;
+  gap: 0;
+}
+
+.teacher-ai-context-list > div,
+.teacher-ai-result-details > div {
+  display: grid;
+  gap: 5px;
+  padding: 13px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.teacher-ai-context-list > div:last-child,
+.teacher-ai-result-details > div:last-child {
+  border-bottom: 0;
+}
+
+.teacher-ai-context-list dt,
+.teacher-ai-result-details dt {
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+}
+
+.teacher-ai-context-list dd,
+.teacher-ai-result-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.teacher-ai-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.teacher-ai-quick-actions button {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 0.84rem;
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.035);
+}
+
+.teacher-ai-form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.teacher-ai-run-button {
+  border: 0;
+  border-radius: 12px;
+  padding: 12px 20px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  color: white;
+  background: #1f4e79;
+}
+
+.teacher-ai-run-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.teacher-ai-running {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.teacher-ai-error {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(160, 0, 0, 0.08);
+  line-height: 1.45;
+}
+
+.teacher-ai-empty {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  border: 1px dashed rgba(0, 0, 0, 0.18);
+  border-radius: 14px;
+}
+
+.teacher-ai-empty span {
+  line-height: 1.5;
+  opacity: 0.72;
+}
+
+.teacher-ai-result {
+  margin-top: 22px;
+  padding: 20px;
+}
+
+.teacher-ai-result-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.teacher-ai-result-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.teacher-ai-review-notice {
+  margin: 18px 0 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.045);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 820px) {
+  .teacher-ai-workspace {
+    padding: 18px;
+  }
+
+  .teacher-ai-hero {
+    display: grid;
+  }
+
+  .teacher-ai-governance {
+    width: auto;
+  }
+
+  .teacher-ai-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .teacher-ai-workspace {
+    padding: 12px;
+  }
+
+  .teacher-ai-context-panel,
+  .teacher-ai-interaction {
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .teacher-ai-quick-actions {
+    display: grid;
+  }
+
+  .teacher-ai-quick-actions button,
+  .teacher-ai-run-button {
+    width: 100%;
+  }
+}
