@@ -30,6 +30,7 @@ class FinanceStudentDiscountServiceTest {
     private FinanceStudentDiscountJdbcRepository repository;
     private FinanceFoundationJdbcRepository foundationRepository;
     private FinanceDiscountService discountService;
+    private africa.growtogether.platform.school.finance.invoice.FinanceInvoiceJdbcRepository invoiceRepository;
     private FinanceStudentDiscountService service;
 
     private UUID tenantId;
@@ -52,10 +53,15 @@ class FinanceStudentDiscountServiceTest {
                 FinanceDiscountService.class
         );
 
+        invoiceRepository = mock(
+                africa.growtogether.platform.school.finance.invoice.FinanceInvoiceJdbcRepository.class
+        );
+
         service = new FinanceStudentDiscountService(
                 repository,
                 foundationRepository,
-                discountService
+                discountService,
+                invoiceRepository
         );
 
         tenantId = UUID.randomUUID();
@@ -1550,4 +1556,358 @@ class FinanceStudentDiscountServiceTest {
                 0L
         );
     }
+
+    @Test
+    void appliesApprovedPercentageDiscountToDraftInvoice() {
+
+        UUID requestId = UUID.randomUUID();
+        UUID invoiceId = UUID.randomUUID();
+        UUID lineId = UUID.randomUUID();
+
+        StudentDiscountRequestView approved =
+                pendingDecisionRequest(
+                        tenantId,
+                        requestId,
+                        studentId,
+                        accountId,
+                        schemeId,
+                        7L,
+                        "APPROVED",
+                        "ACTIVE"
+                );
+
+        org.mockito.Mockito.when(
+                approved.approvedDiscountValue()
+        ).thenReturn(
+                new java.math.BigDecimal(
+                        "10.00"
+                )
+        );
+
+        org.mockito.Mockito.when(
+                approved.approvedDiscountAmount()
+        ).thenReturn(
+                null
+        );
+
+        org.mockito.Mockito.when(
+                approved.effectiveFrom()
+        ).thenReturn(
+                LocalDate.of(
+                        2026,
+                        1,
+                        1
+                )
+        );
+
+        org.mockito.Mockito.when(
+                approved.effectiveTo()
+        ).thenReturn(
+                null
+        );
+
+        org.mockito.Mockito.when(
+                repository.getStudentDiscountRequest(
+                        tenantId,
+                        requestId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        approved
+                ),
+                java.util.Optional.of(
+                        approved
+                )
+        );
+
+        org.mockito.Mockito.when(
+                foundationRepository.existsTenantReference(
+                        "gts_student",
+                        tenantId,
+                        studentId
+                )
+        ).thenReturn(
+                true
+        );
+
+        africa.growtogether.platform.school.finance.invoice.FinanceInvoiceJdbcRepository.S3DiscountInvoiceLine line =
+                new africa.growtogether.platform.school.finance.invoice.FinanceInvoiceJdbcRepository.S3DiscountInvoiceLine(
+                        lineId,
+                        null,
+                        null,
+                        new java.math.BigDecimal(
+                                "100.00"
+                        ),
+                        new java.math.BigDecimal(
+                                "0.00"
+                        ),
+                        new java.math.BigDecimal(
+                                "0.00"
+                        ),
+                        "ACTIVE",
+                        "ACTIVE",
+                        0L
+                );
+
+        africa.growtogether.platform.school.finance.invoice.FinanceInvoiceJdbcRepository.S3DiscountInvoiceSnapshot invoice =
+                new africa.growtogether.platform.school.finance.invoice.FinanceInvoiceJdbcRepository.S3DiscountInvoiceSnapshot(
+                        invoiceId,
+                        accountId,
+                        studentId,
+                        LocalDate.of(
+                                2026,
+                                1,
+                                15
+                        ),
+                        "UGX",
+                        new java.math.BigDecimal(
+                                "100.00"
+                        ),
+                        new java.math.BigDecimal(
+                                "0.00"
+                        ),
+                        new java.math.BigDecimal(
+                                "0.00"
+                        ),
+                        new java.math.BigDecimal(
+                                "100.00"
+                        ),
+                        new java.math.BigDecimal(
+                                "0.00"
+                        ),
+                        new java.math.BigDecimal(
+                                "100.00"
+                        ),
+                        "DRAFT",
+                        "ACTIVE",
+                        3L,
+                        java.util.List.of(
+                                line
+                        )
+                );
+
+        org.mockito.Mockito.when(
+                invoiceRepository.findDiscountApplicationInvoice(
+                        tenantId,
+                        invoiceId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        invoice
+                )
+        );
+
+        africa.growtogether.platform.school.finance.foundation.FinanceFoundationDtos.StudentFinancialAccountView account =
+                org.mockito.Mockito.mock(
+                        africa.growtogether.platform.school.finance.foundation.FinanceFoundationDtos.StudentFinancialAccountView.class
+                );
+
+        org.mockito.Mockito.when(
+                account.id()
+        ).thenReturn(
+                accountId
+        );
+
+        org.mockito.Mockito.when(
+                account.billingStatus()
+        ).thenReturn(
+                "ACTIVE"
+        );
+
+        org.mockito.Mockito.when(
+                account.status()
+        ).thenReturn(
+                "ACTIVE"
+        );
+
+        org.mockito.Mockito.when(
+                foundationRepository.findStudentAccount(
+                        tenantId,
+                        studentId,
+                        "UGX"
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        account
+                )
+        );
+
+        FinanceDiscountDtos.FeeDiscountSchemeView scheme =
+                activeDecisionScheme(
+                        new java.math.BigDecimal(
+                                "10.00"
+                        )
+                );
+
+        org.mockito.Mockito.when(
+                scheme.discountType()
+        ).thenReturn(
+                "PERCENTAGE"
+        );
+
+        org.mockito.Mockito.when(
+                scheme.effectiveFrom()
+        ).thenReturn(
+                LocalDate.of(
+                        2026,
+                        1,
+                        1
+                )
+        );
+
+        org.mockito.Mockito.when(
+                scheme.effectiveTo()
+        ).thenReturn(
+                null
+        );
+
+        org.mockito.Mockito.when(
+                discountService.getFeeDiscountScheme(
+                        tenantId,
+                        schemeId
+                )
+        ).thenReturn(
+                scheme
+        );
+
+        StudentDiscountRequestView result =
+                service.applyStudentDiscount(
+                        tenantId,
+                        requestId,
+                        new FinanceStudentDiscountDtos.ApplyStudentDiscountRequest(
+                                invoiceId
+                        ),
+                        actorId,
+                        actorId.toString()
+                );
+
+        assertSame(
+                approved,
+                result
+        );
+
+        org.mockito.Mockito.verify(
+                repository
+        ).applyStudentDiscountToBilling(
+                tenantId,
+                requestId,
+                7L,
+                new java.math.BigDecimal(
+                        "10.00"
+                ),
+                actorId.toString()
+        );
+
+        org.mockito.Mockito.verify(
+                invoiceRepository
+        ).updateDiscountApplicationLine(
+                tenantId,
+                invoiceId,
+                lineId,
+                0L,
+                new java.math.BigDecimal(
+                        "10.00"
+                ),
+                new java.math.BigDecimal(
+                        "90.00"
+                ),
+                actorId.toString()
+        );
+
+        org.mockito.Mockito.verify(
+                invoiceRepository
+        ).updateDiscountApplicationInvoice(
+                tenantId,
+                invoiceId,
+                3L,
+                new java.math.BigDecimal(
+                        "10.00"
+                ),
+                new java.math.BigDecimal(
+                        "90.00"
+                ),
+                new java.math.BigDecimal(
+                        "90.00"
+                ),
+                actorId.toString()
+        );
+
+        org.mockito.Mockito.verify(
+                repository
+        ).insertAppliedStudentDiscountAdjustment(
+                tenantId,
+                requestId,
+                accountId,
+                invoiceId,
+                new java.math.BigDecimal(
+                        "10.00"
+                ),
+                actorId,
+                actorId.toString()
+        );
+    }
+
+    @Test
+    void applicationRejectsAlreadyAppliedDiscountBeforeInvoiceMutation() {
+
+        UUID requestId = UUID.randomUUID();
+
+        StudentDiscountRequestView applied =
+                pendingDecisionRequest(
+                        tenantId,
+                        requestId,
+                        studentId,
+                        accountId,
+                        schemeId,
+                        8L,
+                        "ACTIVE",
+                        "ACTIVE"
+                );
+
+        org.mockito.Mockito.when(
+                applied.approvedDiscountValue()
+        ).thenReturn(
+                new java.math.BigDecimal(
+                        "10.00"
+                )
+        );
+
+        org.mockito.Mockito.when(
+                applied.approvedDiscountAmount()
+        ).thenReturn(
+                new java.math.BigDecimal(
+                        "10.00"
+                )
+        );
+
+        org.mockito.Mockito.when(
+                repository.getStudentDiscountRequest(
+                        tenantId,
+                        requestId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        applied
+                )
+        );
+
+        assertThrows(
+                IllegalStateException.class,
+                () ->
+                        service.applyStudentDiscount(
+                                tenantId,
+                                requestId,
+                                new FinanceStudentDiscountDtos.ApplyStudentDiscountRequest(
+                                        UUID.randomUUID()
+                                ),
+                                actorId,
+                                actorId.toString()
+                        )
+        );
+
+        org.mockito.Mockito.verifyNoInteractions(
+                invoiceRepository
+        );
+    }
+
 }

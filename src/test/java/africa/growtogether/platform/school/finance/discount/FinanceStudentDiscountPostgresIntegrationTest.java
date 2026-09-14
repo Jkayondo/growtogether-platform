@@ -1125,6 +1125,361 @@ class FinanceStudentDiscountPostgresIntegrationTest {
         );
     }
 
+
+
+    @Test
+    void approvedPercentageDiscountAppliesAtomicallyToDraftBilling() {
+
+        UUID tenantId =
+                createTenant(
+                        unique(
+                                "S3_T"
+                        )
+                );
+
+        UUID studentId =
+                createStudent(
+                        tenantId,
+                        unique(
+                                "S3_ST"
+                        )
+                );
+
+        UUID accountId =
+                createFinancialAccount(
+                        tenantId,
+                        studentId,
+                        unique(
+                                "S3_ACC"
+                        ),
+                        "UGX",
+                        "ACTIVE",
+                        "ACTIVE"
+                );
+
+        UUID schemeId =
+                createDiscountScheme(
+                        tenantId,
+                        unique(
+                                "S3_SCH"
+                        ),
+                        true,
+                        "ACTIVE"
+                );
+
+        UUID actorId =
+                UUID.randomUUID();
+
+        StudentDiscountRequestView created =
+                service.createStudentDiscountRequest(
+                        tenantId,
+                        request(
+                                unique(
+                                        "S3_DISC"
+                                ),
+                                studentId,
+                                accountId,
+                                schemeId,
+                                LocalDate.of(
+                                        2026,
+                                        1,
+                                        1
+                                ),
+                                null
+                        ),
+                        actorId
+                );
+
+        StudentDiscountRequestView approved =
+                service.approveStudentDiscountRequest(
+                        tenantId,
+                        created.id(),
+                        actorId,
+                        actorId.toString()
+                );
+
+        UUID invoiceId =
+                createS3DraftInvoice(
+                        tenantId,
+                        accountId,
+                        studentId,
+                        "UGX",
+                        new BigDecimal(
+                                "100.00"
+                        )
+                );
+
+        UUID lineId =
+                createS3InvoiceLine(
+                        tenantId,
+                        invoiceId,
+                        new BigDecimal(
+                                "100.00"
+                        )
+                );
+
+        StudentDiscountRequestView applied =
+                service.applyStudentDiscount(
+                        tenantId,
+                        approved.id(),
+                        new FinanceStudentDiscountDtos.ApplyStudentDiscountRequest(
+                                invoiceId
+                        ),
+                        actorId,
+                        actorId.toString()
+                );
+
+        assertEquals(
+                "ACTIVE",
+                applied.discountStatus()
+        );
+
+        assertEquals(
+                0,
+                new BigDecimal(
+                        "10.00"
+                ).compareTo(
+                        applied.approvedDiscountAmount()
+                )
+        );
+
+        Map<String, Object> line =
+                jdbc.queryForMap(
+                        """
+                        SELECT
+                            discount_amount,
+                            net_amount,
+                            version
+                        FROM gts_student_invoice_line
+                        WHERE tenant_id = ?
+                          AND id = ?
+                        """,
+                        tenantId,
+                        lineId
+                );
+
+        assertEquals(
+                0,
+                new BigDecimal(
+                        "10.00"
+                ).compareTo(
+                        (BigDecimal) line.get(
+                                "discount_amount"
+                        )
+                )
+        );
+
+        assertEquals(
+                0,
+                new BigDecimal(
+                        "90.00"
+                ).compareTo(
+                        (BigDecimal) line.get(
+                                "net_amount"
+                        )
+                )
+        );
+
+        Map<String, Object> invoice =
+                jdbc.queryForMap(
+                        """
+                        SELECT
+                            discount_amount,
+                            total_amount,
+                            outstanding_amount,
+                            invoice_status,
+                            version
+                        FROM gts_student_invoice
+                        WHERE tenant_id = ?
+                          AND id = ?
+                        """,
+                        tenantId,
+                        invoiceId
+                );
+
+        assertEquals(
+                "DRAFT",
+                invoice.get(
+                        "invoice_status"
+                )
+        );
+
+        assertEquals(
+                0,
+                new BigDecimal(
+                        "10.00"
+                ).compareTo(
+                        (BigDecimal) invoice.get(
+                                "discount_amount"
+                        )
+                )
+        );
+
+        assertEquals(
+                0,
+                new BigDecimal(
+                        "90.00"
+                ).compareTo(
+                        (BigDecimal) invoice.get(
+                                "total_amount"
+                        )
+                )
+        );
+
+        assertEquals(
+                0,
+                new BigDecimal(
+                        "90.00"
+                ).compareTo(
+                        (BigDecimal) invoice.get(
+                                "outstanding_amount"
+                        )
+                )
+        );
+
+        Map<String, Object> adjustment =
+                jdbc.queryForMap(
+                        """
+                        SELECT
+                            adjustment_reference,
+                            student_financial_account_id,
+                            invoice_id,
+                            invoice_line_id,
+                            adjustment_type,
+                            adjustment_amount,
+                            adjustment_status,
+                            requested_by,
+                            applied_by,
+                            applied_at,
+                            status
+                        FROM gts_financial_adjustment
+                        WHERE tenant_id = ?
+                          AND adjustment_reference = ?
+                        """,
+                        tenantId,
+                        "SFD-" + approved.id()
+                );
+
+        assertEquals(
+                accountId,
+                adjustment.get(
+                        "student_financial_account_id"
+                )
+        );
+
+        assertEquals(
+                invoiceId,
+                adjustment.get(
+                        "invoice_id"
+                )
+        );
+
+        assertNull(
+                adjustment.get(
+                        "invoice_line_id"
+                )
+        );
+
+        assertEquals(
+                "OTHER",
+                adjustment.get(
+                        "adjustment_type"
+                )
+        );
+
+        assertEquals(
+                "APPLIED",
+                adjustment.get(
+                        "adjustment_status"
+                )
+        );
+
+        assertEquals(
+                "ACTIVE",
+                adjustment.get(
+                        "status"
+                )
+        );
+
+        assertEquals(
+                0,
+                new BigDecimal(
+                        "10.00"
+                ).compareTo(
+                        (BigDecimal) adjustment.get(
+                                "adjustment_amount"
+                        )
+                )
+        );
+
+        assertEquals(
+                actorId,
+                adjustment.get(
+                        "requested_by"
+                )
+        );
+
+        assertEquals(
+                actorId,
+                adjustment.get(
+                        "applied_by"
+                )
+        );
+
+        assertNotNull(
+                adjustment.get(
+                        "applied_at"
+                )
+        );
+
+        long adjustmentCount =
+                jdbc.queryForObject(
+                        """
+                        SELECT COUNT(*)
+                        FROM gts_financial_adjustment
+                        WHERE tenant_id = ?
+                          AND adjustment_reference = ?
+                        """,
+                        Long.class,
+                        tenantId,
+                        "SFD-" + approved.id()
+                );
+
+        assertEquals(
+                1L,
+                adjustmentCount
+        );
+
+        assertThrows(
+                IllegalStateException.class,
+                () ->
+                        service.applyStudentDiscount(
+                                tenantId,
+                                approved.id(),
+                                new FinanceStudentDiscountDtos.ApplyStudentDiscountRequest(
+                                        invoiceId
+                                ),
+                                actorId,
+                                actorId.toString()
+                        )
+        );
+
+        assertEquals(
+                1L,
+                jdbc.queryForObject(
+                        """
+                        SELECT COUNT(*)
+                        FROM gts_financial_adjustment
+                        WHERE tenant_id = ?
+                          AND adjustment_reference = ?
+                        """,
+                        Long.class,
+                        tenantId,
+                        "SFD-" + approved.id()
+                )
+        );
+    }
+
     private CreateStudentDiscountRequest request(
             String reference,
             UUID studentId,
@@ -1373,4 +1728,128 @@ class FinanceStudentDiscountPostgresIntegrationTest {
                         8
                 );
     }
+
+    private UUID createS3DraftInvoice(
+            UUID tenantId,
+            UUID accountId,
+            UUID studentId,
+            String currencyCode,
+            BigDecimal amount
+    ) {
+
+        return jdbc.queryForObject(
+                """
+                INSERT INTO gts_student_invoice (
+                    tenant_id,
+                    invoice_number,
+                    student_financial_account_id,
+                    student_id,
+                    invoice_date,
+                    currency_code,
+                    subtotal_amount,
+                    discount_amount,
+                    tax_amount,
+                    total_amount,
+                    paid_amount,
+                    outstanding_amount,
+                    invoice_status,
+                    status,
+                    created_at,
+                    created_by,
+                    updated_at,
+                    updated_by,
+                    version
+                )
+                VALUES (
+                    ?, ?, ?, ?,
+                    DATE '2026-01-15',
+                    ?,
+                    ?,
+                    0,
+                    0,
+                    ?,
+                    0,
+                    ?,
+                    'DRAFT',
+                    'ACTIVE',
+                    CURRENT_TIMESTAMP,
+                    'fin-b4-s3-proof',
+                    CURRENT_TIMESTAMP,
+                    'fin-b4-s3-proof',
+                    0
+                )
+                RETURNING id
+                """,
+                UUID.class,
+                tenantId,
+                unique(
+                        "S3_INV"
+                ),
+                accountId,
+                studentId,
+                currencyCode,
+                amount,
+                amount,
+                amount
+        );
+    }
+
+    private UUID createS3InvoiceLine(
+            UUID tenantId,
+            UUID invoiceId,
+            BigDecimal amount
+    ) {
+
+        return jdbc.queryForObject(
+                """
+                INSERT INTO gts_student_invoice_line (
+                    tenant_id,
+                    invoice_id,
+                    fee_item_id,
+                    fee_structure_item_id,
+                    line_description,
+                    quantity,
+                    unit_amount,
+                    gross_amount,
+                    discount_amount,
+                    tax_amount,
+                    net_amount,
+                    line_status,
+                    status,
+                    created_at,
+                    created_by,
+                    updated_at,
+                    updated_by,
+                    version
+                )
+                VALUES (
+                    ?, ?,
+                    NULL,
+                    NULL,
+                    'FIN-B4-S3 Proof Line',
+                    1,
+                    ?,
+                    ?,
+                    0,
+                    0,
+                    ?,
+                    'ACTIVE',
+                    'ACTIVE',
+                    CURRENT_TIMESTAMP,
+                    'fin-b4-s3-proof',
+                    CURRENT_TIMESTAMP,
+                    'fin-b4-s3-proof',
+                    0
+                )
+                RETURNING id
+                """,
+                UUID.class,
+                tenantId,
+                invoiceId,
+                amount,
+                amount,
+                amount
+        );
+    }
+
 }

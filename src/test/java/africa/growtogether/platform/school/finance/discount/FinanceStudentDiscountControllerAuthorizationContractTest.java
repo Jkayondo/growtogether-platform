@@ -130,4 +130,53 @@ class FinanceStudentDiscountControllerAuthorizationContractTest {
                 .findFirst()
                 .orElseThrow();
     }
+
+    @org.junit.jupiter.api.Test
+    void studentDiscountApplyEndpointUsesManageAuthority() {
+
+        java.lang.reflect.Method method =
+                java.util.Arrays.stream(
+                        FinanceStudentDiscountController.class.getDeclaredMethods()
+                )
+                .filter(
+                        candidate ->
+                                candidate.getName()
+                                        .equals(
+                                                "applyStudentDiscount"
+                                        )
+                )
+                .findFirst()
+                .orElseThrow();
+
+        org.springframework.security.access.prepost.PreAuthorize authority =
+                method.getAnnotation(
+                        org.springframework.security.access.prepost.PreAuthorize.class
+                );
+
+        org.junit.jupiter.api.Assertions.assertNotNull(
+                authority
+        );
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "hasAuthority('school.finance.manage')",
+                authority.value()
+        );
+
+        org.springframework.web.bind.annotation.PostMapping mapping =
+                method.getAnnotation(
+                        org.springframework.web.bind.annotation.PostMapping.class
+                );
+
+        org.junit.jupiter.api.Assertions.assertNotNull(
+                mapping
+        );
+
+        org.junit.jupiter.api.Assertions.assertArrayEquals(
+                new String[]{
+                        "/{studentDiscountId}/apply"
+                },
+                mapping.value()
+        );
+    }
+
 }

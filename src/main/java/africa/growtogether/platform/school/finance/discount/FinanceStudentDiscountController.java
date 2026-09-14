@@ -143,4 +143,33 @@ public class FinanceStudentDiscountController {
         );
     }
 
+
+    @PostMapping("/{studentDiscountId}/apply")
+    @PreAuthorize("hasAuthority('school.finance.manage')")
+    public ApiResponse<StudentDiscountRequestView> applyStudentDiscount(
+            @PathVariable UUID studentDiscountId,
+            @RequestParam UUID tenantId,
+            @RequestBody ApplyStudentDiscountRequest request
+    ) {
+
+        identity.requireTenant(
+                tenantId
+        );
+
+        UUID applyingUserId =
+                identity.requireUserId();
+
+        return responses.success(
+                "GT-SCHOOL-FIN-034",
+                "Student discount applied to billing.",
+                service.applyStudentDiscount(
+                        tenantId,
+                        studentDiscountId,
+                        request,
+                        applyingUserId,
+                        applyingUserId.toString()
+                )
+        );
+    }
+
 }

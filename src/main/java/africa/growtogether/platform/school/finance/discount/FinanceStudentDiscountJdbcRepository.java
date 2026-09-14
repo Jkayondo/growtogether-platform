@@ -317,6 +317,129 @@ public class FinanceStudentDiscountJdbcRepository {
         ).orElseThrow();
     }
 
+
+
+    @Transactional
+    public void applyStudentDiscountToBilling(
+            UUID tenantId,
+            UUID studentDiscountId,
+            long expectedVersion,
+            BigDecimal approvedDiscountAmount,
+            String actor
+    ) {
+
+        int updated =
+                jdbc.update(
+                        """
+                        UPDATE gts_student_fee_discount
+                        SET
+                            discount_status = 'ACTIVE',
+                            approved_discount_amount = ?,
+                            updated_at = CURRENT_TIMESTAMP,
+                            updated_by = ?,
+                            version = version + 1
+                        WHERE tenant_id = ?
+                          AND id = ?
+                          AND status = 'ACTIVE'
+                          AND discount_status = 'APPROVED'
+                          AND approved_discount_amount IS NULL
+                          AND version = ?
+                        """,
+                        approvedDiscountAmount,
+                        actor,
+                        tenantId,
+                        studentDiscountId,
+                        expectedVersion
+                );
+
+        if (updated != 1) {
+            throw new IllegalStateException(
+                    "Student discount request changed before billing application."
+            );
+        }
+    }
+
+    @Transactional
+    public void insertAppliedStudentDiscountAdjustment(
+            UUID tenantId,
+            UUID studentDiscountId,
+            UUID studentFinancialAccountId,
+            UUID invoiceId,
+            BigDecimal adjustmentAmount,
+            UUID applyingUserId,
+            String actor
+    ) {
+
+        int inserted =
+                jdbc.update(
+                        """
+                        INSERT INTO gts_financial_adjustment (
+                            tenant_id,
+                            adjustment_reference,
+                            student_financial_account_id,
+                            invoice_id,
+                            invoice_line_id,
+                            adjustment_type,
+                            adjustment_amount,
+                            reason,
+                            requested_at,
+                            requested_by,
+                            workflow_instance_id,
+                            approved_at,
+                            approved_by,
+                            applied_at,
+                            applied_by,
+                            adjustment_status,
+                            status,
+                            created_at,
+                            created_by,
+                            updated_at,
+                            updated_by,
+                            version
+                        )
+                        VALUES (
+                            ?,
+                            ?,
+                            ?,
+                            ?,
+                            NULL,
+                            'OTHER',
+                            ?,
+                            'FIN-B4-S3 student discount application',
+                            CURRENT_TIMESTAMP,
+                            ?,
+                            NULL,
+                            NULL,
+                            NULL,
+                            CURRENT_TIMESTAMP,
+                            ?,
+                            'APPLIED',
+                            'ACTIVE',
+                            CURRENT_TIMESTAMP,
+                            ?,
+                            CURRENT_TIMESTAMP,
+                            ?,
+                            0
+                        )
+                        """,
+                        tenantId,
+                        "SFD-" + studentDiscountId,
+                        studentFinancialAccountId,
+                        invoiceId,
+                        adjustmentAmount,
+                        applyingUserId,
+                        applyingUserId,
+                        actor,
+                        actor
+                );
+
+        if (inserted != 1) {
+            throw new IllegalStateException(
+                    "Student discount financial adjustment could not be created."
+            );
+        }
+    }
+
     public Optional<StudentFinancialAccountScope> findStudentFinancialAccountScope(
             UUID tenantId,
             UUID studentFinancialAccountId

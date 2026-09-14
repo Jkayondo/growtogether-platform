@@ -22,6 +22,11 @@ public final class FinanceStudentDiscountDtos {
     ) {
     }
 
+    public record ApplyStudentDiscountRequest(
+            UUID invoiceId
+    ) {
+    }
+
     public record StudentDiscountRequestView(
             UUID id,
             UUID tenantId,

@@ -1,5 +1,16 @@
 package africa.growtogether.platform.school.finance.discount;
 
+import africa.growtogether.platform.school.finance.foundation.FinanceFoundationDtos.StudentFinancialAccountView;
+import africa.growtogether.platform.school.finance.invoice.FinanceInvoiceJdbcRepository;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import africa.growtogether.platform.school.finance.foundation.FinanceFoundationJdbcRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,15 +30,18 @@ public class FinanceStudentDiscountService {
     private final FinanceStudentDiscountJdbcRepository repository;
     private final FinanceFoundationJdbcRepository foundationRepository;
     private final FinanceDiscountService discountService;
+    private final FinanceInvoiceJdbcRepository invoiceRepository;
 
     public FinanceStudentDiscountService(
             FinanceStudentDiscountJdbcRepository repository,
             FinanceFoundationJdbcRepository foundationRepository,
-            FinanceDiscountService discountService
+            FinanceDiscountService discountService,
+            FinanceInvoiceJdbcRepository invoiceRepository
     ) {
         this.repository = repository;
         this.foundationRepository = foundationRepository;
         this.discountService = discountService;
+        this.invoiceRepository = invoiceRepository;
     }
 
     @Transactional
@@ -312,6 +326,499 @@ public class FinanceStudentDiscountService {
         );
     }
 
+
+    @Transactional
+    public StudentDiscountRequestView applyStudentDiscount(
+            UUID tenantId,
+            UUID studentDiscountId,
+            FinanceStudentDiscountDtos.ApplyStudentDiscountRequest request,
+            UUID applyingUserId,
+            String actor
+    ) {
+
+        requireTenant(
+                tenantId
+        );
+
+        UUID discountId =
+                requireUuid(
+                        studentDiscountId,
+                        "studentDiscountId"
+                );
+
+        if (request == null) {
+            throw new IllegalArgumentException(
+                    "request must not be null"
+            );
+        }
+
+        UUID invoiceId =
+                requireUuid(
+                        request.invoiceId(),
+                        "invoiceId"
+                );
+
+        UUID applicationUserId =
+                requireUuid(
+                        applyingUserId,
+                        "applyingUserId"
+                );
+
+        String applicationActor =
+                requireActor(
+                        actor
+                );
+
+        StudentDiscountRequestView discount =
+                repository.getStudentDiscountRequest(
+                        tenantId,
+                        discountId
+                ).orElseThrow(
+                        () ->
+                                new IllegalArgumentException(
+                                        "Student discount request is not available in this tenant."
+                                )
+                );
+
+        if (
+                !"ACTIVE".equals(
+                        discount.status()
+                )
+                        || !"APPROVED".equals(
+                                discount.discountStatus()
+                        )
+        ) {
+            throw new IllegalStateException(
+                    "Only an active approved student discount may be applied."
+            );
+        }
+
+        if (discount.approvedDiscountValue() == null) {
+            throw new IllegalStateException(
+                    "Approved discount value is required before billing application."
+            );
+        }
+
+        if (discount.approvedDiscountAmount() != null) {
+            throw new IllegalStateException(
+                    "Student discount has already been applied to billing."
+            );
+        }
+
+        if (
+                !foundationRepository.existsTenantReference(
+                        "gts_student",
+                        tenantId,
+                        discount.studentId()
+                )
+        ) {
+            throw new IllegalArgumentException(
+                    "studentId is not available in this tenant."
+            );
+        }
+
+        FinanceInvoiceJdbcRepository.S3DiscountInvoiceSnapshot invoice =
+                invoiceRepository.findDiscountApplicationInvoice(
+                        tenantId,
+                        invoiceId
+                ).orElseThrow(
+                        () ->
+                                new IllegalArgumentException(
+                                        "Student invoice is not available in this tenant."
+                                )
+                );
+
+        if (
+                !"ACTIVE".equals(
+                        invoice.status()
+                )
+                        || !"DRAFT".equals(
+                                invoice.invoiceStatus()
+                        )
+        ) {
+            throw new IllegalStateException(
+                    "Only an active draft invoice may receive a student discount."
+            );
+        }
+
+        if (
+                invoice.paidAmount() == null
+                        || invoice.paidAmount()
+                                .compareTo(
+                                        BigDecimal.ZERO
+                                ) != 0
+        ) {
+            throw new IllegalStateException(
+                    "Only an unpaid draft invoice may receive a student discount."
+            );
+        }
+
+        if (
+                !discount.studentId()
+                        .equals(
+                                invoice.studentId()
+                        )
+        ) {
+            throw new IllegalArgumentException(
+                    "Student discount and invoice learners do not match."
+            );
+        }
+
+        if (
+                !discount.studentFinancialAccountId()
+                        .equals(
+                                invoice.studentFinancialAccountId()
+                        )
+        ) {
+            throw new IllegalArgumentException(
+                    "Student discount and invoice financial accounts do not match."
+            );
+        }
+
+        requireDateInsideRange(
+                invoice.invoiceDate(),
+                discount.effectiveFrom(),
+                discount.effectiveTo(),
+                "Invoice date is outside the student discount effective period."
+        );
+
+        StudentFinancialAccountView account =
+                foundationRepository.findStudentAccount(
+                        tenantId,
+                        discount.studentId(),
+                        invoice.currencyCode()
+                ).orElseThrow(
+                        () ->
+                                new IllegalArgumentException(
+                                        "Student financial account is not available in the invoice currency."
+                                )
+                );
+
+        if (
+                !discount.studentFinancialAccountId()
+                        .equals(
+                                account.id()
+                        )
+        ) {
+            throw new IllegalArgumentException(
+                    "Invoice currency does not match the student discount financial account."
+            );
+        }
+
+        if (
+                !"ACTIVE".equals(
+                        account.billingStatus()
+                )
+                        || !"ACTIVE".equals(
+                                account.status()
+                        )
+        ) {
+            throw new IllegalStateException(
+                    "The student financial account is not active."
+            );
+        }
+
+        FinanceDiscountDtos.FeeDiscountSchemeView scheme =
+                discountService.getFeeDiscountScheme(
+                        tenantId,
+                        discount.discountSchemeId()
+                );
+
+        if (
+                !scheme.active()
+                        || !"ACTIVE".equals(
+                                scheme.status()
+                        )
+        ) {
+            throw new IllegalArgumentException(
+                    "Fee discount scheme is not active."
+            );
+        }
+
+        requireDateInsideRange(
+                invoice.invoiceDate(),
+                scheme.effectiveFrom(),
+                scheme.effectiveTo(),
+                "Invoice date is outside the fee discount scheme effective period."
+        );
+
+        if (
+                scheme.discountValue() == null
+                        || scheme.discountValue()
+                                .compareTo(
+                                        discount.approvedDiscountValue()
+                                ) != 0
+        ) {
+            throw new IllegalStateException(
+                    "Fee discount scheme value has changed since approval."
+            );
+        }
+
+        String discountType =
+                scheme.discountType();
+
+        if (
+                !"PERCENTAGE".equals(
+                        discountType
+                )
+                        && !"FIXED_AMOUNT".equals(
+                                discountType
+                        )
+        ) {
+            throw new IllegalStateException(
+                    "Discount type does not have an authorised FIN-B4-S3 calculation rule."
+            );
+        }
+
+        List<FinanceInvoiceJdbcRepository.S3DiscountInvoiceLine> eligibleLines =
+                invoice.lines()
+                        .stream()
+                        .filter(
+                                line ->
+                                        "ACTIVE".equals(
+                                                line.lineStatus()
+                                        )
+                                                && "ACTIVE".equals(
+                                                        line.status()
+                                                )
+                        )
+                        .filter(
+                                line ->
+                                        lineMatchesScheme(
+                                                line,
+                                                scheme
+                                        )
+                        )
+                        .filter(
+                                line ->
+                                        remainingDiscountableBase(
+                                                line
+                                        ).compareTo(
+                                                BigDecimal.ZERO
+                                        ) > 0
+                        )
+                        .toList();
+
+        if (eligibleLines.isEmpty()) {
+            throw new IllegalStateException(
+                    "The invoice contains no eligible positive discountable amount."
+            );
+        }
+
+        BigDecimal eligibleBase =
+                eligibleLines
+                        .stream()
+                        .map(
+                                FinanceStudentDiscountService::remainingDiscountableBase
+                        )
+                        .reduce(
+                                money(
+                                        BigDecimal.ZERO
+                                ),
+                                BigDecimal::add
+                        );
+
+        BigDecimal targetAmount;
+
+        if ("PERCENTAGE".equals(discountType)) {
+            targetAmount =
+                    money(
+                            eligibleBase
+                                    .multiply(
+                                            discount.approvedDiscountValue()
+                                    )
+                                    .divide(
+                                            new BigDecimal(
+                                                    "100"
+                                            ),
+                                            8,
+                                            RoundingMode.HALF_UP
+                                    )
+                    );
+        } else {
+            targetAmount =
+                    money(
+                            discount.approvedDiscountValue()
+                    );
+        }
+
+        if (scheme.maximumDiscountAmount() != null) {
+            targetAmount =
+                    minimum(
+                            targetAmount,
+                            money(
+                                    scheme.maximumDiscountAmount()
+                            )
+                    );
+        }
+
+        targetAmount =
+                minimum(
+                        targetAmount,
+                        eligibleBase
+                );
+
+        targetAmount =
+                money(
+                        targetAmount
+                );
+
+        if (
+                targetAmount.compareTo(
+                        BigDecimal.ZERO
+                ) <= 0
+        ) {
+            throw new IllegalStateException(
+                    "Calculated student discount amount must be greater than zero."
+            );
+        }
+
+        List<S3LineApplication> lineApplications =
+                calculateLineApplications(
+                        eligibleLines,
+                        discountType,
+                        discount.approvedDiscountValue(),
+                        targetAmount
+                );
+
+        BigDecimal appliedLineTotal =
+                lineApplications
+                        .stream()
+                        .map(
+                                S3LineApplication::increment
+                        )
+                        .reduce(
+                                money(
+                                        BigDecimal.ZERO
+                                ),
+                                BigDecimal::add
+                        );
+
+        if (
+                appliedLineTotal.compareTo(
+                        targetAmount
+                ) != 0
+        ) {
+            throw new IllegalStateException(
+                    "Invoice-line discount allocation does not equal the approved application amount."
+            );
+        }
+
+        Map<UUID, BigDecimal> updatedLineDiscounts =
+                new HashMap<>();
+
+        for (S3LineApplication application : lineApplications) {
+            updatedLineDiscounts.put(
+                    application.lineId(),
+                    application.newDiscountAmount()
+            );
+        }
+
+        BigDecimal invoiceDiscountAmount =
+                invoice.lines()
+                        .stream()
+                        .map(
+                                line ->
+                                        updatedLineDiscounts.getOrDefault(
+                                                line.id(),
+                                                money(
+                                                        line.discountAmount()
+                                                )
+                                        )
+                        )
+                        .reduce(
+                                money(
+                                        BigDecimal.ZERO
+                                ),
+                                BigDecimal::add
+                        );
+
+        BigDecimal invoiceTotalAmount =
+                money(
+                        invoice.subtotalAmount()
+                                .subtract(
+                                        invoiceDiscountAmount
+                                )
+                                .add(
+                                        invoice.taxAmount()
+                                )
+                );
+
+        BigDecimal invoiceOutstandingAmount =
+                money(
+                        invoiceTotalAmount
+                                .subtract(
+                                        invoice.paidAmount()
+                                )
+                );
+
+        if (
+                invoiceDiscountAmount.compareTo(
+                        BigDecimal.ZERO
+                ) < 0
+                        || invoiceTotalAmount.compareTo(
+                                BigDecimal.ZERO
+                        ) < 0
+                        || invoiceOutstandingAmount.compareTo(
+                                BigDecimal.ZERO
+                        ) < 0
+        ) {
+            throw new IllegalStateException(
+                    "Student discount application would produce a negative invoice amount."
+            );
+        }
+
+        repository.applyStudentDiscountToBilling(
+                tenantId,
+                discountId,
+                discount.version(),
+                targetAmount,
+                applicationActor
+        );
+
+        for (S3LineApplication application : lineApplications) {
+            invoiceRepository.updateDiscountApplicationLine(
+                    tenantId,
+                    invoiceId,
+                    application.lineId(),
+                    application.expectedVersion(),
+                    application.newDiscountAmount(),
+                    application.newNetAmount(),
+                    applicationActor
+            );
+        }
+
+        invoiceRepository.updateDiscountApplicationInvoice(
+                tenantId,
+                invoiceId,
+                invoice.version(),
+                invoiceDiscountAmount,
+                invoiceTotalAmount,
+                invoiceOutstandingAmount,
+                applicationActor
+        );
+
+        repository.insertAppliedStudentDiscountAdjustment(
+                tenantId,
+                discountId,
+                discount.studentFinancialAccountId(),
+                invoiceId,
+                targetAmount,
+                applicationUserId,
+                applicationActor
+        );
+
+        return repository.getStudentDiscountRequest(
+                tenantId,
+                discountId
+        ).orElseThrow(
+                () ->
+                        new IllegalStateException(
+                                "Applied student discount could not be reloaded."
+                        )
+        );
+    }
+
     @Transactional
     public StudentDiscountRequestView rejectStudentDiscountRequest(
             UUID tenantId,
@@ -475,4 +982,395 @@ public class FinanceStudentDiscountService {
 
         return normalized;
     }
+
+    private static List<S3LineApplication> calculateLineApplications(
+            List<FinanceInvoiceJdbcRepository.S3DiscountInvoiceLine> lines,
+            String discountType,
+            BigDecimal approvedValue,
+            BigDecimal targetAmount
+    ) {
+
+        List<BigDecimal> increments =
+                new ArrayList<>(
+                        lines.size()
+                );
+
+        if ("FIXED_AMOUNT".equals(discountType)) {
+            BigDecimal remaining =
+                    targetAmount;
+
+            for (FinanceInvoiceJdbcRepository.S3DiscountInvoiceLine line : lines) {
+                BigDecimal capacity =
+                        remainingDiscountableBase(
+                                line
+                        );
+
+                BigDecimal increment =
+                        minimum(
+                                capacity,
+                                remaining
+                        );
+
+                increment =
+                        money(
+                                increment
+                        );
+
+                increments.add(
+                        increment
+                );
+
+                remaining =
+                        money(
+                                remaining.subtract(
+                                        increment
+                                )
+                        );
+            }
+
+            if (
+                    remaining.compareTo(
+                            BigDecimal.ZERO
+                    ) != 0
+            ) {
+                throw new IllegalStateException(
+                        "Fixed discount could not be fully allocated to eligible invoice lines."
+                );
+            }
+        } else {
+            BigDecimal initialTotal =
+                    money(
+                            BigDecimal.ZERO
+                    );
+
+            for (FinanceInvoiceJdbcRepository.S3DiscountInvoiceLine line : lines) {
+                BigDecimal capacity =
+                        remainingDiscountableBase(
+                                line
+                        );
+
+                BigDecimal increment =
+                        money(
+                                capacity
+                                        .multiply(
+                                                approvedValue
+                                        )
+                                        .divide(
+                                                new BigDecimal(
+                                                        "100"
+                                                ),
+                                                8,
+                                                RoundingMode.HALF_UP
+                                        )
+                        );
+
+                increment =
+                        minimum(
+                                increment,
+                                capacity
+                        );
+
+                increments.add(
+                        increment
+                );
+
+                initialTotal =
+                        money(
+                                initialTotal.add(
+                                        increment
+                                )
+                        );
+            }
+
+            BigDecimal difference =
+                    money(
+                            targetAmount.subtract(
+                                    initialTotal
+                            )
+                    );
+
+            if (
+                    difference.compareTo(
+                            BigDecimal.ZERO
+                    ) > 0
+            ) {
+                for (
+                        int index = lines.size() - 1;
+                        index >= 0
+                                && difference.compareTo(
+                                        BigDecimal.ZERO
+                                ) > 0;
+                        index--
+                ) {
+                    BigDecimal capacity =
+                            money(
+                                    remainingDiscountableBase(
+                                            lines.get(
+                                                    index
+                                            )
+                                    ).subtract(
+                                            increments.get(
+                                                    index
+                                            )
+                                    )
+                            );
+
+                    BigDecimal addition =
+                            minimum(
+                                    capacity,
+                                    difference
+                            );
+
+                    increments.set(
+                            index,
+                            money(
+                                    increments.get(
+                                            index
+                                    ).add(
+                                            addition
+                                    )
+                            )
+                    );
+
+                    difference =
+                            money(
+                                    difference.subtract(
+                                            addition
+                                    )
+                            );
+                }
+            } else if (
+                    difference.compareTo(
+                            BigDecimal.ZERO
+                    ) < 0
+            ) {
+                BigDecimal excess =
+                        difference
+                                .abs();
+
+                for (
+                        int index = lines.size() - 1;
+                        index >= 0
+                                && excess.compareTo(
+                                        BigDecimal.ZERO
+                                ) > 0;
+                        index--
+                ) {
+                    BigDecimal removable =
+                            increments.get(
+                                    index
+                            );
+
+                    BigDecimal deduction =
+                            minimum(
+                                    removable,
+                                    excess
+                            );
+
+                    increments.set(
+                            index,
+                            money(
+                                    removable.subtract(
+                                            deduction
+                                    )
+                            )
+                    );
+
+                    excess =
+                            money(
+                                    excess.subtract(
+                                            deduction
+                                    )
+                            );
+                }
+
+                difference =
+                        excess.negate();
+            }
+
+            if (
+                    difference.compareTo(
+                            BigDecimal.ZERO
+                    ) != 0
+            ) {
+                throw new IllegalStateException(
+                        "Percentage discount rounding could not be reconciled."
+                );
+            }
+        }
+
+        List<S3LineApplication> result =
+                new ArrayList<>();
+
+        for (int index = 0; index < lines.size(); index++) {
+            FinanceInvoiceJdbcRepository.S3DiscountInvoiceLine line =
+                    lines.get(
+                            index
+                    );
+
+            BigDecimal increment =
+                    money(
+                            increments.get(
+                                    index
+                            )
+                    );
+
+            if (
+                    increment.compareTo(
+                            BigDecimal.ZERO
+                    ) <= 0
+            ) {
+                continue;
+            }
+
+            BigDecimal newDiscount =
+                    money(
+                            line.discountAmount()
+                                    .add(
+                                            increment
+                                    )
+                    );
+
+            if (
+                    newDiscount.compareTo(
+                            line.grossAmount()
+                    ) > 0
+            ) {
+                throw new IllegalStateException(
+                        "Student discount would exceed an invoice line gross amount."
+                );
+            }
+
+            BigDecimal newNet =
+                    money(
+                            line.grossAmount()
+                                    .subtract(
+                                            newDiscount
+                                    )
+                                    .add(
+                                            line.taxAmount()
+                                    )
+                    );
+
+            result.add(
+                    new S3LineApplication(
+                            line.id(),
+                            line.version(),
+                            increment,
+                            newDiscount,
+                            newNet
+                    )
+            );
+        }
+
+        return List.copyOf(
+                result
+        );
+    }
+
+    private static boolean lineMatchesScheme(
+            FinanceInvoiceJdbcRepository.S3DiscountInvoiceLine line,
+            FinanceDiscountDtos.FeeDiscountSchemeView scheme
+    ) {
+
+        if (scheme.feeItemId() != null) {
+            return scheme.feeItemId()
+                    .equals(
+                            line.feeItemId()
+                    );
+        }
+
+        if (scheme.feeCategoryId() != null) {
+            return scheme.feeCategoryId()
+                    .equals(
+                            line.feeCategoryId()
+                    );
+        }
+
+        return true;
+    }
+
+    private static BigDecimal remainingDiscountableBase(
+            FinanceInvoiceJdbcRepository.S3DiscountInvoiceLine line
+    ) {
+
+        BigDecimal remaining =
+                money(
+                        line.grossAmount()
+                                .subtract(
+                                        line.discountAmount()
+                                )
+                );
+
+        return remaining.compareTo(
+                BigDecimal.ZERO
+        ) < 0
+                ? money(
+                        BigDecimal.ZERO
+                )
+                : remaining;
+    }
+
+    private static BigDecimal minimum(
+            BigDecimal first,
+            BigDecimal second
+    ) {
+        return first.compareTo(
+                second
+        ) <= 0
+                ? first
+                : second;
+    }
+
+    private static BigDecimal money(
+            BigDecimal value
+    ) {
+
+        if (value == null) {
+            throw new IllegalArgumentException(
+                    "monetary value must not be null"
+            );
+        }
+
+        return value.setScale(
+                2,
+                RoundingMode.HALF_UP
+        );
+    }
+
+    private static void requireDateInsideRange(
+            LocalDate date,
+            LocalDate effectiveFrom,
+            LocalDate effectiveTo,
+            String message
+    ) {
+
+        if (
+                date == null
+                        || effectiveFrom == null
+                        || date.isBefore(
+                                effectiveFrom
+                        )
+                        || (
+                                effectiveTo != null
+                                        && date.isAfter(
+                                                effectiveTo
+                                        )
+                        )
+        ) {
+            throw new IllegalStateException(
+                    message
+            );
+        }
+    }
+
+    private record S3LineApplication(
+            UUID lineId,
+            long expectedVersion,
+            BigDecimal increment,
+            BigDecimal newDiscountAmount,
+            BigDecimal newNetAmount
+    ) {
+    }
+
 }

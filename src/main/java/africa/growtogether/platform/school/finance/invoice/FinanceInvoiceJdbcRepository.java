@@ -40,6 +40,39 @@ public class FinanceInvoiceJdbcRepository {
     ) {
     }
 
+
+    public record S3DiscountInvoiceLine(
+            UUID id,
+            UUID feeItemId,
+            UUID feeCategoryId,
+            BigDecimal grossAmount,
+            BigDecimal discountAmount,
+            BigDecimal taxAmount,
+            String lineStatus,
+            String status,
+            long version
+    ) {
+    }
+
+    public record S3DiscountInvoiceSnapshot(
+            UUID id,
+            UUID studentFinancialAccountId,
+            UUID studentId,
+            LocalDate invoiceDate,
+            String currencyCode,
+            BigDecimal subtotalAmount,
+            BigDecimal discountAmount,
+            BigDecimal taxAmount,
+            BigDecimal totalAmount,
+            BigDecimal paidAmount,
+            BigDecimal outstandingAmount,
+            String invoiceStatus,
+            String status,
+            long version,
+            List<S3DiscountInvoiceLine> lines
+    ) {
+    }
+
     @Transactional(readOnly = true)
     public boolean existsInvoiceNumber(
             UUID tenantId,
@@ -310,6 +343,228 @@ public class FinanceInvoiceJdbcRepository {
                 tenantId,
                 invoiceId
         );
+    }
+
+
+
+    @Transactional(readOnly = true)
+    public Optional<S3DiscountInvoiceSnapshot> findDiscountApplicationInvoice(
+            UUID tenantId,
+            UUID invoiceId
+    ) {
+
+        List<S3DiscountInvoiceSnapshot> headers =
+                jdbc.query(
+                        """
+                        SELECT
+                            id,
+                            student_financial_account_id,
+                            student_id,
+                            invoice_date,
+                            currency_code,
+                            subtotal_amount,
+                            discount_amount,
+                            tax_amount,
+                            total_amount,
+                            paid_amount,
+                            outstanding_amount,
+                            invoice_status,
+                            status,
+                            version
+                        FROM gts_student_invoice
+                        WHERE tenant_id = ?
+                          AND id = ?
+                        """,
+                        (rs, rowNum) ->
+                                new S3DiscountInvoiceSnapshot(
+                                        rs.getObject("id", UUID.class),
+                                        rs.getObject(
+                                                "student_financial_account_id",
+                                                UUID.class
+                                        ),
+                                        rs.getObject("student_id", UUID.class),
+                                        rs.getObject(
+                                                "invoice_date",
+                                                LocalDate.class
+                                        ),
+                                        rs.getString("currency_code"),
+                                        rs.getBigDecimal("subtotal_amount"),
+                                        rs.getBigDecimal("discount_amount"),
+                                        rs.getBigDecimal("tax_amount"),
+                                        rs.getBigDecimal("total_amount"),
+                                        rs.getBigDecimal("paid_amount"),
+                                        rs.getBigDecimal("outstanding_amount"),
+                                        rs.getString("invoice_status"),
+                                        rs.getString("status"),
+                                        rs.getLong("version"),
+                                        List.of()
+                                ),
+                        tenantId,
+                        invoiceId
+                );
+
+        if (headers.isEmpty()) {
+            return Optional.empty();
+        }
+
+        S3DiscountInvoiceSnapshot header =
+                headers.getFirst();
+
+        List<S3DiscountInvoiceLine> lines =
+                jdbc.query(
+                        """
+                        SELECT
+                            line.id,
+                            line.fee_item_id,
+                            item.fee_category_id,
+                            line.gross_amount,
+                            line.discount_amount,
+                            line.tax_amount,
+                            line.line_status,
+                            line.status,
+                            line.version
+                        FROM gts_student_invoice_line line
+                        LEFT JOIN gts_fee_item item
+                          ON item.id = line.fee_item_id
+                         AND item.tenant_id = line.tenant_id
+                        WHERE line.tenant_id = ?
+                          AND line.invoice_id = ?
+                        ORDER BY
+                            line.created_at ASC,
+                            line.id ASC
+                        """,
+                        (rs, rowNum) ->
+                                new S3DiscountInvoiceLine(
+                                        rs.getObject("id", UUID.class),
+                                        rs.getObject(
+                                                "fee_item_id",
+                                                UUID.class
+                                        ),
+                                        rs.getObject(
+                                                "fee_category_id",
+                                                UUID.class
+                                        ),
+                                        rs.getBigDecimal("gross_amount"),
+                                        rs.getBigDecimal("discount_amount"),
+                                        rs.getBigDecimal("tax_amount"),
+                                        rs.getString("line_status"),
+                                        rs.getString("status"),
+                                        rs.getLong("version")
+                                ),
+                        tenantId,
+                        invoiceId
+                );
+
+        return Optional.of(
+                new S3DiscountInvoiceSnapshot(
+                        header.id(),
+                        header.studentFinancialAccountId(),
+                        header.studentId(),
+                        header.invoiceDate(),
+                        header.currencyCode(),
+                        header.subtotalAmount(),
+                        header.discountAmount(),
+                        header.taxAmount(),
+                        header.totalAmount(),
+                        header.paidAmount(),
+                        header.outstandingAmount(),
+                        header.invoiceStatus(),
+                        header.status(),
+                        header.version(),
+                        List.copyOf(
+                                lines
+                        )
+                )
+        );
+    }
+
+    @Transactional
+    public void updateDiscountApplicationLine(
+            UUID tenantId,
+            UUID invoiceId,
+            UUID invoiceLineId,
+            long expectedVersion,
+            BigDecimal discountAmount,
+            BigDecimal netAmount,
+            String actor
+    ) {
+
+        int updated =
+                jdbc.update(
+                        """
+                        UPDATE gts_student_invoice_line
+                        SET
+                            discount_amount = ?,
+                            net_amount = ?,
+                            updated_at = CURRENT_TIMESTAMP,
+                            updated_by = ?,
+                            version = version + 1
+                        WHERE tenant_id = ?
+                          AND invoice_id = ?
+                          AND id = ?
+                          AND line_status = 'ACTIVE'
+                          AND status = 'ACTIVE'
+                          AND version = ?
+                        """,
+                        discountAmount,
+                        netAmount,
+                        actor,
+                        tenantId,
+                        invoiceId,
+                        invoiceLineId,
+                        expectedVersion
+                );
+
+        if (updated != 1) {
+            throw new IllegalStateException(
+                    "Invoice line changed while the student discount was being applied."
+            );
+        }
+    }
+
+    @Transactional
+    public void updateDiscountApplicationInvoice(
+            UUID tenantId,
+            UUID invoiceId,
+            long expectedVersion,
+            BigDecimal discountAmount,
+            BigDecimal totalAmount,
+            BigDecimal outstandingAmount,
+            String actor
+    ) {
+
+        int updated =
+                jdbc.update(
+                        """
+                        UPDATE gts_student_invoice
+                        SET
+                            discount_amount = ?,
+                            total_amount = ?,
+                            outstanding_amount = ?,
+                            updated_at = CURRENT_TIMESTAMP,
+                            updated_by = ?,
+                            version = version + 1
+                        WHERE tenant_id = ?
+                          AND id = ?
+                          AND invoice_status = 'DRAFT'
+                          AND status = 'ACTIVE'
+                          AND paid_amount = 0
+                          AND version = ?
+                        """,
+                        discountAmount,
+                        totalAmount,
+                        outstandingAmount,
+                        actor,
+                        tenantId,
+                        invoiceId,
+                        expectedVersion
+                );
+
+        if (updated != 1) {
+            throw new IllegalStateException(
+                    "Student invoice changed before discount application completed."
+            );
+        }
     }
 
     @Transactional(readOnly = true)
