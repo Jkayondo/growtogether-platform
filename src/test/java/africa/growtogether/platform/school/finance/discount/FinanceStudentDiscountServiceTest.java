@@ -554,6 +554,872 @@ class FinanceStudentDiscountServiceTest {
         );
     }
 
+
+    @Test
+    void approvesPendingRequestUsingSchemeDiscountValue() {
+        UUID tenantId = UUID.randomUUID();
+        UUID requestId = UUID.randomUUID();
+        UUID studentId = UUID.randomUUID();
+        UUID accountId = UUID.randomUUID();
+        UUID schemeId = UUID.randomUUID();
+        UUID actorId = UUID.randomUUID();
+
+        StudentDiscountRequestView pending =
+                pendingDecisionRequest(
+                        tenantId,
+                        requestId,
+                        studentId,
+                        accountId,
+                        schemeId,
+                        7L,
+                        "PENDING",
+                        "ACTIVE"
+                );
+
+        FinanceDiscountDtos.FeeDiscountSchemeView scheme =
+                activeDecisionScheme(
+                        new java.math.BigDecimal(
+                                "12.50"
+                        )
+                );
+
+        org.mockito.Mockito.when(
+                repository.getStudentDiscountRequest(
+                        tenantId,
+                        requestId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        pending
+                )
+        );
+
+        org.mockito.Mockito.when(
+                foundationRepository.existsTenantReference(
+                        "gts_student",
+                        tenantId,
+                        studentId
+                )
+        ).thenReturn(
+                true
+        );
+
+        org.mockito.Mockito.when(
+                repository.findStudentFinancialAccountScope(
+                        tenantId,
+                        accountId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        new FinanceStudentDiscountJdbcRepository.StudentFinancialAccountScope(
+                                studentId,
+                                "ACTIVE",
+                                "ACTIVE"
+                        )
+                )
+        );
+
+        org.mockito.Mockito.when(
+                discountService.getFeeDiscountScheme(
+                        tenantId,
+                        schemeId
+                )
+        ).thenReturn(
+                scheme
+        );
+
+        org.mockito.Mockito.when(
+                repository.approveStudentDiscountRequest(
+                        tenantId,
+                        requestId,
+                        7L,
+                        scheme.discountValue(),
+                        actorId,
+                        actorId.toString()
+                )
+        ).thenReturn(
+                pending
+        );
+
+        service.approveStudentDiscountRequest(
+                tenantId,
+                requestId,
+                actorId,
+                actorId.toString()
+        );
+
+        org.mockito.Mockito.verify(
+                repository
+        ).approveStudentDiscountRequest(
+                tenantId,
+                requestId,
+                7L,
+                scheme.discountValue(),
+                actorId,
+                actorId.toString()
+        );
+    }
+
+    @Test
+    void approvalRejectsMissingOrCrossTenantRequest() {
+        UUID tenantId = UUID.randomUUID();
+        UUID requestId = UUID.randomUUID();
+
+        org.mockito.Mockito.when(
+                repository.getStudentDiscountRequest(
+                        tenantId,
+                        requestId
+                )
+        ).thenReturn(
+                java.util.Optional.empty()
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        service.approveStudentDiscountRequest(
+                                tenantId,
+                                requestId,
+                                UUID.randomUUID(),
+                                UUID.randomUUID().toString()
+                        )
+        );
+    }
+
+    @Test
+    void approvalRejectsNonPendingOrInactiveRequest() {
+        UUID tenantId = UUID.randomUUID();
+        UUID requestId = UUID.randomUUID();
+        UUID actorId = UUID.randomUUID();
+
+        StudentDiscountRequestView approved =
+                pendingDecisionRequest(
+                        tenantId,
+                        requestId,
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        1L,
+                        "APPROVED",
+                        "ACTIVE"
+                );
+
+        org.mockito.Mockito.when(
+                repository.getStudentDiscountRequest(
+                        tenantId,
+                        requestId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        approved
+                )
+        );
+
+        assertThrows(
+                IllegalStateException.class,
+                () ->
+                        service.approveStudentDiscountRequest(
+                                tenantId,
+                                requestId,
+                                actorId,
+                                actorId.toString()
+                        )
+        );
+
+        StudentDiscountRequestView inactive =
+                pendingDecisionRequest(
+                        tenantId,
+                        requestId,
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        1L,
+                        "PENDING",
+                        "INACTIVE"
+                );
+
+        org.mockito.Mockito.when(
+                repository.getStudentDiscountRequest(
+                        tenantId,
+                        requestId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        inactive
+                )
+        );
+
+        assertThrows(
+                IllegalStateException.class,
+                () ->
+                        service.approveStudentDiscountRequest(
+                                tenantId,
+                                requestId,
+                                actorId,
+                                actorId.toString()
+                        )
+        );
+    }
+
+    @Test
+    void approvalRevalidatesStudentOwnership() {
+        UUID tenantId = UUID.randomUUID();
+        UUID requestId = UUID.randomUUID();
+        UUID studentId = UUID.randomUUID();
+
+        StudentDiscountRequestView pending =
+                pendingDecisionRequest(
+                        tenantId,
+                        requestId,
+                        studentId,
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        1L,
+                        "PENDING",
+                        "ACTIVE"
+                );
+
+        org.mockito.Mockito.when(
+                repository.getStudentDiscountRequest(
+                        tenantId,
+                        requestId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        pending
+                )
+        );
+
+        org.mockito.Mockito.when(
+                foundationRepository.existsTenantReference(
+                        "gts_student",
+                        tenantId,
+                        studentId
+                )
+        ).thenReturn(
+                false
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        service.approveStudentDiscountRequest(
+                                tenantId,
+                                requestId,
+                                UUID.randomUUID(),
+                                UUID.randomUUID().toString()
+                        )
+        );
+    }
+
+    @Test
+    void approvalRejectsUnavailableAccountOrAccountStudentMismatch() {
+        UUID tenantId = UUID.randomUUID();
+        UUID requestId = UUID.randomUUID();
+        UUID studentId = UUID.randomUUID();
+        UUID accountId = UUID.randomUUID();
+
+        StudentDiscountRequestView pending =
+                pendingDecisionRequest(
+                        tenantId,
+                        requestId,
+                        studentId,
+                        accountId,
+                        UUID.randomUUID(),
+                        1L,
+                        "PENDING",
+                        "ACTIVE"
+                );
+
+        org.mockito.Mockito.when(
+                repository.getStudentDiscountRequest(
+                        tenantId,
+                        requestId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        pending
+                )
+        );
+
+        org.mockito.Mockito.when(
+                foundationRepository.existsTenantReference(
+                        "gts_student",
+                        tenantId,
+                        studentId
+                )
+        ).thenReturn(
+                true
+        );
+
+        org.mockito.Mockito.when(
+                repository.findStudentFinancialAccountScope(
+                        tenantId,
+                        accountId
+                )
+        ).thenReturn(
+                java.util.Optional.empty()
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        service.approveStudentDiscountRequest(
+                                tenantId,
+                                requestId,
+                                UUID.randomUUID(),
+                                UUID.randomUUID().toString()
+                        )
+        );
+
+        org.mockito.Mockito.when(
+                repository.findStudentFinancialAccountScope(
+                        tenantId,
+                        accountId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        new FinanceStudentDiscountJdbcRepository.StudentFinancialAccountScope(
+                                UUID.randomUUID(),
+                                "ACTIVE",
+                                "ACTIVE"
+                        )
+                )
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        service.approveStudentDiscountRequest(
+                                tenantId,
+                                requestId,
+                                UUID.randomUUID(),
+                                UUID.randomUUID().toString()
+                        )
+        );
+    }
+
+    @Test
+    void approvalRejectsInactiveAccount() {
+        UUID tenantId = UUID.randomUUID();
+        UUID requestId = UUID.randomUUID();
+        UUID studentId = UUID.randomUUID();
+        UUID accountId = UUID.randomUUID();
+
+        StudentDiscountRequestView pending =
+                pendingDecisionRequest(
+                        tenantId,
+                        requestId,
+                        studentId,
+                        accountId,
+                        UUID.randomUUID(),
+                        1L,
+                        "PENDING",
+                        "ACTIVE"
+                );
+
+        org.mockito.Mockito.when(
+                repository.getStudentDiscountRequest(
+                        tenantId,
+                        requestId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        pending
+                )
+        );
+
+        org.mockito.Mockito.when(
+                foundationRepository.existsTenantReference(
+                        "gts_student",
+                        tenantId,
+                        studentId
+                )
+        ).thenReturn(
+                true
+        );
+
+        org.mockito.Mockito.when(
+                repository.findStudentFinancialAccountScope(
+                        tenantId,
+                        accountId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        new FinanceStudentDiscountJdbcRepository.StudentFinancialAccountScope(
+                                studentId,
+                                "PENDING",
+                                "ACTIVE"
+                        )
+                )
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        service.approveStudentDiscountRequest(
+                                tenantId,
+                                requestId,
+                                UUID.randomUUID(),
+                                UUID.randomUUID().toString()
+                        )
+        );
+    }
+
+    @Test
+    void approvalRejectsUnavailableOrInactiveScheme() {
+        UUID tenantId = UUID.randomUUID();
+        UUID requestId = UUID.randomUUID();
+        UUID studentId = UUID.randomUUID();
+        UUID accountId = UUID.randomUUID();
+        UUID schemeId = UUID.randomUUID();
+
+        StudentDiscountRequestView pending =
+                pendingDecisionRequest(
+                        tenantId,
+                        requestId,
+                        studentId,
+                        accountId,
+                        schemeId,
+                        1L,
+                        "PENDING",
+                        "ACTIVE"
+                );
+
+        org.mockito.Mockito.when(
+                repository.getStudentDiscountRequest(
+                        tenantId,
+                        requestId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        pending
+                )
+        );
+
+        org.mockito.Mockito.when(
+                foundationRepository.existsTenantReference(
+                        "gts_student",
+                        tenantId,
+                        studentId
+                )
+        ).thenReturn(
+                true
+        );
+
+        org.mockito.Mockito.when(
+                repository.findStudentFinancialAccountScope(
+                        tenantId,
+                        accountId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        new FinanceStudentDiscountJdbcRepository.StudentFinancialAccountScope(
+                                studentId,
+                                "ACTIVE",
+                                "ACTIVE"
+                        )
+                )
+        );
+
+        org.mockito.Mockito.when(
+                discountService.getFeeDiscountScheme(
+                        tenantId,
+                        schemeId
+                )
+        ).thenThrow(
+                new IllegalArgumentException(
+                        "Fee discount scheme is not available in this tenant."
+                )
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        service.approveStudentDiscountRequest(
+                                tenantId,
+                                requestId,
+                                UUID.randomUUID(),
+                                UUID.randomUUID().toString()
+                        )
+        );
+
+        FinanceDiscountDtos.FeeDiscountSchemeView inactive =
+                org.mockito.Mockito.mock(
+                        FinanceDiscountDtos.FeeDiscountSchemeView.class
+                );
+
+        org.mockito.Mockito.when(
+                inactive.active()
+        ).thenReturn(
+                false
+        );
+
+        org.mockito.Mockito.when(
+                inactive.status()
+        ).thenReturn(
+                "ACTIVE"
+        );
+
+        org.mockito.Mockito.doReturn(
+                inactive
+        ).when(
+                discountService
+        ).getFeeDiscountScheme(
+                tenantId,
+                schemeId
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        service.approveStudentDiscountRequest(
+                                tenantId,
+                                requestId,
+                                UUID.randomUUID(),
+                                UUID.randomUUID().toString()
+                        )
+        );
+
+        FinanceDiscountDtos.FeeDiscountSchemeView nonActiveStatus =
+                org.mockito.Mockito.mock(
+                        FinanceDiscountDtos.FeeDiscountSchemeView.class
+                );
+
+        org.mockito.Mockito.when(
+                nonActiveStatus.active()
+        ).thenReturn(
+                true
+        );
+
+        org.mockito.Mockito.when(
+                nonActiveStatus.status()
+        ).thenReturn(
+                "INACTIVE"
+        );
+
+        org.mockito.Mockito.doReturn(
+                nonActiveStatus
+        ).when(
+                discountService
+        ).getFeeDiscountScheme(
+                tenantId,
+                schemeId
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        service.approveStudentDiscountRequest(
+                                tenantId,
+                                requestId,
+                                UUID.randomUUID(),
+                                UUID.randomUUID().toString()
+                        )
+        );
+    }
+
+    @Test
+    void rejectsPendingRequest() {
+        UUID tenantId = UUID.randomUUID();
+        UUID requestId = UUID.randomUUID();
+        UUID actorId = UUID.randomUUID();
+
+        StudentDiscountRequestView pending =
+                pendingDecisionRequest(
+                        tenantId,
+                        requestId,
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        9L,
+                        "PENDING",
+                        "ACTIVE"
+                );
+
+        org.mockito.Mockito.when(
+                repository.getStudentDiscountRequest(
+                        tenantId,
+                        requestId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        pending
+                )
+        );
+
+        org.mockito.Mockito.when(
+                repository.rejectStudentDiscountRequest(
+                        tenantId,
+                        requestId,
+                        9L,
+                        actorId.toString()
+                )
+        ).thenReturn(
+                pending
+        );
+
+        service.rejectStudentDiscountRequest(
+                tenantId,
+                requestId,
+                actorId,
+                actorId.toString()
+        );
+
+        org.mockito.Mockito.verify(
+                repository
+        ).rejectStudentDiscountRequest(
+                tenantId,
+                requestId,
+                9L,
+                actorId.toString()
+        );
+    }
+
+    @Test
+    void rejectionRejectsMissingNonPendingOrInactiveRequest() {
+        UUID tenantId = UUID.randomUUID();
+        UUID requestId = UUID.randomUUID();
+        UUID actorId = UUID.randomUUID();
+
+        org.mockito.Mockito.when(
+                repository.getStudentDiscountRequest(
+                        tenantId,
+                        requestId
+                )
+        ).thenReturn(
+                java.util.Optional.empty()
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        service.rejectStudentDiscountRequest(
+                                tenantId,
+                                requestId,
+                                actorId,
+                                actorId.toString()
+                        )
+        );
+
+        StudentDiscountRequestView approved =
+                pendingDecisionRequest(
+                        tenantId,
+                        requestId,
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        1L,
+                        "APPROVED",
+                        "ACTIVE"
+                );
+
+        org.mockito.Mockito.when(
+                repository.getStudentDiscountRequest(
+                        tenantId,
+                        requestId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        approved
+                )
+        );
+
+        assertThrows(
+                IllegalStateException.class,
+                () ->
+                        service.rejectStudentDiscountRequest(
+                                tenantId,
+                                requestId,
+                                actorId,
+                                actorId.toString()
+                        )
+        );
+
+        StudentDiscountRequestView inactive =
+                pendingDecisionRequest(
+                        tenantId,
+                        requestId,
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        1L,
+                        "PENDING",
+                        "INACTIVE"
+                );
+
+        org.mockito.Mockito.when(
+                repository.getStudentDiscountRequest(
+                        tenantId,
+                        requestId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        inactive
+                )
+        );
+
+        assertThrows(
+                IllegalStateException.class,
+                () ->
+                        service.rejectStudentDiscountRequest(
+                                tenantId,
+                                requestId,
+                                actorId,
+                                actorId.toString()
+                        )
+        );
+    }
+
+    @Test
+    void staleDecisionRepositoryFailureIsPropagated() {
+        UUID tenantId = UUID.randomUUID();
+        UUID requestId = UUID.randomUUID();
+        UUID actorId = UUID.randomUUID();
+
+        StudentDiscountRequestView pending =
+                pendingDecisionRequest(
+                        tenantId,
+                        requestId,
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        5L,
+                        "PENDING",
+                        "ACTIVE"
+                );
+
+        org.mockito.Mockito.when(
+                repository.getStudentDiscountRequest(
+                        tenantId,
+                        requestId
+                )
+        ).thenReturn(
+                java.util.Optional.of(
+                        pending
+                )
+        );
+
+        org.mockito.Mockito.when(
+                repository.rejectStudentDiscountRequest(
+                        tenantId,
+                        requestId,
+                        5L,
+                        actorId.toString()
+                )
+        ).thenThrow(
+                new IllegalStateException(
+                        "Student discount request is not eligible for rejection."
+                )
+        );
+
+        assertThrows(
+                IllegalStateException.class,
+                () ->
+                        service.rejectStudentDiscountRequest(
+                                tenantId,
+                                requestId,
+                                actorId,
+                                actorId.toString()
+                        )
+        );
+    }
+
+    private StudentDiscountRequestView pendingDecisionRequest(
+            UUID tenantId,
+            UUID requestId,
+            UUID studentId,
+            UUID accountId,
+            UUID schemeId,
+            long version,
+            String discountStatus,
+            String status
+    ) {
+        StudentDiscountRequestView request =
+                org.mockito.Mockito.mock(
+                        StudentDiscountRequestView.class
+                );
+
+        org.mockito.Mockito.when(
+                request.id()
+        ).thenReturn(
+                requestId
+        );
+
+        org.mockito.Mockito.when(
+                request.tenantId()
+        ).thenReturn(
+                tenantId
+        );
+
+        org.mockito.Mockito.when(
+                request.studentId()
+        ).thenReturn(
+                studentId
+        );
+
+        org.mockito.Mockito.when(
+                request.studentFinancialAccountId()
+        ).thenReturn(
+                accountId
+        );
+
+        org.mockito.Mockito.when(
+                request.discountSchemeId()
+        ).thenReturn(
+                schemeId
+        );
+
+        org.mockito.Mockito.when(
+                request.version()
+        ).thenReturn(
+                version
+        );
+
+        org.mockito.Mockito.when(
+                request.discountStatus()
+        ).thenReturn(
+                discountStatus
+        );
+
+        org.mockito.Mockito.when(
+                request.status()
+        ).thenReturn(
+                status
+        );
+
+        return request;
+    }
+
+    private FinanceDiscountDtos.FeeDiscountSchemeView activeDecisionScheme(
+            java.math.BigDecimal discountValue
+    ) {
+        FinanceDiscountDtos.FeeDiscountSchemeView scheme =
+                org.mockito.Mockito.mock(
+                        FinanceDiscountDtos.FeeDiscountSchemeView.class
+                );
+
+        org.mockito.Mockito.when(
+                scheme.active()
+        ).thenReturn(
+                true
+        );
+
+        org.mockito.Mockito.when(
+                scheme.status()
+        ).thenReturn(
+                "ACTIVE"
+        );
+
+        org.mockito.Mockito.when(
+                scheme.discountValue()
+        ).thenReturn(
+                discountValue
+        );
+
+        return scheme;
+    }
+
     private void allowValidDependencies() {
         allowStudentAndAccount();
 

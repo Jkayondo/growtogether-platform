@@ -1,102 +1,133 @@
 package africa.growtogether.platform.school.finance.discount;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 import org.junit.jupiter.api.Test;
-
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.lang.reflect.Method;
-import java.util.Map;
+import java.util.Arrays;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FinanceStudentDiscountControllerAuthorizationContractTest {
 
     @Test
-    void discountSchemeEndpointsCarryExplicitAuthorities() {
-
+    void studentDiscountEndpointsCarryExplicitAuthorities() {
         RequestMapping mapping =
-                FinanceStudentDiscountController.class
-                        .getAnnotation(
-                                RequestMapping.class
-                        );
-
-        assertNotNull(
-                mapping
-        );
-
-        assertArrayEquals(
-                new String[]{
-                        "/api/v1/school/finance/student-discounts"
-                },
-                mapping.value()
-        );
-
-        Map<String, String> expected =
-                Map.of(
-                        "createStudentDiscountRequest",
-                        "school.finance.manage",
-                        "getStudentDiscountRequest",
-                        "school.finance.read",
-                        "listStudentDiscountRequests",
-                        "school.finance.read"
+                FinanceStudentDiscountController.class.getAnnotation(
+                        RequestMapping.class
                 );
 
-        for (
-                Method method :
-                FinanceStudentDiscountController.class
-                        .getDeclaredMethods()
-        ) {
+        assertNotNull(mapping);
 
-            String authority =
-                    expected.get(
-                            method.getName()
-                    );
+        assertTrue(
+                Arrays.asList(
+                        mapping.value()
+                ).contains(
+                        "/api/v1/school/finance/student-discounts"
+                )
+        );
 
-            if (authority == null) {
-                continue;
-            }
+        assertAuthority(
+                "createStudentDiscountRequest",
+                "school.finance.manage"
+        );
 
-            PreAuthorize annotation =
-                    method.getAnnotation(
-                            PreAuthorize.class
-                    );
+        assertAuthority(
+                "getStudentDiscountRequest",
+                "school.finance.read"
+        );
 
-            assertNotNull(
-                    annotation,
-                    method.getName()
-                            + " must declare @PreAuthorize"
-            );
+        assertAuthority(
+                "listStudentDiscountRequests",
+                "school.finance.read"
+        );
 
-            assertEquals(
-                    "hasAuthority('"
-                            + authority
-                            + "')",
-                    annotation.value(),
-                    method.getName()
-            );
-        }
+        assertAuthority(
+                "approveStudentDiscountRequest",
+                "school.finance.approve"
+        );
+
+        assertAuthority(
+                "rejectStudentDiscountRequest",
+                "school.finance.approve"
+        );
+
+        assertPostPath(
+                "approveStudentDiscountRequest",
+                "/{studentDiscountId}/approve"
+        );
+
+        assertPostPath(
+                "rejectStudentDiscountRequest",
+                "/{studentDiscountId}/reject"
+        );
+    }
+
+    private static void assertAuthority(
+            String methodName,
+            String authority
+    ) {
+        Method method =
+                findMethod(
+                        methodName
+                );
+
+        PreAuthorize annotation =
+                method.getAnnotation(
+                        PreAuthorize.class
+                );
+
+        assertNotNull(annotation);
 
         assertEquals(
-                expected.size(),
-                expected.keySet()
-                        .stream()
-                        .filter(
-                                name ->
-                                        java.util.Arrays
-                                                .stream(
-                                                        FinanceStudentDiscountController.class
-                                                                .getDeclaredMethods()
-                                                )
-                                                .anyMatch(
-                                                        method ->
-                                                                method.getName()
-                                                                        .equals(
-                                                                                name
-                                                                        )
-                                                )
-                        )
-                        .count()
+                "hasAuthority('" + authority + "')",
+                annotation.value()
         );
+    }
+
+    private static void assertPostPath(
+            String methodName,
+            String path
+    ) {
+        Method method =
+                findMethod(
+                        methodName
+                );
+
+        PostMapping annotation =
+                method.getAnnotation(
+                        PostMapping.class
+                );
+
+        assertNotNull(annotation);
+
+        assertTrue(
+                Arrays.asList(
+                        annotation.value()
+                ).contains(
+                        path
+                )
+        );
+    }
+
+    private static Method findMethod(
+            String methodName
+    ) {
+        return Arrays.stream(
+                        FinanceStudentDiscountController.class
+                                .getDeclaredMethods()
+                )
+                .filter(
+                        method ->
+                                method.getName().equals(
+                                        methodName
+                                )
+                )
+                .findFirst()
+                .orElseThrow();
     }
 }

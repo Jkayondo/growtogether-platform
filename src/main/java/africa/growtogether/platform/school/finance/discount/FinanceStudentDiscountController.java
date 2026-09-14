@@ -91,4 +91,56 @@ public class FinanceStudentDiscountController {
                 )
         );
     }
+
+
+    @PostMapping("/{studentDiscountId}/approve")
+    @PreAuthorize("hasAuthority('school.finance.approve')")
+    public ApiResponse<StudentDiscountRequestView> approveStudentDiscountRequest(
+            @PathVariable UUID studentDiscountId,
+            @RequestParam UUID tenantId
+    ) {
+        identity.requireTenant(
+                tenantId
+        );
+
+        UUID actorId =
+                identity.requireUserId();
+
+        return responses.success(
+                "GT-SCHOOL-FIN-032",
+                "Student discount request approved.",
+                service.approveStudentDiscountRequest(
+                        tenantId,
+                        studentDiscountId,
+                        actorId,
+                        actorId.toString()
+                )
+        );
+    }
+
+    @PostMapping("/{studentDiscountId}/reject")
+    @PreAuthorize("hasAuthority('school.finance.approve')")
+    public ApiResponse<StudentDiscountRequestView> rejectStudentDiscountRequest(
+            @PathVariable UUID studentDiscountId,
+            @RequestParam UUID tenantId
+    ) {
+        identity.requireTenant(
+                tenantId
+        );
+
+        UUID actorId =
+                identity.requireUserId();
+
+        return responses.success(
+                "GT-SCHOOL-FIN-033",
+                "Student discount request rejected.",
+                service.rejectStudentDiscountRequest(
+                        tenantId,
+                        studentDiscountId,
+                        actorId,
+                        actorId.toString()
+                )
+        );
+    }
+
 }

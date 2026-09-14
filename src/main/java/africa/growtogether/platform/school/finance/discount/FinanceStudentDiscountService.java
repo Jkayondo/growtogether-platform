@@ -181,6 +181,195 @@ public class FinanceStudentDiscountService {
         );
     }
 
+
+    @Transactional
+    public StudentDiscountRequestView approveStudentDiscountRequest(
+            UUID tenantId,
+            UUID studentDiscountId,
+            UUID approverId,
+            String actor
+    ) {
+        requireTenant(
+                tenantId
+        );
+
+        UUID decisionId =
+                requireUuid(
+                        studentDiscountId,
+                        "studentDiscountId"
+                );
+
+        UUID decisionActorId =
+                requireUuid(
+                        approverId,
+                        "approverId"
+                );
+
+        String decisionActor =
+                requireActor(
+                        actor
+                );
+
+        StudentDiscountRequestView request =
+                repository.getStudentDiscountRequest(
+                        tenantId,
+                        decisionId
+                ).orElseThrow(
+                        () ->
+                                new IllegalArgumentException(
+                                        "Student discount request is not available in this tenant."
+                                )
+                );
+
+        if (!"ACTIVE".equals(request.status())) {
+            throw new IllegalStateException(
+                    "Student discount request is not active."
+            );
+        }
+
+        if (!"PENDING".equals(request.discountStatus())) {
+            throw new IllegalStateException(
+                    "Student discount request is not pending."
+            );
+        }
+
+        if (
+                !foundationRepository.existsTenantReference(
+                        "gts_student",
+                        tenantId,
+                        request.studentId()
+                )
+        ) {
+            throw new IllegalArgumentException(
+                    "studentId is not available in this tenant."
+            );
+        }
+
+        FinanceStudentDiscountJdbcRepository.StudentFinancialAccountScope account =
+                repository.findStudentFinancialAccountScope(
+                        tenantId,
+                        request.studentFinancialAccountId()
+                ).orElseThrow(
+                        () ->
+                                new IllegalArgumentException(
+                                        "Student financial account is not available in this tenant."
+                                )
+                );
+
+        if (
+                !request.studentId().equals(
+                        account.studentId()
+                )
+        ) {
+            throw new IllegalArgumentException(
+                    "Student financial account does not belong to the requested student."
+            );
+        }
+
+        if (
+                !"ACTIVE".equals(
+                        account.billingStatus()
+                )
+                        || !"ACTIVE".equals(
+                                account.status()
+                        )
+        ) {
+            throw new IllegalArgumentException(
+                    "The student financial account is not active."
+            );
+        }
+
+        FinanceDiscountDtos.FeeDiscountSchemeView scheme =
+                discountService.getFeeDiscountScheme(
+                        tenantId,
+                        request.discountSchemeId()
+                );
+
+        if (
+                !scheme.active()
+                        || !"ACTIVE".equals(
+                                scheme.status()
+                        )
+        ) {
+            throw new IllegalArgumentException(
+                    "Fee discount scheme is not active."
+            );
+        }
+
+        if (scheme.discountValue() == null) {
+            throw new IllegalStateException(
+                    "Fee discount scheme discountValue is required for approval."
+            );
+        }
+
+        return repository.approveStudentDiscountRequest(
+                tenantId,
+                decisionId,
+                request.version(),
+                scheme.discountValue(),
+                decisionActorId,
+                decisionActor
+        );
+    }
+
+    @Transactional
+    public StudentDiscountRequestView rejectStudentDiscountRequest(
+            UUID tenantId,
+            UUID studentDiscountId,
+            UUID actorId,
+            String actor
+    ) {
+        requireTenant(
+                tenantId
+        );
+
+        UUID decisionId =
+                requireUuid(
+                        studentDiscountId,
+                        "studentDiscountId"
+                );
+
+        requireUuid(
+                actorId,
+                "actorId"
+        );
+
+        String decisionActor =
+                requireActor(
+                        actor
+                );
+
+        StudentDiscountRequestView request =
+                repository.getStudentDiscountRequest(
+                        tenantId,
+                        decisionId
+                ).orElseThrow(
+                        () ->
+                                new IllegalArgumentException(
+                                        "Student discount request is not available in this tenant."
+                                )
+                );
+
+        if (!"ACTIVE".equals(request.status())) {
+            throw new IllegalStateException(
+                    "Student discount request is not active."
+            );
+        }
+
+        if (!"PENDING".equals(request.discountStatus())) {
+            throw new IllegalStateException(
+                    "Student discount request is not pending."
+            );
+        }
+
+        return repository.rejectStudentDiscountRequest(
+                tenantId,
+                decisionId,
+                request.version(),
+                decisionActor
+        );
+    }
+
     @Transactional(readOnly = true)
     public StudentDiscountRequestView getStudentDiscountRequest(
             UUID tenantId,
@@ -218,6 +407,22 @@ public class FinanceStudentDiscountService {
         return repository.listStudentDiscountRequests(
                 tenantId
         );
+    }
+
+
+    private static String requireActor(
+            String actor
+    ) {
+        if (
+                actor == null
+                        || actor.isBlank()
+        ) {
+            throw new IllegalArgumentException(
+                    "actor must not be blank"
+            );
+        }
+
+        return actor;
     }
 
     private static void requireTenant(

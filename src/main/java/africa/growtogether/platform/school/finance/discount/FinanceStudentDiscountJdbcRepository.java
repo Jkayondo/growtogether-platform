@@ -4,6 +4,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -225,6 +226,97 @@ public class FinanceStudentDiscountJdbcRepository {
     }
 
     @Transactional(readOnly = true)
+
+    public StudentDiscountRequestView approveStudentDiscountRequest(
+            UUID tenantId,
+            UUID studentDiscountId,
+            long expectedVersion,
+            BigDecimal approvedDiscountValue,
+            UUID approverId,
+            String actor
+    ) {
+        int updated =
+                jdbc.update(
+                        """
+                        UPDATE gts_student_fee_discount
+                        SET
+                            discount_status = 'APPROVED',
+                            approved_discount_value = ?,
+                            approved_discount_amount = NULL,
+                            approved_at = CURRENT_TIMESTAMP,
+                            approved_by = ?,
+                            updated_at = CURRENT_TIMESTAMP,
+                            updated_by = ?,
+                            version = version + 1
+                        WHERE tenant_id = ?
+                          AND id = ?
+                          AND status = 'ACTIVE'
+                          AND discount_status = 'PENDING'
+                          AND version = ?
+                        """,
+                        approvedDiscountValue,
+                        approverId,
+                        actor,
+                        tenantId,
+                        studentDiscountId,
+                        expectedVersion
+                );
+
+        if (updated != 1) {
+            throw new IllegalStateException(
+                    "Student discount request is not eligible for approval."
+            );
+        }
+
+        return getStudentDiscountRequest(
+                tenantId,
+                studentDiscountId
+        ).orElseThrow();
+    }
+
+    public StudentDiscountRequestView rejectStudentDiscountRequest(
+            UUID tenantId,
+            UUID studentDiscountId,
+            long expectedVersion,
+            String actor
+    ) {
+        int updated =
+                jdbc.update(
+                        """
+                        UPDATE gts_student_fee_discount
+                        SET
+                            discount_status = 'REJECTED',
+                            approved_discount_value = NULL,
+                            approved_discount_amount = NULL,
+                            approved_at = NULL,
+                            approved_by = NULL,
+                            updated_at = CURRENT_TIMESTAMP,
+                            updated_by = ?,
+                            version = version + 1
+                        WHERE tenant_id = ?
+                          AND id = ?
+                          AND status = 'ACTIVE'
+                          AND discount_status = 'PENDING'
+                          AND version = ?
+                        """,
+                        actor,
+                        tenantId,
+                        studentDiscountId,
+                        expectedVersion
+                );
+
+        if (updated != 1) {
+            throw new IllegalStateException(
+                    "Student discount request is not eligible for rejection."
+            );
+        }
+
+        return getStudentDiscountRequest(
+                tenantId,
+                studentDiscountId
+        ).orElseThrow();
+    }
+
     public Optional<StudentFinancialAccountScope> findStudentFinancialAccountScope(
             UUID tenantId,
             UUID studentFinancialAccountId

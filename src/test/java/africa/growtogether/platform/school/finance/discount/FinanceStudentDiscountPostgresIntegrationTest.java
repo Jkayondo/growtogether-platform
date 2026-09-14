@@ -820,6 +820,311 @@ class FinanceStudentDiscountPostgresIntegrationTest {
         );
     }
 
+
+    @Test
+    void studentDiscountDecisionLifecyclePersistsAndRemainsTenantSafe() {
+        UUID tenantA =
+                createTenant(
+                        unique(
+                                "S2B_A"
+                        )
+                );
+
+        UUID tenantB =
+                createTenant(
+                        unique(
+                                "S2B_B"
+                        )
+                );
+
+        UUID studentA =
+                createStudent(
+                        tenantA,
+                        unique(
+                                "S2B_STA"
+                        )
+                );
+
+        UUID accountA =
+                createFinancialAccount(
+                        tenantA,
+                        studentA,
+                        unique(
+                                "S2B_ACCA"
+                        ),
+                        "UGX",
+                        "ACTIVE",
+                        "ACTIVE"
+                );
+
+        UUID schemeA =
+                createDiscountScheme(
+                        tenantA,
+                        unique(
+                                "S2B_SCHA"
+                        ),
+                        true,
+                        "ACTIVE"
+                );
+
+        UUID actorId =
+                UUID.randomUUID();
+
+        StudentDiscountRequestView approvalTarget =
+                service.createStudentDiscountRequest(
+                        tenantA,
+                        request(
+                                unique(
+                                        "S2B_APR"
+                                ),
+                                studentA,
+                                accountA,
+                                schemeA,
+                                LocalDate.of(
+                                        2026,
+                                        1,
+                                        1
+                                ),
+                                null
+                        ),
+                        actorId
+                );
+
+        StudentDiscountRequestView rejectionTarget =
+                service.createStudentDiscountRequest(
+                        tenantA,
+                        request(
+                                unique(
+                                        "S2B_REJ"
+                                ),
+                                studentA,
+                                accountA,
+                                schemeA,
+                                LocalDate.of(
+                                        2026,
+                                        1,
+                                        1
+                                ),
+                                null
+                        ),
+                        actorId
+                );
+
+        long invoiceCountBefore =
+                jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM gts_student_invoice",
+                        Long.class
+                );
+
+        long invoiceLineCountBefore =
+                jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM gts_student_invoice_line",
+                        Long.class
+                );
+
+        long adjustmentCountBefore =
+                jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM gts_financial_adjustment",
+                        Long.class
+                );
+
+        StudentDiscountRequestView approved =
+                service.approveStudentDiscountRequest(
+                        tenantA,
+                        approvalTarget.id(),
+                        actorId,
+                        actorId.toString()
+                );
+
+        assertEquals(
+                "APPROVED",
+                approved.discountStatus()
+        );
+
+        assertEquals(
+                "ACTIVE",
+                approved.status()
+        );
+
+        assertNotNull(
+                approved.approvedDiscountValue()
+        );
+
+        assertEquals(
+                0,
+                BigDecimal.TEN.compareTo(
+                        approved.approvedDiscountValue()
+                )
+        );
+
+        assertNull(
+                approved.approvedDiscountAmount()
+        );
+
+        assertNotNull(
+                approved.approvedAt()
+        );
+
+        assertEquals(
+                actorId,
+                approved.approvedBy()
+        );
+
+        assertEquals(
+                approvalTarget.requestedAt(),
+                approved.requestedAt()
+        );
+
+        assertEquals(
+                approvalTarget.requestedBy(),
+                approved.requestedBy()
+        );
+
+        assertEquals(
+                approvalTarget.version() + 1,
+                approved.version()
+        );
+
+        assertThrows(
+                IllegalStateException.class,
+                () ->
+                        service.approveStudentDiscountRequest(
+                                tenantA,
+                                approvalTarget.id(),
+                                actorId,
+                                actorId.toString()
+                        )
+        );
+
+        assertThrows(
+                IllegalStateException.class,
+                () ->
+                        service.rejectStudentDiscountRequest(
+                                tenantA,
+                                approvalTarget.id(),
+                                actorId,
+                                actorId.toString()
+                        )
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        service.approveStudentDiscountRequest(
+                                tenantB,
+                                approvalTarget.id(),
+                                UUID.randomUUID(),
+                                UUID.randomUUID().toString()
+                        )
+        );
+
+        StudentDiscountRequestView rejected =
+                service.rejectStudentDiscountRequest(
+                        tenantA,
+                        rejectionTarget.id(),
+                        actorId,
+                        actorId.toString()
+                );
+
+        assertEquals(
+                "REJECTED",
+                rejected.discountStatus()
+        );
+
+        assertEquals(
+                "ACTIVE",
+                rejected.status()
+        );
+
+        assertNull(
+                rejected.approvedDiscountValue()
+        );
+
+        assertNull(
+                rejected.approvedDiscountAmount()
+        );
+
+        assertNull(
+                rejected.approvedAt()
+        );
+
+        assertNull(
+                rejected.approvedBy()
+        );
+
+        assertEquals(
+                rejectionTarget.requestedAt(),
+                rejected.requestedAt()
+        );
+
+        assertEquals(
+                rejectionTarget.requestedBy(),
+                rejected.requestedBy()
+        );
+
+        assertEquals(
+                rejectionTarget.version() + 1,
+                rejected.version()
+        );
+
+        assertThrows(
+                IllegalStateException.class,
+                () ->
+                        service.rejectStudentDiscountRequest(
+                                tenantA,
+                                rejectionTarget.id(),
+                                actorId,
+                                actorId.toString()
+                        )
+        );
+
+        assertThrows(
+                IllegalStateException.class,
+                () ->
+                        service.approveStudentDiscountRequest(
+                                tenantA,
+                                rejectionTarget.id(),
+                                actorId,
+                                actorId.toString()
+                        )
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        service.rejectStudentDiscountRequest(
+                                tenantB,
+                                rejectionTarget.id(),
+                                UUID.randomUUID(),
+                                UUID.randomUUID().toString()
+                        )
+        );
+
+        assertEquals(
+                invoiceCountBefore,
+                jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM gts_student_invoice",
+                        Long.class
+                )
+        );
+
+        assertEquals(
+                invoiceLineCountBefore,
+                jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM gts_student_invoice_line",
+                        Long.class
+                )
+        );
+
+        assertEquals(
+                adjustmentCountBefore,
+                jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM gts_financial_adjustment",
+                        Long.class
+                )
+        );
+    }
+
     private CreateStudentDiscountRequest request(
             String reference,
             UUID studentId,
