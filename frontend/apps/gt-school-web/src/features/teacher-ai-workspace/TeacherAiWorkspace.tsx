@@ -274,6 +274,68 @@ export default function TeacherAiWorkspace() {
         </div>
       </header>
 
+      <section
+        className="teacher-ai-journey"
+        aria-label="Teacher AI workflow"
+      >
+        <div className="teacher-ai-journey-step">
+          <span
+            className="teacher-ai-journey-number"
+            aria-hidden="true"
+          >
+            1
+          </span>
+
+          <div>
+            <strong>
+              Choose teaching context
+            </strong>
+
+            <span>
+              Work within your active class and subject assignment.
+            </span>
+          </div>
+        </div>
+
+        <div className="teacher-ai-journey-step">
+          <span
+            className="teacher-ai-journey-number"
+            aria-hidden="true"
+          >
+            2
+          </span>
+
+          <div>
+            <strong>
+              Ask GT Teacher AI
+            </strong>
+
+            <span>
+              Describe the teaching support you need as clearly as possible.
+            </span>
+          </div>
+        </div>
+
+        <div className="teacher-ai-journey-step">
+          <span
+            className="teacher-ai-journey-number"
+            aria-hidden="true"
+          >
+            3
+          </span>
+
+          <div>
+            <strong>
+              Review before classroom use
+            </strong>
+
+            <span>
+              Check every AI suggestion using your professional judgement.
+            </span>
+          </div>
+        </div>
+      </section>
+
       <div className="teacher-ai-layout">
         <aside
           className="teacher-ai-context-panel"
@@ -575,8 +637,18 @@ export default function TeacherAiWorkspace() {
                 rows={8}
                 maxLength={100000}
                 placeholder="Ask for a lesson plan, explanation, revision activity, learner-support idea, assessment support..."
+                aria-describedby="teacher-ai-prompt-help"
               />
             </label>
+
+            <small
+              id="teacher-ai-prompt-help"
+              className="teacher-ai-prompt-help"
+            >
+              Be specific about the lesson objective, learner level,
+              topic and the kind of support you want. Do not include
+              unnecessary confidential learner information.
+            </small>
 
             {
               actionError && (
