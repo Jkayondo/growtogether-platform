@@ -77,6 +77,16 @@ public class TenantProvisioningService {
   "notification.route.read",
   "notification.route.manage"
  );
+ private static final List<String> TEACHER_BASELINE_PERMISSIONS=List.of(
+  "school.academic.curriculum.read",
+  "school.academic.class-grade.read",
+  "school.academic.subject.read",
+  "school.academic.teaching-assignment.read",
+  "ai.request.create",
+  "ai.request.read",
+  "ai.runtime.execute"
+ );
+
  private final OrganizationRepository organizations; private final TenantRepository tenants; private final UserAccountRepository users; private final RoleRepository roles; private final PermissionRepository permissions; private final UserRoleRepository userRoles; private final RolePermissionRepository rolePermissions; private final PasswordService passwords;
  public TenantProvisioningService(OrganizationRepository organizations,TenantRepository tenants,UserAccountRepository users,RoleRepository roles,PermissionRepository permissions,UserRoleRepository userRoles,RolePermissionRepository rolePermissions,PasswordService passwords){this.organizations=organizations;this.tenants=tenants;this.users=users;this.roles=roles;this.permissions=permissions;this.userRoles=userRoles;this.rolePermissions=rolePermissions;this.passwords=passwords;}
  @Transactional public TenantView provision(ProvisionTenantCommand c){
@@ -87,10 +97,20 @@ public class TenantProvisioningService {
   UserAccount admin=new UserAccount(c.administratorUsername(),c.administratorEmail(),c.administratorDisplayName(),passwords.hash(c.administratorPassword())); admin.setTenantId(tenantId); admin.activate(); users.save(admin);
   Role role=new Role("TENANT_ADMIN","Tenant Administrator","Bootstrap administrator with tenant-wide EIAM authority.",true); role.setTenantId(tenantId); roles.save(role);
   Role integrationRole=new Role("INTEGRATION_ADMIN","Integration Administrator","Specialist administrator for governed enterprise integration infrastructure.",true); integrationRole.setTenantId(tenantId); roles.save(integrationRole);
+  Role teacherRole=new Role(
+   "TEACHER",
+   "Teacher",
+   "GT School teacher role for governed teacher-facing capabilities.",
+   false
+  );
+  teacherRole.setTenantId(tenantId);
+  roles.save(teacherRole);
 
   List<Permission> seeded=seedPermissions(tenantId,ADMIN_PERMISSIONS,"Bootstrap permission seeded during tenant provisioning.");
   List<Permission> eipSeeded=seedPermissions(tenantId,EIP_PERMISSIONS,"Enterprise integration permission seeded during tenant provisioning.");
   List<Permission> ensSeeded=seedPermissions(tenantId,ENS_PERMISSIONS,"Enterprise notification permission seeded during tenant provisioning.");
+  List<Permission> teacherBaselineSeeded=
+   seedTeacherBaselinePermissions(tenantId);
 
   UserRole ur=new UserRole(admin.getId(),role.getId());ur.setTenantId(tenantId);userRoles.save(ur);
 
@@ -111,11 +131,34 @@ public class TenantProvisioningService {
     .toList()
   );
 
+  assignPermissions(
+   tenantId,
+   teacherRole.getId(),
+   teacherBaselineSeeded
+  );
+
   tenant.activate();
   return new TenantView(organization.getId(),tenantId,organization.getCode(),tenant.getCode(),tenant.getName(),tenant.getStatus(),admin.getId(),role.getId());
  }
  @Transactional(readOnly=true) public Tenant get(UUID id){return tenants.findById(id).orElseThrow(()->new TenantLifecycleException("Tenant not found."));}
  @Transactional public Tenant changeStatus(UUID id,TenantStatus target){Tenant t=get(id);switch(target){case ACTIVE->t.activate();case SUSPENDED->t.suspend();case DEACTIVATED->t.deactivate();case PROVISIONING->throw new TenantLifecycleException("A tenant cannot return to provisioning.");}return t;}
+ private List<Permission> seedTeacherBaselinePermissions(UUID tenantId){
+  List<Permission> seeded=new ArrayList<>();
+  for(String code:TEACHER_BASELINE_PERMISSIONS){
+   String permissionModule=
+    code.startsWith("ai.") ? "EAIF" : module(code);
+   Permission p=new Permission(
+    code,
+    title(code),
+    permissionModule,
+    "Teacher baseline permission seeded during tenant provisioning.",
+    true
+   );
+   p.setTenantId(tenantId);
+   seeded.add(permissions.save(p));
+  }
+  return seeded;
+ }
  private List<Permission> seedPermissions(UUID tenantId,List<String> codes,String description){
   List<Permission> seeded=new ArrayList<>();
   for(String code:codes){
