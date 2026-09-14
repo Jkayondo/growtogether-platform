@@ -117,47 +117,87 @@ class TenantProvisioningTeacherAiAuthorizationPostgresIntegrationTest {
         assertThat(baselinePermissions)
                 .isEqualTo(7);
 
-        Integer eaifPermissions =
+        Integer canonicalAiPermissions =
                 jdbc.queryForObject(
                         """
                         SELECT COUNT(*)
                         FROM eiam_permission
                         WHERE tenant_id = ?
-                          AND code IN (
-                            'ai.request.create',
-                            'ai.request.read',
-                            'ai.runtime.execute'
+                          AND (
+                            (
+                              code = 'ai.request.create'
+                              AND name = 'AI Request Create'
+                              AND module = 'EAIF'
+                              AND description = 'Create governed enterprise AI requests.'
+                              AND system_permission = TRUE
+                            )
+                            OR (
+                              code = 'ai.request.read'
+                              AND name = 'AI Request Read'
+                              AND module = 'EAIF'
+                              AND description = 'Read governed enterprise AI request state and results.'
+                              AND system_permission = TRUE
+                            )
+                            OR (
+                              code = 'ai.runtime.execute'
+                              AND name = 'AI Runtime Execute'
+                              AND module = 'EAIF'
+                              AND description = 'Execute an authorised governed enterprise AI request.'
+                              AND system_permission = TRUE
+                            )
                           )
-                          AND module = 'EAIF'
                           AND status = 'ACTIVE'
                         """,
                         Integer.class,
                         tenant.tenantId()
                 );
 
-        assertThat(eaifPermissions)
+        assertThat(canonicalAiPermissions)
                 .isEqualTo(3);
 
-        Integer schoolPermissions =
+        Integer canonicalSchoolPermissions =
                 jdbc.queryForObject(
                         """
                         SELECT COUNT(*)
                         FROM eiam_permission
                         WHERE tenant_id = ?
-                          AND code IN (
-                            'school.academic.curriculum.read',
-                            'school.academic.class-grade.read',
-                            'school.academic.subject.read',
-                            'school.academic.teaching-assignment.read'
+                          AND (
+                            (
+                              code = 'school.academic.curriculum.read'
+                              AND name = 'Read Curriculum'
+                              AND module = 'SCHOOL_ACADEMIC'
+                              AND description = 'Allows viewing curricula'
+                              AND system_permission = FALSE
+                            )
+                            OR (
+                              code = 'school.academic.class-grade.read'
+                              AND name = 'Read Class Grades'
+                              AND module = 'SCHOOL_ACADEMIC'
+                              AND description = 'Allows viewing academic class grades'
+                              AND system_permission = FALSE
+                            )
+                            OR (
+                              code = 'school.academic.subject.read'
+                              AND name = 'Read Subjects'
+                              AND module = 'SCHOOL_ACADEMIC'
+                              AND description = 'Allows viewing academic subjects'
+                              AND system_permission = FALSE
+                            )
+                            OR (
+                              code = 'school.academic.teaching-assignment.read'
+                              AND name = 'Read Teaching Assignments'
+                              AND module = 'SCHOOL_ACADEMIC'
+                              AND description = 'Allows viewing teacher academic assignments'
+                              AND system_permission = FALSE
+                            )
                           )
-                          AND module = 'SCHOOL'
                           AND status = 'ACTIVE'
                         """,
                         Integer.class,
                         tenant.tenantId()
                 );
 
-        assertThat(schoolPermissions)
+        assertThat(canonicalSchoolPermissions)
                 .isEqualTo(4);
 
         Integer teacherGrants =

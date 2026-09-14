@@ -77,14 +77,64 @@ public class TenantProvisioningService {
   "notification.route.read",
   "notification.route.manage"
  );
- private static final List<String> TEACHER_BASELINE_PERMISSIONS=List.of(
-  "school.academic.curriculum.read",
-  "school.academic.class-grade.read",
-  "school.academic.subject.read",
-  "school.academic.teaching-assignment.read",
-  "ai.request.create",
-  "ai.request.read",
-  "ai.runtime.execute"
+ private record TeacherPermissionDefinition(
+  String code,
+  String name,
+  String module,
+  String description,
+  boolean systemPermission
+ ) {}
+
+ private static final List<TeacherPermissionDefinition> TEACHER_BASELINE_PERMISSIONS=List.of(
+  new TeacherPermissionDefinition(
+   "school.academic.curriculum.read",
+   "Read Curriculum",
+   "SCHOOL_ACADEMIC",
+   "Allows viewing curricula",
+   false
+  ),
+  new TeacherPermissionDefinition(
+   "school.academic.class-grade.read",
+   "Read Class Grades",
+   "SCHOOL_ACADEMIC",
+   "Allows viewing academic class grades",
+   false
+  ),
+  new TeacherPermissionDefinition(
+   "school.academic.subject.read",
+   "Read Subjects",
+   "SCHOOL_ACADEMIC",
+   "Allows viewing academic subjects",
+   false
+  ),
+  new TeacherPermissionDefinition(
+   "school.academic.teaching-assignment.read",
+   "Read Teaching Assignments",
+   "SCHOOL_ACADEMIC",
+   "Allows viewing teacher academic assignments",
+   false
+  ),
+  new TeacherPermissionDefinition(
+   "ai.request.create",
+   "AI Request Create",
+   "EAIF",
+   "Create governed enterprise AI requests.",
+   true
+  ),
+  new TeacherPermissionDefinition(
+   "ai.request.read",
+   "AI Request Read",
+   "EAIF",
+   "Read governed enterprise AI request state and results.",
+   true
+  ),
+  new TeacherPermissionDefinition(
+   "ai.runtime.execute",
+   "AI Runtime Execute",
+   "EAIF",
+   "Execute an authorised governed enterprise AI request.",
+   true
+  )
  );
 
  private final OrganizationRepository organizations; private final TenantRepository tenants; private final UserAccountRepository users; private final RoleRepository roles; private final PermissionRepository permissions; private final UserRoleRepository userRoles; private final RolePermissionRepository rolePermissions; private final PasswordService passwords;
@@ -144,15 +194,13 @@ public class TenantProvisioningService {
  @Transactional public Tenant changeStatus(UUID id,TenantStatus target){Tenant t=get(id);switch(target){case ACTIVE->t.activate();case SUSPENDED->t.suspend();case DEACTIVATED->t.deactivate();case PROVISIONING->throw new TenantLifecycleException("A tenant cannot return to provisioning.");}return t;}
  private List<Permission> seedTeacherBaselinePermissions(UUID tenantId){
   List<Permission> seeded=new ArrayList<>();
-  for(String code:TEACHER_BASELINE_PERMISSIONS){
-   String permissionModule=
-    code.startsWith("ai.") ? "EAIF" : module(code);
+  for(TeacherPermissionDefinition definition:TEACHER_BASELINE_PERMISSIONS){
    Permission p=new Permission(
-    code,
-    title(code),
-    permissionModule,
-    "Teacher baseline permission seeded during tenant provisioning.",
-    true
+    definition.code(),
+    definition.name(),
+    definition.module(),
+    definition.description(),
+    definition.systemPermission()
    );
    p.setTenantId(tenantId);
    seeded.add(permissions.save(p));
