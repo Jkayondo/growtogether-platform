@@ -137,6 +137,50 @@ public class TenantProvisioningService {
   )
  );
 
+ private record AiAdminPermissionDefinition(
+  String code,
+  String name,
+  String description
+ ) {}
+
+ private static final List<AiAdminPermissionDefinition> AI_ADMIN_BASELINE_PERMISSIONS=List.of(
+  new AiAdminPermissionDefinition(
+   "ai.provider.manage",
+   "AI Provider Manage",
+   "Manage governed enterprise AI provider registrations."
+  ),
+  new AiAdminPermissionDefinition(
+   "ai.model.manage",
+   "AI Model Manage",
+   "Manage governed enterprise AI model catalogue entries."
+  ),
+  new AiAdminPermissionDefinition(
+   "ai.prompt.manage",
+   "AI Prompt Manage",
+   "Manage governed enterprise AI prompt templates and controls."
+  ),
+  new AiAdminPermissionDefinition(
+   "ai.governance.read",
+   "AI Governance Read",
+   "Read governed enterprise AI governance policy and control state."
+  ),
+  new AiAdminPermissionDefinition(
+   "ai.audit.read",
+   "AI Audit Read",
+   "Read governed enterprise AI audit records."
+  ),
+  new AiAdminPermissionDefinition(
+   "ai.evidence.read",
+   "AI Evidence Read",
+   "Read governed enterprise AI execution evidence."
+  ),
+  new AiAdminPermissionDefinition(
+   "ai.request.approval",
+   "AI Request Approval",
+   "Approve governed enterprise AI requests requiring human authorization."
+  )
+ );
+
  private final OrganizationRepository organizations; private final TenantRepository tenants; private final UserAccountRepository users; private final RoleRepository roles; private final PermissionRepository permissions; private final UserRoleRepository userRoles; private final RolePermissionRepository rolePermissions; private final PasswordService passwords;
  public TenantProvisioningService(OrganizationRepository organizations,TenantRepository tenants,UserAccountRepository users,RoleRepository roles,PermissionRepository permissions,UserRoleRepository userRoles,RolePermissionRepository rolePermissions,PasswordService passwords){this.organizations=organizations;this.tenants=tenants;this.users=users;this.roles=roles;this.permissions=permissions;this.userRoles=userRoles;this.rolePermissions=rolePermissions;this.passwords=passwords;}
  @Transactional public TenantView provision(ProvisionTenantCommand c){
@@ -156,11 +200,22 @@ public class TenantProvisioningService {
   teacherRole.setTenantId(tenantId);
   roles.save(teacherRole);
 
+  Role aiAdminRole=new Role(
+   "AI_ADMIN",
+   "AI Administrator",
+   "Specialist administrator for governed enterprise AI administration.",
+   true
+  );
+  aiAdminRole.setTenantId(tenantId);
+  roles.save(aiAdminRole);
+
   List<Permission> seeded=seedPermissions(tenantId,ADMIN_PERMISSIONS,"Bootstrap permission seeded during tenant provisioning.");
   List<Permission> eipSeeded=seedPermissions(tenantId,EIP_PERMISSIONS,"Enterprise integration permission seeded during tenant provisioning.");
   List<Permission> ensSeeded=seedPermissions(tenantId,ENS_PERMISSIONS,"Enterprise notification permission seeded during tenant provisioning.");
   List<Permission> teacherBaselineSeeded=
    seedTeacherBaselinePermissions(tenantId);
+  List<Permission> aiAdminSeeded=
+   seedAiAdminPermissions(tenantId);
 
   UserRole ur=new UserRole(admin.getId(),role.getId());ur.setTenantId(tenantId);userRoles.save(ur);
 
@@ -187,11 +242,51 @@ public class TenantProvisioningService {
    teacherBaselineSeeded
   );
 
+  List<Permission> aiAdminGranted=
+   new ArrayList<>(aiAdminSeeded);
+
+  teacherBaselineSeeded.stream()
+   .filter(
+    p->"ai.request.read".equals(p.getCode())
+   )
+   .findFirst()
+   .ifPresent(aiAdminGranted::add);
+
+  if(aiAdminGranted.size()!=8){
+   throw new IllegalStateException(
+    "AI_ADMIN provisioning requires seven administration permissions plus ai.request.read."
+   );
+  }
+
+  assignPermissions(
+   tenantId,
+   aiAdminRole.getId(),
+   aiAdminGranted
+  );
+
   tenant.activate();
   return new TenantView(organization.getId(),tenantId,organization.getCode(),tenant.getCode(),tenant.getName(),tenant.getStatus(),admin.getId(),role.getId());
  }
  @Transactional(readOnly=true) public Tenant get(UUID id){return tenants.findById(id).orElseThrow(()->new TenantLifecycleException("Tenant not found."));}
  @Transactional public Tenant changeStatus(UUID id,TenantStatus target){Tenant t=get(id);switch(target){case ACTIVE->t.activate();case SUSPENDED->t.suspend();case DEACTIVATED->t.deactivate();case PROVISIONING->throw new TenantLifecycleException("A tenant cannot return to provisioning.");}return t;}
+ private List<Permission> seedAiAdminPermissions(UUID tenantId){
+  List<Permission> seeded=new ArrayList<>();
+
+  for(AiAdminPermissionDefinition definition:AI_ADMIN_BASELINE_PERMISSIONS){
+   Permission p=new Permission(
+    definition.code(),
+    definition.name(),
+    "EAIF",
+    definition.description(),
+    true
+   );
+   p.setTenantId(tenantId);
+   seeded.add(permissions.save(p));
+  }
+
+  return seeded;
+ }
+
  private List<Permission> seedTeacherBaselinePermissions(UUID tenantId){
   List<Permission> seeded=new ArrayList<>();
   for(TeacherPermissionDefinition definition:TEACHER_BASELINE_PERMISSIONS){
