@@ -42,6 +42,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @EnableConfigurationProperties({
     JwtProperties.class,
     africa.growtogether.platform.eiam.auth.AuthProperties.class,
+    africa.growtogether.platform.eiam.bootstrap.FirstAdminBootstrapProperties.class,
     africa.growtogether.platform.eiam.recovery.RecoveryProperties.class,
     africa.growtogether.platform.eiam.mfa.MfaProperties.class
 })
@@ -83,6 +84,7 @@ public class SecurityConfiguration {
                     "/api/v1/eiam/auth/logout",
                     "/api/v1/eiam/auth/password-reset/**",
                     "/api/v1/eiam/auth/account-recovery/**",
+                    "/api/v1/eiam/bootstrap/first-admin",
 
                     "/api/v1/eiam/email-verification/**",
                     "/api/v1/eiam/invitations/accept"

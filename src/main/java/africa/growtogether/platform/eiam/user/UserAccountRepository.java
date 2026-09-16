@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 public interface UserAccountRepository extends JpaRepository<UserAccount, UUID>, JpaSpecificationExecutor<UserAccount> {
     boolean existsByTenantIdAndUsernameIgnoreCase(UUID tenantId, String username);
     boolean existsByTenantIdAndEmailIgnoreCase(UUID tenantId, String email);
+    long countByTenantId(UUID tenantId);
     Optional<UserAccount> findByIdAndTenantId(UUID id, UUID tenantId);
     Optional<UserAccount> findByTenantIdAndUsernameIgnoreCase(UUID tenantId, String username);
     Optional<UserAccount> findByTenantIdAndEmailIgnoreCase(UUID tenantId, String email);

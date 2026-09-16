@@ -79,6 +79,12 @@ gt:
       lock-seconds: ${GT_ACCOUNT_LOCK_SECONDS:900}
 
   eiam:
+    bootstrap:
+      first-admin:
+        enabled: ${GT_EIAM_FIRST_ADMIN_BOOTSTRAP_ENABLED:false}
+        tenant-id: ${GT_EIAM_FIRST_ADMIN_BOOTSTRAP_TENANT_ID:}
+        token-hash: ${GT_EIAM_FIRST_ADMIN_BOOTSTRAP_TOKEN_HASH:}
+
     recovery:
       password-reset-seconds: ${GT_PASSWORD_RESET_SECONDS:1800}
       email-verification-seconds: ${GT_EMAIL_VERIFICATION_SECONDS:86400}
