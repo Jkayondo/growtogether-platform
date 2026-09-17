@@ -1,4 +1,9 @@
 package africa.growtogether.platform.eiam.tenant;
+
+import africa.growtogether.platform.eaif.AiEnums;
+import africa.growtogether.platform.eaif.governance.policy.AiGovernancePolicy;
+import africa.growtogether.platform.eaif.governance.policy.AiGovernancePolicyRepository;
+
 import africa.growtogether.platform.common.security.PasswordService;
 import africa.growtogether.platform.eiam.permission.*;
 import africa.growtogether.platform.eiam.role.*;
@@ -180,9 +185,13 @@ public class TenantProvisioningService {
    "Approve governed enterprise AI requests requiring human authorization."
   )
  );
+ private final AiGovernancePolicyRepository aiGovernancePolicies;
 
  private final OrganizationRepository organizations; private final TenantRepository tenants; private final UserAccountRepository users; private final RoleRepository roles; private final PermissionRepository permissions; private final UserRoleRepository userRoles; private final RolePermissionRepository rolePermissions; private final PasswordService passwords;
- public TenantProvisioningService(OrganizationRepository organizations,TenantRepository tenants,UserAccountRepository users,RoleRepository roles,PermissionRepository permissions,UserRoleRepository userRoles,RolePermissionRepository rolePermissions,PasswordService passwords){this.organizations=organizations;this.tenants=tenants;this.users=users;this.roles=roles;this.permissions=permissions;this.userRoles=userRoles;this.rolePermissions=rolePermissions;this.passwords=passwords;}
+ public TenantProvisioningService(OrganizationRepository organizations,TenantRepository tenants,UserAccountRepository users,RoleRepository roles,PermissionRepository permissions,UserRoleRepository userRoles,RolePermissionRepository rolePermissions,PasswordService passwords,
+   AiGovernancePolicyRepository aiGovernancePolicies){
+  this.aiGovernancePolicies=aiGovernancePolicies;
+this.organizations=organizations;this.tenants=tenants;this.users=users;this.roles=roles;this.permissions=permissions;this.userRoles=userRoles;this.rolePermissions=rolePermissions;this.passwords=passwords;}
  @Transactional public TenantView provision(ProvisionTenantCommand c){
   if(organizations.existsByCodeIgnoreCase(c.organizationCode()))throw new TenantLifecycleException("Organization code already exists.");
   if(tenants.existsByCodeIgnoreCase(c.tenantCode()))throw new TenantLifecycleException("Tenant code already exists.");
@@ -264,11 +273,33 @@ public class TenantProvisioningService {
    aiAdminGranted
   );
 
+  seedDefaultAiPolicy(tenantId);
   tenant.activate();
   return new TenantView(organization.getId(),tenantId,organization.getCode(),tenant.getCode(),tenant.getName(),tenant.getStatus(),admin.getId(),role.getId());
  }
  @Transactional(readOnly=true) public Tenant get(UUID id){return tenants.findById(id).orElseThrow(()->new TenantLifecycleException("Tenant not found."));}
  @Transactional public Tenant changeStatus(UUID id,TenantStatus target){Tenant t=get(id);switch(target){case ACTIVE->t.activate();case SUSPENDED->t.suspend();case DEACTIVATED->t.deactivate();case PROVISIONING->throw new TenantLifecycleException("A tenant cannot return to provisioning.");}return t;}
+ private void seedDefaultAiPolicy(UUID tenantId){
+  if(aiGovernancePolicies
+   .findByTenantIdAndPolicyCode(
+    tenantId,
+    "DEFAULT_AI_POLICY"
+   )
+   .isPresent()){
+   return;
+  }
+
+  aiGovernancePolicies.save(
+   new AiGovernancePolicy(
+    tenantId,
+    "DEFAULT_AI_POLICY",
+    "Default AI Governance Policy",
+    AiEnums.RiskLevel.HIGH,
+    true
+   )
+  );
+ }
+
  private List<Permission> seedAiAdminPermissions(UUID tenantId){
   List<Permission> seeded=new ArrayList<>();
 
