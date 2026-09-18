@@ -68,6 +68,7 @@ public class RoleService {
         Set<UUID> requested = new LinkedHashSet<>(command.roleIds());
         List<Role> selected = requested.stream().map(id -> requiredRole(id, tenant)).toList();
         userRoles.deleteAllByTenantIdAndUserId(tenant, userId);
+        userRoles.flush();
         selected.forEach(role -> userRoles.save(new UserRole(userId, role.getId())));
         userRoles.flush();
 

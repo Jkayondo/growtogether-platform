@@ -137,7 +137,8 @@ class RoleServiceEventTest {
         );
 
         verify(
-                userRoles
+                userRoles,
+                org.mockito.Mockito.times(2)
         ).flush();
 
 
