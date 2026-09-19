@@ -3,6 +3,9 @@ package africa.growtogether.platform.school.finance.allocation;
 
 import static africa.growtogether.platform.school.finance.allocation.FinancePaymentAllocationDtos.AllocationResponse;
 import static africa.growtogether.platform.school.finance.allocation.FinancePaymentAllocationDtos.CreateRequest;
+import static africa.growtogether.platform.school.finance.allocation.FinancePaymentAllocationDtos.CorrectionResponse;
+import static africa.growtogether.platform.school.finance.allocation.FinancePaymentAllocationDtos.ReallocateRequest;
+import static africa.growtogether.platform.school.finance.allocation.FinancePaymentAllocationDtos.ReverseRequest;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -74,6 +77,123 @@ public class FinancePaymentAllocationService {
         );
     }
 
+    @Transactional
+    public CorrectionResponse reverse(
+            UUID tenantId,
+            UUID paymentId,
+            UUID allocationId,
+            ReverseRequest request,
+            UUID actorId
+    ) {
+        Objects.requireNonNull(
+                tenantId,
+                "tenantId is required"
+        );
+        Objects.requireNonNull(
+                paymentId,
+                "paymentId is required"
+        );
+        Objects.requireNonNull(
+                allocationId,
+                "allocationId is required"
+        );
+        Objects.requireNonNull(
+                request,
+                "request is required"
+        );
+        Objects.requireNonNull(
+                actorId,
+                "actorId is required"
+        );
+
+        String reason = requireReason(
+                request.reason()
+        );
+
+        return repository.reverse(
+                tenantId,
+                paymentId,
+                allocationId,
+                reason,
+                actorId,
+                actorId.toString()
+        );
+    }
+
+    @Transactional
+    public CorrectionResponse reallocate(
+            UUID tenantId,
+            UUID paymentId,
+            UUID allocationId,
+            ReallocateRequest request,
+            UUID actorId
+    ) {
+        Objects.requireNonNull(
+                tenantId,
+                "tenantId is required"
+        );
+        Objects.requireNonNull(
+                paymentId,
+                "paymentId is required"
+        );
+        Objects.requireNonNull(
+                allocationId,
+                "allocationId is required"
+        );
+        Objects.requireNonNull(
+                request,
+                "request is required"
+        );
+        Objects.requireNonNull(
+                request.invoiceId(),
+                "invoiceId is required"
+        );
+        Objects.requireNonNull(
+                actorId,
+                "actorId is required"
+        );
+
+        String reason = requireReason(
+                request.reason()
+        );
+
+        return repository.reallocate(
+                tenantId,
+                paymentId,
+                allocationId,
+                request,
+                reason,
+                actorId,
+                actorId.toString()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public CorrectionResponse getCorrection(
+            UUID tenantId,
+            UUID paymentId,
+            UUID allocationId
+    ) {
+        Objects.requireNonNull(
+                tenantId,
+                "tenantId is required"
+        );
+        Objects.requireNonNull(
+                paymentId,
+                "paymentId is required"
+        );
+        Objects.requireNonNull(
+                allocationId,
+                "allocationId is required"
+        );
+
+        return repository.getCorrection(
+                tenantId,
+                paymentId,
+                allocationId
+        );
+    }
+
     @Transactional(readOnly = true)
     public AllocationResponse get(
             UUID tenantId,
@@ -121,5 +241,20 @@ public class FinancePaymentAllocationService {
                 tenantId,
                 paymentId
         );
+    }
+
+    private static String requireReason(
+            String value
+    ) {
+        if (
+                value == null
+                || value.trim().isEmpty()
+        ) {
+            throw new IllegalArgumentException(
+                    "correction reason is required"
+            );
+        }
+
+        return value.trim();
     }
 }

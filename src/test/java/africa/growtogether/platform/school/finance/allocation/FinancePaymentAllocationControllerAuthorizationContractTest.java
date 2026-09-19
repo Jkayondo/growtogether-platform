@@ -92,4 +92,55 @@ class FinancePaymentAllocationControllerAuthorizationContractTest {
                 .findFirst()
                 .orElseThrow();
     }
+
+    @org.junit.jupiter.api.Test
+    void correctionEndpointsPreserveFinanceAuthorizationBoundary()
+            throws Exception {
+        java.lang.reflect.Method reverse =
+                FinancePaymentAllocationController.class.getMethod(
+                        "reverse",
+                        java.util.UUID.class,
+                        java.util.UUID.class,
+                        java.util.UUID.class,
+                        FinancePaymentAllocationDtos.ReverseRequest.class
+                );
+
+        java.lang.reflect.Method reallocate =
+                FinancePaymentAllocationController.class.getMethod(
+                        "reallocate",
+                        java.util.UUID.class,
+                        java.util.UUID.class,
+                        java.util.UUID.class,
+                        FinancePaymentAllocationDtos.ReallocateRequest.class
+                );
+
+        java.lang.reflect.Method correction =
+                FinancePaymentAllocationController.class.getMethod(
+                        "getCorrection",
+                        java.util.UUID.class,
+                        java.util.UUID.class,
+                        java.util.UUID.class
+                );
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "hasAuthority('school.finance.manage')",
+                reverse.getAnnotation(
+                        org.springframework.security.access.prepost.PreAuthorize.class
+                ).value()
+        );
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "hasAuthority('school.finance.manage')",
+                reallocate.getAnnotation(
+                        org.springframework.security.access.prepost.PreAuthorize.class
+                ).value()
+        );
+
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "hasAuthority('school.finance.read')",
+                correction.getAnnotation(
+                        org.springframework.security.access.prepost.PreAuthorize.class
+                ).value()
+        );
+    }
 }

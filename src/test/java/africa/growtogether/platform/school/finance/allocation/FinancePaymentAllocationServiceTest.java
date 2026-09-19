@@ -183,4 +183,65 @@ class FinancePaymentAllocationServiceTest {
                 )
         );
     }
+
+    @org.junit.jupiter.api.Test
+    void correctionReasonIsMandatoryBeforeRepositoryMutation() {
+        FinancePaymentAllocationJdbcRepository repository =
+                org.mockito.Mockito.mock(
+                        FinancePaymentAllocationJdbcRepository.class
+                );
+
+        FinancePaymentAllocationService service =
+                new FinancePaymentAllocationService(
+                        repository
+                );
+
+        java.util.UUID tenantId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID paymentId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID allocationId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID invoiceId =
+                java.util.UUID.randomUUID();
+
+        java.util.UUID actorId =
+                java.util.UUID.randomUUID();
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> service.reverse(
+                        tenantId,
+                        paymentId,
+                        allocationId,
+                        new FinancePaymentAllocationDtos.ReverseRequest(
+                                "   "
+                        ),
+                        actorId
+                )
+        );
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> service.reallocate(
+                        tenantId,
+                        paymentId,
+                        allocationId,
+                        new FinancePaymentAllocationDtos.ReallocateRequest(
+                                invoiceId,
+                                null,
+                                null,
+                                ""
+                        ),
+                        actorId
+                )
+        );
+
+        org.mockito.Mockito.verifyNoInteractions(
+                repository
+        );
+    }
 }

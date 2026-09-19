@@ -627,6 +627,596 @@ class FinancePaymentAllocationPostgresIntegrationTest {
         }
     }
 
+    @Test
+    void reversalPersistsImmutableCorrectionAndRestoresEligibility() {
+        UUID paymentId = UUID.randomUUID();
+        UUID invoiceId = UUID.randomUUID();
+
+        seedPayment(
+                TENANT, paymentId, STUDENT,
+                new BigDecimal("100.00"), "UGX"
+        );
+
+        seedInvoice(
+                TENANT, invoiceId, STUDENT,
+                new BigDecimal("100.00"), "UGX"
+        );
+
+        AllocationResponse original =
+                inTx(() -> service.create(
+                        TENANT,
+                        paymentId,
+                        new CreateRequest(
+                                invoiceId,
+                                null,
+                                null,
+                                new BigDecimal("60.00")
+                        ),
+                        ACTOR
+                ));
+
+        FinancePaymentAllocationDtos.CorrectionResponse correction =
+                inTx(() -> service.reverse(
+                        TENANT,
+                        paymentId,
+                        original.allocationId(),
+                        new FinancePaymentAllocationDtos.ReverseRequest(
+                                " Duplicate payment allocation "
+                        ),
+                        ACTOR
+                ));
+
+        assertEquals(
+                "REVERSAL",
+                correction.correctionType()
+        );
+
+        assertEquals(
+                "Duplicate payment allocation",
+                correction.reason()
+        );
+
+        assertEquals(
+                null,
+                correction.replacementAllocationId()
+        );
+
+        assertEquals(
+                "REVERSED",
+                jdbc.queryForObject(
+                        """
+                        SELECT allocation_status
+                        FROM gts_payment_allocation
+                        WHERE id = ?
+                        """,
+                        String.class,
+                        original.allocationId()
+                )
+        );
+
+        assertEquals(
+                1,
+                jdbc.queryForObject(
+                        """
+                        SELECT COUNT(*)
+                        FROM gts_payment_allocation
+                        WHERE id = ?
+                        """,
+                        Integer.class,
+                        original.allocationId()
+                )
+        );
+
+        assertEquals(
+                1,
+                jdbc.queryForObject(
+                        """
+                        SELECT COUNT(*)
+                        FROM gts_payment_allocation_correction
+                        WHERE allocation_id = ?
+                        """,
+                        Integer.class,
+                        original.allocationId()
+                )
+        );
+
+        FinancePaymentAllocationDtos.CorrectionResponse fetched =
+                inTx(() -> service.getCorrection(
+                        TENANT,
+                        paymentId,
+                        original.allocationId()
+                ));
+
+        assertEquals(
+                correction.correctionId(),
+                fetched.correctionId()
+        );
+
+        AllocationResponse eligibilityProof =
+                inTx(() -> service.create(
+                        TENANT,
+                        paymentId,
+                        new CreateRequest(
+                                invoiceId,
+                                null,
+                                null,
+                                new BigDecimal("100.00")
+                        ),
+                        ACTOR
+                ));
+
+        assertEquals(
+                0,
+                new BigDecimal("100.00").compareTo(
+                        eligibilityProof.allocatedAmount()
+                )
+        );
+    }
+
+    @Test
+    void reallocationPreservesAmountAndMovesActiveConsumption() {
+        UUID paymentId = UUID.randomUUID();
+        UUID sourceInvoice = UUID.randomUUID();
+        UUID destinationInvoice = UUID.randomUUID();
+
+        seedPayment(
+                TENANT, paymentId, STUDENT,
+                new BigDecimal("100.00"), "UGX"
+        );
+
+        seedInvoice(
+                TENANT, sourceInvoice, STUDENT,
+                new BigDecimal("100.00"), "UGX"
+        );
+
+        seedInvoice(
+                TENANT, destinationInvoice, STUDENT,
+                new BigDecimal("100.00"), "UGX"
+        );
+
+        AllocationResponse original =
+                inTx(() -> service.create(
+                        TENANT,
+                        paymentId,
+                        new CreateRequest(
+                                sourceInvoice,
+                                null,
+                                null,
+                                new BigDecimal("60.00")
+                        ),
+                        ACTOR
+                ));
+
+        FinancePaymentAllocationDtos.CorrectionResponse correction =
+                inTx(() -> service.reallocate(
+                        TENANT,
+                        paymentId,
+                        original.allocationId(),
+                        new FinancePaymentAllocationDtos.ReallocateRequest(
+                                destinationInvoice,
+                                null,
+                                null,
+                                "Move allocation to correct invoice"
+                        ),
+                        ACTOR
+                ));
+
+        assertEquals(
+                "REALLOCATION",
+                correction.correctionType()
+        );
+
+        assertTrue(
+                correction.replacementAllocationId() != null
+        );
+
+        assertEquals(
+                "REALLOCATED",
+                jdbc.queryForObject(
+                        """
+                        SELECT allocation_status
+                        FROM gts_payment_allocation
+                        WHERE id = ?
+                        """,
+                        String.class,
+                        original.allocationId()
+                )
+        );
+
+        AllocationResponse replacement =
+                inTx(() -> service.get(
+                        TENANT,
+                        paymentId,
+                        correction.replacementAllocationId()
+                ));
+
+        assertEquals(
+                destinationInvoice,
+                replacement.invoiceId()
+        );
+
+        assertEquals(
+                "ACTIVE",
+                replacement.allocationStatus()
+        );
+
+        assertEquals(
+                0,
+                original.allocatedAmount().compareTo(
+                        replacement.allocatedAmount()
+                )
+        );
+
+        BigDecimal sourceActive =
+                jdbc.queryForObject(
+                        """
+                        SELECT COALESCE(SUM(allocated_amount), 0)
+                        FROM gts_payment_allocation
+                        WHERE tenant_id = ?
+                          AND invoice_id = ?
+                          AND allocation_status = 'ACTIVE'
+                          AND status = 'ACTIVE'
+                        """,
+                        BigDecimal.class,
+                        TENANT,
+                        sourceInvoice
+                );
+
+        BigDecimal destinationActive =
+                jdbc.queryForObject(
+                        """
+                        SELECT COALESCE(SUM(allocated_amount), 0)
+                        FROM gts_payment_allocation
+                        WHERE tenant_id = ?
+                          AND invoice_id = ?
+                          AND allocation_status = 'ACTIVE'
+                          AND status = 'ACTIVE'
+                        """,
+                        BigDecimal.class,
+                        TENANT,
+                        destinationInvoice
+                );
+
+        BigDecimal paymentActive =
+                jdbc.queryForObject(
+                        """
+                        SELECT COALESCE(SUM(allocated_amount), 0)
+                        FROM gts_payment_allocation
+                        WHERE tenant_id = ?
+                          AND student_payment_id = ?
+                          AND allocation_status = 'ACTIVE'
+                          AND status = 'ACTIVE'
+                        """,
+                        BigDecimal.class,
+                        TENANT,
+                        paymentId
+                );
+
+        assertEquals(
+                0,
+                BigDecimal.ZERO.compareTo(sourceActive)
+        );
+
+        assertEquals(
+                0,
+                new BigDecimal("60.00").compareTo(
+                        destinationActive
+                )
+        );
+
+        assertEquals(
+                0,
+                new BigDecimal("60.00").compareTo(
+                        paymentActive
+                )
+        );
+
+        assertEquals(
+                1,
+                jdbc.queryForObject(
+                        """
+                        SELECT COUNT(*)
+                        FROM gts_payment_allocation
+                        WHERE id = ?
+                        """,
+                        Integer.class,
+                        original.allocationId()
+                )
+        );
+    }
+
+    @Test
+    void correctionIsTenantSafeAndDestinationContextIsValidated() {
+        UUID paymentId = UUID.randomUUID();
+        UUID invoiceId = UUID.randomUUID();
+
+        seedPayment(
+                TENANT, paymentId, STUDENT,
+                new BigDecimal("100.00"), "UGX"
+        );
+
+        seedInvoice(
+                TENANT, invoiceId, STUDENT,
+                new BigDecimal("100.00"), "UGX"
+        );
+
+        AllocationResponse original =
+                inTx(() -> service.create(
+                        TENANT,
+                        paymentId,
+                        new CreateRequest(
+                                invoiceId,
+                                null,
+                                null,
+                                new BigDecimal("40.00")
+                        ),
+                        ACTOR
+                ));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> inTx(() -> service.reverse(
+                        OTHER_TENANT,
+                        paymentId,
+                        original.allocationId(),
+                        new FinancePaymentAllocationDtos.ReverseRequest(
+                                "Wrong tenant"
+                        ),
+                        ACTOR
+                ))
+        );
+
+        UUID wrongStudentInvoice =
+                UUID.randomUUID();
+
+        seedInvoice(
+                TENANT,
+                wrongStudentInvoice,
+                OTHER_STUDENT,
+                new BigDecimal("100.00"),
+                "UGX"
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> inTx(() -> service.reallocate(
+                        TENANT,
+                        paymentId,
+                        original.allocationId(),
+                        new FinancePaymentAllocationDtos.ReallocateRequest(
+                                wrongStudentInvoice,
+                                null,
+                                null,
+                                "Wrong student"
+                        ),
+                        ACTOR
+                ))
+        );
+
+        UUID wrongCurrencyInvoice =
+                UUID.randomUUID();
+
+        seedInvoice(
+                TENANT,
+                wrongCurrencyInvoice,
+                STUDENT,
+                new BigDecimal("100.00"),
+                "USD"
+        );
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> inTx(() -> service.reallocate(
+                        TENANT,
+                        paymentId,
+                        original.allocationId(),
+                        new FinancePaymentAllocationDtos.ReallocateRequest(
+                                wrongCurrencyInvoice,
+                                null,
+                                null,
+                                "Wrong currency"
+                        ),
+                        ACTOR
+                ))
+        );
+
+        assertEquals(
+                "ACTIVE",
+                jdbc.queryForObject(
+                        """
+                        SELECT allocation_status
+                        FROM gts_payment_allocation
+                        WHERE id = ?
+                        """,
+                        String.class,
+                        original.allocationId()
+                )
+        );
+
+        assertEquals(
+                0,
+                jdbc.queryForObject(
+                        """
+                        SELECT COUNT(*)
+                        FROM gts_payment_allocation_correction
+                        WHERE allocation_id = ?
+                        """,
+                        Integer.class,
+                        original.allocationId()
+                )
+        );
+    }
+
+    @Test
+    void correctedAllocationCannotBeCorrectedTwice() {
+        UUID paymentId = UUID.randomUUID();
+        UUID invoiceId = UUID.randomUUID();
+
+        seedPayment(
+                TENANT, paymentId, STUDENT,
+                new BigDecimal("100.00"), "UGX"
+        );
+
+        seedInvoice(
+                TENANT, invoiceId, STUDENT,
+                new BigDecimal("100.00"), "UGX"
+        );
+
+        AllocationResponse original =
+                inTx(() -> service.create(
+                        TENANT,
+                        paymentId,
+                        new CreateRequest(
+                                invoiceId,
+                                null,
+                                null,
+                                new BigDecimal("40.00")
+                        ),
+                        ACTOR
+                ));
+
+        inTx(() -> service.reverse(
+                TENANT,
+                paymentId,
+                original.allocationId(),
+                new FinancePaymentAllocationDtos.ReverseRequest(
+                        "Initial correction"
+                ),
+                ACTOR
+        ));
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> inTx(() -> service.reverse(
+                        TENANT,
+                        paymentId,
+                        original.allocationId(),
+                        new FinancePaymentAllocationDtos.ReverseRequest(
+                                "Second correction"
+                        ),
+                        ACTOR
+                ))
+        );
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> inTx(() -> service.reallocate(
+                        TENANT,
+                        paymentId,
+                        original.allocationId(),
+                        new FinancePaymentAllocationDtos.ReallocateRequest(
+                                invoiceId,
+                                null,
+                                null,
+                                "Second correction"
+                        ),
+                        ACTOR
+                ))
+        );
+
+        assertEquals(
+                1,
+                jdbc.queryForObject(
+                        """
+                        SELECT COUNT(*)
+                        FROM gts_payment_allocation_correction
+                        WHERE allocation_id = ?
+                        """,
+                        Integer.class,
+                        original.allocationId()
+                )
+        );
+    }
+
+    @Test
+    void correctionFailureRollsBackAllocationLifecycleChange() {
+        UUID paymentId = UUID.randomUUID();
+        UUID invoiceId = UUID.randomUUID();
+
+        seedPayment(
+                TENANT, paymentId, STUDENT,
+                new BigDecimal("100.00"), "UGX"
+        );
+
+        seedInvoice(
+                TENANT, invoiceId, STUDENT,
+                new BigDecimal("100.00"), "UGX"
+        );
+
+        AllocationResponse original =
+                inTx(() -> service.create(
+                        TENANT,
+                        paymentId,
+                        new CreateRequest(
+                                invoiceId,
+                                null,
+                                null,
+                                new BigDecimal("40.00")
+                        ),
+                        ACTOR
+                ));
+
+        jdbc.update(
+                """
+                INSERT INTO gts_payment_allocation_correction (
+                    tenant_id,
+                    allocation_id,
+                    correction_type,
+                    reason,
+                    replacement_allocation_id,
+                    created_at,
+                    created_by
+                ) VALUES (
+                    ?, ?, 'REVERSAL', ?, NULL,
+                    CURRENT_TIMESTAMP, ?
+                )
+                """,
+                TENANT,
+                original.allocationId(),
+                "Existing immutable correction",
+                ACTOR.toString()
+        );
+
+        assertThrows(
+                org.springframework.dao.DataIntegrityViolationException.class,
+                () -> inTx(() -> service.reverse(
+                        TENANT,
+                        paymentId,
+                        original.allocationId(),
+                        new FinancePaymentAllocationDtos.ReverseRequest(
+                                "Should rollback"
+                        ),
+                        ACTOR
+                ))
+        );
+
+        assertEquals(
+                "ACTIVE",
+                jdbc.queryForObject(
+                        """
+                        SELECT allocation_status
+                        FROM gts_payment_allocation
+                        WHERE id = ?
+                        """,
+                        String.class,
+                        original.allocationId()
+                )
+        );
+
+        assertEquals(
+                1,
+                jdbc.queryForObject(
+                        """
+                        SELECT COUNT(*)
+                        FROM gts_payment_allocation_correction
+                        WHERE allocation_id = ?
+                        """,
+                        Integer.class,
+                        original.allocationId()
+                )
+        );
+    }
+
     private <T> T inTx(
             Supplier<T> action
     ) {
@@ -642,6 +1232,21 @@ class FinancePaymentAllocationPostgresIntegrationTest {
 
         jdbc.execute(
                 "CREATE SCHEMA public"
+        );
+
+        jdbc.execute("""
+                CREATE TABLE eiam_tenant (
+                    id UUID PRIMARY KEY
+                )
+                """);
+
+        jdbc.update(
+                """
+                INSERT INTO eiam_tenant (id)
+                VALUES (?), (?)
+                """,
+                TENANT,
+                OTHER_TENANT
         );
 
         jdbc.execute("""
@@ -733,6 +1338,44 @@ class FinancePaymentAllocationPostgresIntegrationTest {
                     )
                 )
                 """);
+
+        executeCorrectionMigration();
+    }
+
+    private void executeCorrectionMigration() {
+        try (
+                java.io.InputStream input =
+                        getClass()
+                                .getClassLoader()
+                                .getResourceAsStream(
+                                        "db/migration/"
+                                                + "V279__create_gts_payment_allocation_correction.sql"
+                                )
+        ) {
+            if (input == null) {
+                throw new IllegalStateException(
+                        "V279 correction migration resource was not found"
+                );
+            }
+
+            String script = new String(
+                    input.readAllBytes(),
+                    java.nio.charset.StandardCharsets.UTF_8
+            );
+
+            for (String statement : script.split(";")) {
+                String sql = statement.trim();
+
+                if (!sql.isEmpty()) {
+                    jdbc.execute(sql);
+                }
+            }
+        } catch (java.io.IOException ex) {
+            throw new IllegalStateException(
+                    "Unable to load V279 correction migration",
+                    ex
+            );
+        }
     }
 
     private void seedPayment(
@@ -840,5 +1483,64 @@ class FinancePaymentAllocationPostgresIntegrationTest {
                 tenantId,
                 arrangementId
         );
+    }
+
+    @org.junit.jupiter.api.Test
+    void correctionMigrationCarriesFrozenLifecycleConstraints()
+            throws Exception {
+        try (
+                java.io.InputStream input =
+                        getClass()
+                                .getClassLoader()
+                                .getResourceAsStream(
+                                        "db/migration/"
+                                                + "V279__create_gts_payment_allocation_correction.sql"
+                                )
+        ) {
+            org.junit.jupiter.api.Assertions.assertNotNull(
+                    input
+            );
+
+            String sql = new String(
+                    input.readAllBytes(),
+                    java.nio.charset.StandardCharsets.UTF_8
+            );
+
+            org.junit.jupiter.api.Assertions.assertTrue(
+                    sql.contains(
+                            "CREATE TABLE gts_payment_allocation_correction"
+                    )
+            );
+
+            org.junit.jupiter.api.Assertions.assertTrue(
+                    sql.contains(
+                            "correction_type IN ('REVERSAL', 'REALLOCATION')"
+                    )
+            );
+
+            org.junit.jupiter.api.Assertions.assertTrue(
+                    sql.contains(
+                            "BTRIM(reason) <> ''"
+                    )
+            );
+
+            org.junit.jupiter.api.Assertions.assertTrue(
+                    sql.contains(
+                            "UNIQUE (allocation_id)"
+                    )
+            );
+
+            org.junit.jupiter.api.Assertions.assertTrue(
+                    sql.contains(
+                            "replacement_allocation_id IS NULL"
+                    )
+            );
+
+            org.junit.jupiter.api.Assertions.assertTrue(
+                    sql.contains(
+                            "replacement_allocation_id IS NOT NULL"
+                    )
+            );
+        }
     }
 }

@@ -3,6 +3,8 @@ package africa.growtogether.platform.school.finance.allocation;
 
 import static africa.growtogether.platform.school.finance.allocation.FinancePaymentAllocationDtos.AllocationResponse;
 import static africa.growtogether.platform.school.finance.allocation.FinancePaymentAllocationDtos.CreateRequest;
+import static africa.growtogether.platform.school.finance.allocation.FinancePaymentAllocationDtos.CorrectionResponse;
+import static africa.growtogether.platform.school.finance.allocation.FinancePaymentAllocationDtos.ReallocateRequest;
 
 import java.math.BigDecimal;
 import java.sql.ResultSet;
@@ -191,6 +193,226 @@ public class FinancePaymentAllocationJdbcRepository {
         );
     }
 
+    public CorrectionResponse reverse(
+            UUID tenantId,
+            UUID paymentId,
+            UUID allocationId,
+            String reason,
+            UUID actorId,
+            String actor
+    ) {
+        PaymentLock payment =
+                requirePaymentForUpdate(
+                        tenantId,
+                        paymentId
+                );
+
+        AllocationLock allocation =
+                requireAllocationForUpdate(
+                        tenantId,
+                        paymentId,
+                        allocationId
+                );
+
+        requireActiveAllocation(
+                allocation
+        );
+
+        InvoiceLock invoice =
+                requireInvoiceForUpdate(
+                        tenantId,
+                        allocation.invoiceId()
+                );
+
+        validatePaymentInvoiceContext(
+                payment,
+                invoice
+        );
+
+        updateAllocationStatus(
+                tenantId,
+                paymentId,
+                allocationId,
+                "REVERSED",
+                actor
+        );
+
+        return insertCorrection(
+                tenantId,
+                allocationId,
+                "REVERSAL",
+                reason,
+                null,
+                actor
+        );
+    }
+
+    public CorrectionResponse reallocate(
+            UUID tenantId,
+            UUID paymentId,
+            UUID allocationId,
+            ReallocateRequest request,
+            String reason,
+            UUID actorId,
+            String actor
+    ) {
+        PaymentLock payment =
+                requirePaymentForUpdate(
+                        tenantId,
+                        paymentId
+                );
+
+        AllocationLock allocation =
+                requireAllocationForUpdate(
+                        tenantId,
+                        paymentId,
+                        allocationId
+                );
+
+        requireActiveAllocation(
+                allocation
+        );
+
+        InvoiceLock originalInvoice;
+        InvoiceLock destinationInvoice;
+
+        if (
+                allocation.invoiceId().equals(
+                        request.invoiceId()
+                )
+        ) {
+            originalInvoice =
+                    requireInvoiceForUpdate(
+                            tenantId,
+                            allocation.invoiceId()
+                    );
+
+            destinationInvoice =
+                    originalInvoice;
+        } else if (
+                allocation.invoiceId().compareTo(
+                        request.invoiceId()
+                ) < 0
+        ) {
+            originalInvoice =
+                    requireInvoiceForUpdate(
+                            tenantId,
+                            allocation.invoiceId()
+                    );
+
+            destinationInvoice =
+                    requireInvoiceForUpdate(
+                            tenantId,
+                            request.invoiceId()
+                    );
+        } else {
+            destinationInvoice =
+                    requireInvoiceForUpdate(
+                            tenantId,
+                            request.invoiceId()
+                    );
+
+            originalInvoice =
+                    requireInvoiceForUpdate(
+                            tenantId,
+                            allocation.invoiceId()
+                    );
+        }
+
+        validatePaymentInvoiceContext(
+                payment,
+                originalInvoice
+        );
+
+        validatePaymentInvoiceContext(
+                payment,
+                destinationInvoice
+        );
+
+        validateInvoiceLine(
+                tenantId,
+                request.invoiceId(),
+                request.invoiceLineId()
+        );
+
+        validateInstallmentStudentContext(
+                tenantId,
+                payment.studentId(),
+                request.paymentInstallmentId()
+        );
+
+        updateAllocationStatus(
+                tenantId,
+                paymentId,
+                allocationId,
+                "REALLOCATED",
+                actor
+        );
+
+        AllocationResponse replacement =
+                create(
+                        tenantId,
+                        paymentId,
+                        new CreateRequest(
+                                request.invoiceId(),
+                                request.invoiceLineId(),
+                                request.paymentInstallmentId(),
+                                allocation.allocatedAmount()
+                        ),
+                        actorId,
+                        actor
+                );
+
+        return insertCorrection(
+                tenantId,
+                allocationId,
+                "REALLOCATION",
+                reason,
+                replacement.allocationId(),
+                actor
+        );
+    }
+
+    public CorrectionResponse getCorrection(
+            UUID tenantId,
+            UUID paymentId,
+            UUID allocationId
+    ) {
+        String sql = """
+                SELECT
+                    c.id,
+                    c.allocation_id,
+                    c.correction_type,
+                    c.reason,
+                    c.replacement_allocation_id,
+                    c.created_at,
+                    c.created_by
+                FROM gts_payment_allocation_correction c
+                JOIN gts_payment_allocation a
+                  ON a.id = c.allocation_id
+                 AND a.tenant_id = c.tenant_id
+                WHERE c.tenant_id = :tenantId
+                  AND a.student_payment_id = :paymentId
+                  AND c.allocation_id = :allocationId
+                """;
+
+        return requireOne(
+                jdbc.query(
+                        sql,
+                        Map.of(
+                                "tenantId",
+                                tenantId,
+                                "paymentId",
+                                paymentId,
+                                "allocationId",
+                                allocationId
+                        ),
+                        this::mapCorrection
+                ),
+                "Payment allocation correction not found"
+        );
+    }
+
     public AllocationResponse get(
             UUID tenantId,
             UUID paymentId,
@@ -262,6 +484,243 @@ public class FinancePaymentAllocationJdbcRepository {
                         paymentId
                 ),
                 this::mapAllocation
+        );
+    }
+
+    private AllocationLock requireAllocationForUpdate(
+            UUID tenantId,
+            UUID paymentId,
+            UUID allocationId
+    ) {
+        String sql = """
+                SELECT
+                    id,
+                    student_payment_id,
+                    invoice_id,
+                    invoice_line_id,
+                    payment_installment_id,
+                    allocated_amount,
+                    allocation_status,
+                    status
+                FROM gts_payment_allocation
+                WHERE tenant_id = :tenantId
+                  AND student_payment_id = :paymentId
+                  AND id = :allocationId
+                FOR UPDATE
+                """;
+
+        return requireOne(
+                jdbc.query(
+                        sql,
+                        Map.of(
+                                "tenantId",
+                                tenantId,
+                                "paymentId",
+                                paymentId,
+                                "allocationId",
+                                allocationId
+                        ),
+                        (rs, rowNum) ->
+                                new AllocationLock(
+                                        rs.getObject(
+                                                "id",
+                                                UUID.class
+                                        ),
+                                        rs.getObject(
+                                                "student_payment_id",
+                                                UUID.class
+                                        ),
+                                        rs.getObject(
+                                                "invoice_id",
+                                                UUID.class
+                                        ),
+                                        rs.getObject(
+                                                "invoice_line_id",
+                                                UUID.class
+                                        ),
+                                        rs.getObject(
+                                                "payment_installment_id",
+                                                UUID.class
+                                        ),
+                                        rs.getBigDecimal(
+                                                "allocated_amount"
+                                        ),
+                                        rs.getString(
+                                                "allocation_status"
+                                        ),
+                                        rs.getString(
+                                                "status"
+                                        )
+                                )
+                ),
+                "Payment allocation not found"
+        );
+    }
+
+    private void requireActiveAllocation(
+            AllocationLock allocation
+    ) {
+        if (
+                !"ACTIVE".equals(
+                        allocation.allocationStatus()
+                )
+                || !"ACTIVE".equals(
+                        allocation.status()
+                )
+        ) {
+            throw new IllegalStateException(
+                    "Only an ACTIVE payment allocation may be corrected"
+            );
+        }
+    }
+
+    private void validatePaymentInvoiceContext(
+            PaymentLock payment,
+            InvoiceLock invoice
+    ) {
+        if (!Objects.equals(
+                payment.studentId(),
+                invoice.studentId()
+        )) {
+            throw new IllegalArgumentException(
+                    "Payment and invoice must belong to the same student"
+            );
+        }
+
+        if (!Objects.equals(
+                normalizeCurrency(
+                        payment.currencyCode()
+                ),
+                normalizeCurrency(
+                        invoice.currencyCode()
+                )
+        )) {
+            throw new IllegalArgumentException(
+                    "Payment and invoice currency must agree"
+            );
+        }
+    }
+
+    private void updateAllocationStatus(
+            UUID tenantId,
+            UUID paymentId,
+            UUID allocationId,
+            String allocationStatus,
+            String actor
+    ) {
+        int updated = jdbc.update(
+                """
+                UPDATE gts_payment_allocation
+                SET allocation_status = :allocationStatus,
+                    updated_at = CURRENT_TIMESTAMP,
+                    updated_by = :actor,
+                    version = version + 1
+                WHERE tenant_id = :tenantId
+                  AND student_payment_id = :paymentId
+                  AND id = :allocationId
+                  AND allocation_status = 'ACTIVE'
+                  AND status = 'ACTIVE'
+                """,
+                new MapSqlParameterSource()
+                        .addValue(
+                                "tenantId",
+                                tenantId
+                        )
+                        .addValue(
+                                "paymentId",
+                                paymentId
+                        )
+                        .addValue(
+                                "allocationId",
+                                allocationId
+                        )
+                        .addValue(
+                                "allocationStatus",
+                                allocationStatus
+                        )
+                        .addValue(
+                                "actor",
+                                actor
+                        )
+        );
+
+        if (updated != 1) {
+            throw new IllegalStateException(
+                    "Payment allocation is no longer ACTIVE"
+            );
+        }
+    }
+
+    private CorrectionResponse insertCorrection(
+            UUID tenantId,
+            UUID allocationId,
+            String correctionType,
+            String reason,
+            UUID replacementAllocationId,
+            String actor
+    ) {
+        String sql = """
+                INSERT INTO gts_payment_allocation_correction (
+                    tenant_id,
+                    allocation_id,
+                    correction_type,
+                    reason,
+                    replacement_allocation_id,
+                    created_at,
+                    created_by
+                ) VALUES (
+                    :tenantId,
+                    :allocationId,
+                    :correctionType,
+                    :reason,
+                    :replacementAllocationId,
+                    CURRENT_TIMESTAMP,
+                    :actor
+                )
+                RETURNING
+                    id,
+                    allocation_id,
+                    correction_type,
+                    reason,
+                    replacement_allocation_id,
+                    created_at,
+                    created_by
+                """;
+
+        MapSqlParameterSource params =
+                new MapSqlParameterSource()
+                        .addValue(
+                                "tenantId",
+                                tenantId
+                        )
+                        .addValue(
+                                "allocationId",
+                                allocationId
+                        )
+                        .addValue(
+                                "correctionType",
+                                correctionType
+                        )
+                        .addValue(
+                                "reason",
+                                reason
+                        )
+                        .addValue(
+                                "replacementAllocationId",
+                                replacementAllocationId
+                        )
+                        .addValue(
+                                "actor",
+                                actor
+                        );
+
+        return requireOne(
+                jdbc.query(
+                        sql,
+                        params,
+                        this::mapCorrection
+                ),
+                "Payment allocation correction was not persisted"
         );
     }
 
@@ -498,6 +957,44 @@ public class FinancePaymentAllocationJdbcRepository {
                 : value;
     }
 
+    private CorrectionResponse mapCorrection(
+            ResultSet rs,
+            int rowNum
+    ) throws SQLException {
+        OffsetDateTime createdAt =
+                rs.getObject(
+                        "created_at",
+                        OffsetDateTime.class
+                );
+
+        return new CorrectionResponse(
+                rs.getObject(
+                        "id",
+                        UUID.class
+                ),
+                rs.getObject(
+                        "allocation_id",
+                        UUID.class
+                ),
+                rs.getString(
+                        "correction_type"
+                ),
+                rs.getString(
+                        "reason"
+                ),
+                rs.getObject(
+                        "replacement_allocation_id",
+                        UUID.class
+                ),
+                createdAt == null
+                        ? null
+                        : createdAt.toInstant(),
+                rs.getString(
+                        "created_by"
+                )
+        );
+    }
+
     private AllocationResponse mapAllocation(
             ResultSet rs,
             int rowNum
@@ -566,6 +1063,18 @@ public class FinancePaymentAllocationJdbcRepository {
         }
 
         return values.get(0);
+    }
+
+    private record AllocationLock(
+            UUID allocationId,
+            UUID paymentId,
+            UUID invoiceId,
+            UUID invoiceLineId,
+            UUID paymentInstallmentId,
+            BigDecimal allocatedAmount,
+            String allocationStatus,
+            String status
+    ) {
     }
 
     private record PaymentLock(

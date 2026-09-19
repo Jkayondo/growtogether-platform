@@ -3,6 +3,9 @@ package africa.growtogether.platform.school.finance.allocation;
 
 import static africa.growtogether.platform.school.finance.allocation.FinancePaymentAllocationDtos.AllocationResponse;
 import static africa.growtogether.platform.school.finance.allocation.FinancePaymentAllocationDtos.CreateRequest;
+import static africa.growtogether.platform.school.finance.allocation.FinancePaymentAllocationDtos.CorrectionResponse;
+import static africa.growtogether.platform.school.finance.allocation.FinancePaymentAllocationDtos.ReallocateRequest;
+import static africa.growtogether.platform.school.finance.allocation.FinancePaymentAllocationDtos.ReverseRequest;
 
 import africa.growtogether.platform.common.security.EnterpriseIdentityContext;
 import jakarta.validation.Valid;
@@ -50,6 +53,68 @@ public class FinancePaymentAllocationController {
                 paymentId,
                 request,
                 actorId
+        );
+    }
+
+    @PostMapping("/{paymentId}/allocations/{allocationId}/reverse")
+    @PreAuthorize("hasAuthority('school.finance.manage')")
+    public CorrectionResponse reverse(
+            @RequestHeader("X-Tenant-ID") UUID tenantId,
+            @PathVariable UUID paymentId,
+            @PathVariable UUID allocationId,
+            @Valid @RequestBody ReverseRequest request
+    ) {
+        identity.requireTenant(tenantId);
+
+        UUID actorId = UUID.fromString(
+                identity.requireUserId().toString()
+        );
+
+        return service.reverse(
+                tenantId,
+                paymentId,
+                allocationId,
+                request,
+                actorId
+        );
+    }
+
+    @PostMapping("/{paymentId}/allocations/{allocationId}/reallocate")
+    @PreAuthorize("hasAuthority('school.finance.manage')")
+    public CorrectionResponse reallocate(
+            @RequestHeader("X-Tenant-ID") UUID tenantId,
+            @PathVariable UUID paymentId,
+            @PathVariable UUID allocationId,
+            @Valid @RequestBody ReallocateRequest request
+    ) {
+        identity.requireTenant(tenantId);
+
+        UUID actorId = UUID.fromString(
+                identity.requireUserId().toString()
+        );
+
+        return service.reallocate(
+                tenantId,
+                paymentId,
+                allocationId,
+                request,
+                actorId
+        );
+    }
+
+    @GetMapping("/{paymentId}/allocations/{allocationId}/correction")
+    @PreAuthorize("hasAuthority('school.finance.read')")
+    public CorrectionResponse getCorrection(
+            @RequestHeader("X-Tenant-ID") UUID tenantId,
+            @PathVariable UUID paymentId,
+            @PathVariable UUID allocationId
+    ) {
+        identity.requireTenant(tenantId);
+
+        return service.getCorrection(
+                tenantId,
+                paymentId,
+                allocationId
         );
     }
 
