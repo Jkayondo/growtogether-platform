@@ -313,6 +313,10 @@ public class Guardian extends AuditedTenantEntity {
         return primaryPhoneNumber;
     }
 
+    public String getEmail() {
+        return email;
+    }
+
     public UUID getSourceAdmissionGuardianId() {
         return sourceAdmissionGuardianId;
     }
