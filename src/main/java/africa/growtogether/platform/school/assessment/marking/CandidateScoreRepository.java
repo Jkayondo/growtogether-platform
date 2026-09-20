@@ -11,6 +11,12 @@ public interface CandidateScoreRepository
         extends JpaRepository<CandidateScore, UUID> {
 
 
+    Optional<CandidateScore> findByTenantIdAndId(
+            UUID tenantId,
+            UUID id
+    );
+
+
     Optional<CandidateScore>
     findByTenantIdAndMarkSheetIdAndStudentId(
             UUID tenantId,
@@ -24,5 +30,4 @@ public interface CandidateScoreRepository
             UUID markSheetId,
             UUID studentId
     );
-
 }

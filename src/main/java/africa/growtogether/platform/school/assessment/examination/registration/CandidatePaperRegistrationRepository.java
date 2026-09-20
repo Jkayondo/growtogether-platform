@@ -11,6 +11,12 @@ public interface CandidatePaperRegistrationRepository
         extends JpaRepository<CandidatePaperRegistration, UUID> {
 
 
+    Optional<CandidatePaperRegistration> findByTenantIdAndId(
+            UUID tenantId,
+            UUID id
+    );
+
+
     Optional<CandidatePaperRegistration>
     findByTenantIdAndExaminationCandidateIdAndAssessmentPaperId(
             UUID tenantId,
@@ -24,5 +30,4 @@ public interface CandidatePaperRegistrationRepository
             UUID examinationCandidateId,
             UUID assessmentPaperId
     );
-
 }
