@@ -120,6 +120,13 @@ public class TenantProvisioningService {
    false
   ),
   new TeacherPermissionDefinition(
+   "school.teacher.programme.read",
+   "Read Teacher Programme",
+   "SCHOOL_TEACHER",
+   "Allows an authenticated teacher to view their own authorised Today's Programme, including applicable teaching lessons and teacher-visible school calendar events within their authenticated tenant.",
+   false
+  ),
+  new TeacherPermissionDefinition(
    "ai.request.create",
    "AI Request Create",
    "EAIF",

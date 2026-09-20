@@ -4,6 +4,9 @@ import {
 } from "react";
 
 import GTSection from "../../components/common/GTSection";
+import {
+  loadMyTodayProgramme
+} from "../../services/teacherProgrammeService";
 
 import {
   loadMyActiveTeachingAssignments
@@ -28,6 +31,9 @@ import type {
 import type {
   ClassGrade
 } from "../../types/classGrade";
+import type {
+  TeacherProgrammeToday
+} from "../../types/teacherProgramme";
 
 import { loadEducationLevels } from "../../services/educationLevelService";
 
@@ -68,6 +74,26 @@ export default function TeacherWorkspace() {
   const [
     error,
     setError
+  ] =
+    useState<string | null>(null);
+
+  const [
+    programme,
+    setProgramme
+  ] =
+    useState<TeacherProgrammeToday | null>(
+      null
+    );
+
+  const [
+    programmeLoading,
+    setProgrammeLoading
+  ] =
+    useState(true);
+
+  const [
+    programmeError,
+    setProgrammeError
   ] =
     useState<string | null>(null);
 
@@ -197,6 +223,62 @@ export default function TeacherWorkspace() {
 
 
 
+  useEffect(() => {
+
+    let active = true;
+
+    async function loadProgramme() {
+
+      setProgrammeLoading(true);
+      setProgrammeError(null);
+
+      try {
+
+        const data =
+          await loadMyTodayProgramme();
+
+        if (!active) return;
+
+        setProgramme(data);
+
+      } catch (cause) {
+
+        if (!active) return;
+
+        setProgramme(null);
+
+        const message =
+          cause instanceof Error
+            ? cause.message
+            : "";
+
+        setProgrammeError(
+          message === "API Error 403"
+            ? "You do not have permission to view today's programme."
+            : message === "API Error 401"
+              ? "Your session has expired. Please sign in again."
+              : "Today's programme could not be loaded. Please reload to try again."
+        );
+
+      } finally {
+
+        if (active) {
+          setProgrammeLoading(false);
+        }
+
+      }
+
+    }
+
+    void loadProgramme();
+
+    return () => {
+      active = false;
+    };
+
+  }, []);
+
+
   function subjectName(
     id: string
   ) {
@@ -319,17 +401,156 @@ export default function TeacherWorkspace() {
 
 
 
-          <div className="teacher-card">
+          <div
+              className="teacher-card"
+              data-testid="teacher-programme"
+            >
 
-            <h3>
-              Today's Programme
-            </h3>
+              <h3>
+                Today's Programme
+              </h3>
 
-            <p>
-              Lessons, meetings and school activities.
-            </p>
+              {
+                programmeLoading
+                  ? (
+                    <p>
+                      Loading today's programme...
+                    </p>
+                  )
+                  : programmeError
+                    ? (
+                      <p data-testid="teacher-programme-error">
+                        {programmeError}
+                      </p>
+                    )
+                    : programme
+                      ? (
+                        <>
 
-          </div>
+                          <p>
+                            {programme.date}
+                            {" · "}
+                            {programme.zone}
+                          </p>
+
+                          {
+                            programme.lessons.length === 0 &&
+                            programme.calendarEvents.length === 0
+                              ? (
+                                <p>
+                                  No lessons, meetings or school activities are scheduled for today.
+                                </p>
+                              )
+                              : (
+                                <>
+
+                                  {
+                                    programme.lessons.length > 0 &&
+                                    (
+                                      <div>
+
+                                        <strong>
+                                          Lessons
+                                        </strong>
+
+                                        <ul>
+
+                                          {
+                                            programme.lessons.map(
+                                              lesson => (
+                                                <li
+                                                  key={
+                                                    [
+                                                      lesson.timetableId,
+                                                      lesson.bellPeriodId,
+                                                      lesson.classGradeId,
+                                                      lesson.subjectOfferingId
+                                                    ].join("-")
+                                                  }
+                                                >
+                                                  {
+                                                    lesson.startTime.slice(
+                                                      0,
+                                                      5
+                                                    )
+                                                  }
+                                                  {"–"}
+                                                  {
+                                                    lesson.endTime.slice(
+                                                      0,
+                                                      5
+                                                    )
+                                                  }
+                                                  {" · "}
+                                                  {lesson.subjectName}
+                                                  {" · "}
+                                                  {lesson.className}
+                                                  {
+                                                    lesson.streamName
+                                                      ? (
+                                                        <>
+                                                          {" / "}
+                                                          {lesson.streamName}
+                                                        </>
+                                                      )
+                                                      : null
+                                                  }
+                                                </li>
+                                              )
+                                            )
+                                          }
+
+                                        </ul>
+
+                                      </div>
+                                    )
+                                  }
+
+                                  {
+                                    programme.calendarEvents.length > 0 &&
+                                    (
+                                      <div>
+
+                                        <strong>
+                                          School calendar
+                                        </strong>
+
+                                        <ul>
+
+                                          {
+                                            programme.calendarEvents.map(
+                                              event => (
+                                                <li key={event.id}>
+                                                  {event.eventName}
+                                                  {" · "}
+                                                  {event.eventType}
+                                                  {" · "}
+                                                  {event.eventStatus}
+                                                </li>
+                                              )
+                                            )
+                                          }
+
+                                        </ul>
+
+                                      </div>
+                                    )
+                                  }
+
+                                </>
+                              )
+                          }
+
+                        </>
+                      )
+                      : (
+                        <p>
+                          Today's programme is unavailable.
+                        </p>
+                      )
+              }
+
+            </div>
 
 
 

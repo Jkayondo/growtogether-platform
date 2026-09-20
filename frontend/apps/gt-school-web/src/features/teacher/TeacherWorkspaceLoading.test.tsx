@@ -4,6 +4,7 @@ import TeacherWorkspace from "./TeacherWorkspace";
 
 const api = vi.hoisted(() => ({
   assignments: vi.fn(),
+  programme: vi.fn(),
   subjects: vi.fn(),
   levels: vi.fn(),
   grades: vi.fn(),
@@ -11,6 +12,9 @@ const api = vi.hoisted(() => ({
 
 vi.mock("../../services/teachingAssignmentService", () => ({
   loadMyActiveTeachingAssignments: api.assignments,
+}));
+vi.mock("../../services/teacherProgrammeService", () => ({
+  loadMyTodayProgramme: api.programme,
 }));
 vi.mock("../../services/subjectService", () => ({
   loadSubjects: api.subjects,
@@ -41,6 +45,12 @@ async function finishLoading() {
 beforeEach(() => {
   for (const mock of Object.values(api)) mock.mockReset();
   api.assignments.mockResolvedValue([]);
+  api.programme.mockResolvedValue({
+    date: "2026-09-19",
+    zone: "Africa/Kampala",
+    lessons: [],
+    calendarEvents: [],
+  });
   api.subjects.mockResolvedValue([
     { id: "subject-1", subjectName: "Mathematics" },
   ]);

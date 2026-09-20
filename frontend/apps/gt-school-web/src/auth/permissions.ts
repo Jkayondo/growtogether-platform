@@ -30,6 +30,9 @@ export const Permission = {
   TEACHING_ASSIGNMENT_READ:
     "school.academic.teaching-assignment.read",
 
+  TEACHER_PROGRAMME_READ:
+    "school.teacher.programme.read",
+
 } as const;
 
 
