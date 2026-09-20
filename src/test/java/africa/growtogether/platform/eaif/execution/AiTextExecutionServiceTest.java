@@ -94,7 +94,7 @@ class AiTextExecutionServiceTest {
     @Test void providerFailureUpdatesBothLifecyclesWithoutRawError() {
         when(gateway.execute(any(), any(), any(), any())).thenThrow(new IllegalStateException("private provider details"));
         var error = assertThrows(IllegalStateException.class, () -> service.execute(tenant, id, input));
-        verify(foundation).fail(tenant, id, "AI_EXECUTION_OR_OUTPUT_STORAGE_FAILED");
+        verify(foundation).fail(tenant, id, "AI_PROVIDER_EXECUTION_FAILED");
         verify(audit).fail(tenant, id);
         verifyNoInteractions(outputs);
         assertNull(error.getCause());

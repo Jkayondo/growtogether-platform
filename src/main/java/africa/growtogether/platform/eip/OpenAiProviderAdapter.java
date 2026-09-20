@@ -39,37 +39,81 @@ public final class OpenAiProviderAdapter implements AiProviderAdapter {
             throw new IllegalStateException("OpenAI API_KEY connector configuration required");
         if (context.requestTimeout() == null || context.requestTimeout().isNegative()
                 || context.requestTimeout().isZero()) throw new IllegalStateException("Invalid AI timeout");
+        boolean providerResponseReceived = false;
+
         try {
             var body = mapper.createObjectNode().put("model", request.model())
                     .put("input", request.input()).put("max_output_tokens", request.maxOutputTokens())
                     .put("store", false).put("stream", false);
-            Reply reply = transport.send(context.credential(), mapper.writeValueAsString(body), context.requestTimeout());
+            String requestBody;
+            try {
+                requestBody = mapper.writeValueAsString(body);
+            } catch (Exception ex) {
+                throw new AiProviderFailureException(
+                        "AI_PROVIDER_REQUEST_SERIALIZATION_FAILED"
+                );
+            }
+
+            Reply reply = transport.send(
+                    context.credential(),
+                    requestBody,
+                    context.requestTimeout()
+            );
+
+            providerResponseReceived = true;
+
             if (reply.status() < 200 || reply.status() >= 300)
-                throw new IllegalStateException("AI_PROVIDER_HTTP_" + reply.status());
+                throw new AiProviderFailureException(
+                        "AI_PROVIDER_HTTP_" + reply.status()
+                );
             var root = mapper.readTree(reply.body());
             if (root == null || !"completed".equals(root.path("status").asText())
                     || !root.path("error").isNull() && !root.path("error").isMissingNode())
-                throw new IllegalStateException("AI_PROVIDER_NOT_COMPLETED");
+                throw new AiProviderFailureException("AI_PROVIDER_NOT_COMPLETED");
             StringBuilder text = new StringBuilder();
             for (var item : root.path("output")) {
                 if (!"message".equals(item.path("type").asText())) continue;
                 if (!"assistant".equals(item.path("role").asText())
                         || !"completed".equals(item.path("status").asText()))
-                    throw new IllegalStateException("AI_PROVIDER_INVALID_MESSAGE");
+                    throw new AiProviderFailureException("AI_PROVIDER_INVALID_MESSAGE");
                 for (var part : item.path("content")) {
                     if ("refusal".equals(part.path("type").asText()))
-                        throw new IllegalStateException("AI_PROVIDER_REFUSAL");
+                        throw new AiProviderFailureException("AI_PROVIDER_REFUSAL");
                     if ("output_text".equals(part.path("type").asText())) {
-                        if (!part.path("text").isTextual()) throw new IllegalStateException("AI_PROVIDER_INVALID_TEXT");
+                        if (!part.path("text").isTextual()) throw new AiProviderFailureException("AI_PROVIDER_INVALID_TEXT");
                         if (!text.isEmpty()) text.append('\n');
                         text.append(part.path("text").asText());
                     }
                 }
             }
             return new AiTextResult(root.path("id").asText(), text.toString());
+        } catch (AiProviderFailureException ex) {
+            throw ex;
+
+        } catch (java.net.http.HttpTimeoutException ex) {
+            throw new AiProviderFailureException(
+                    "AI_PROVIDER_TIMEOUT"
+            );
+
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new AiProviderFailureException(
+                    "AI_PROVIDER_INTERRUPTED"
+            );
+
         } catch (Exception ex) {
-            // No raw body, credential, prompt or nested transport exception escapes this boundary.
-            throw new IllegalStateException("AI provider execution did not produce a complete text result");
+            /*
+             * No raw response body, credential, prompt, endpoint or nested
+             * transport exception escapes this boundary.
+             *
+             * We retain only whether failure happened before or after a
+             * provider response was received.
+             */
+            throw new AiProviderFailureException(
+                    providerResponseReceived
+                            ? "AI_PROVIDER_RESPONSE_INVALID"
+                            : "AI_PROVIDER_TRANSPORT_FAILURE"
+            );
         }
     }
 

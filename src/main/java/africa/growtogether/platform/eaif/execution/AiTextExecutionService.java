@@ -8,6 +8,7 @@ import africa.growtogether.platform.eaif.approval.ApprovalStatus;
 import africa.growtogether.platform.eaif.governance.policy.AiGovernancePolicyService;
 import africa.growtogether.platform.eaif.integration.EaifConfigurationGateway;
 import africa.growtogether.platform.eip.AiProviderExecutionGateway;
+import africa.growtogether.platform.eip.AiProviderFailureException;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -70,9 +71,18 @@ public class AiTextExecutionService {
             return new Claim(selected, textRequest);
         });
         // Optimistic @Version update commits before any network call; a losing claimant cannot dispatch.
+        boolean providerCompleted = false;
+
         try {
-            var result = gateway.execute(tenantId, claim.selection().providerCode(),
-                    claim.selection().type(), claim.request());
+            var result = gateway.execute(
+                    tenantId,
+                    claim.selection().providerCode(),
+                    claim.selection().type(),
+                    claim.request()
+            );
+
+            providerCompleted = true;
+
             return transaction.execute(status -> {
                 String reference = outputs.save(tenantId, requestId, result);
                 foundation.succeed(tenantId, requestId, reference);
@@ -80,16 +90,60 @@ public class AiTextExecutionService {
                 return reference;
             });
         } catch (RuntimeException failure) {
+
+            String safeFailureReason =
+                    failureReason(
+                            providerCompleted,
+                            failure
+                    );
+
             try {
                 transaction.executeWithoutResult(status -> {
-                    foundation.fail(tenantId, requestId, "AI_EXECUTION_OR_OUTPUT_STORAGE_FAILED");
-                    audit.fail(tenantId, requestId);
+                    foundation.fail(
+                            tenantId,
+                            requestId,
+                            safeFailureReason
+                    );
+                    audit.fail(
+                            tenantId,
+                            requestId
+                    );
                 });
+
             } catch (RuntimeException recordingFailure) {
-                throw new IllegalStateException("AI execution requires reconciliation; do not retry automatically");
+                throw new IllegalStateException(
+                        "AI execution requires reconciliation; do not retry automatically"
+                );
             }
-            throw new IllegalStateException("AI execution failed; do not retry automatically");
+
+            throw new IllegalStateException(
+                    "AI execution failed; do not retry automatically"
+            );
         }
     }
-    private record Claim(AiExecutionCatalogue.Selection selection, AiTextRequest request) {}
+
+    static String failureReason(
+            boolean providerCompleted,
+            RuntimeException failure
+    ) {
+
+        if (providerCompleted) {
+            return "AI_OUTPUT_STORAGE_FAILED";
+        }
+
+        if (failure instanceof AiProviderFailureException providerFailure) {
+            return providerFailure.category();
+        }
+
+        /*
+         * Never persist arbitrary exception text from a provider gateway.
+         * Unknown provider-side failures receive one bounded fallback code.
+         */
+        return "AI_PROVIDER_EXECUTION_FAILED";
+    }
+
+    private record Claim(
+            AiExecutionCatalogue.Selection selection,
+            AiTextRequest request
+    ) {}
 }
