@@ -11,6 +11,7 @@ import PermissionRoute from "./PermissionRoute";
 import Login from "../features/auth/Login";
 import VisitorDashboard from "../features/visitor/VisitorDashboard";
 import AcademicYears from "../features/academic/AcademicYears";
+import CandidateScores from "../features/academic/CandidateScores";
 import ConnectDashboard from "../features/connect/ConnectDashboard";
 
 import {
@@ -73,6 +74,24 @@ export default function AppRoutes() {
               >
 
                 <AcademicYears />
+
+
+        <Route
+          path="academic/candidate-scores"
+          element={
+            <ProtectedRoute>
+
+              <PermissionRoute
+                permission={Permission.ASSESSMENT_READ}
+              >
+
+                <CandidateScores />
+
+              </PermissionRoute>
+
+            </ProtectedRoute>
+          }
+        />
 
               </PermissionRoute>
 

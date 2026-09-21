@@ -33,6 +33,15 @@ export const Permission = {
   TEACHER_PROGRAMME_READ:
     "school.teacher.programme.read",
 
+  ASSESSMENT_READ:
+    "school.academic.assessment.read",
+
+  ASSESSMENT_CREATE:
+    "school.academic.assessment.create",
+
+  ASSESSMENT_MANAGE:
+    "school.academic.assessment.manage",
+
 } as const;
 
 

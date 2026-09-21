@@ -50,6 +50,7 @@ const menuItems = [
       "Subjects",
       "Timetable",
       "Assessments",
+      "Candidate Scores",
       "Results",
     ],
   },
@@ -198,6 +199,17 @@ export default function Sidebar() {
                               );
 
                             }
+                              else if (
+                                child === "Candidate Scores"
+                              ) {
+
+                                navigate(
+                                  "/academic/candidate-scores"
+                                );
+
+                              }
+
+
 
                             else if (
                               child === "GT Connect"
