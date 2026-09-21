@@ -81,7 +81,7 @@ class DefaultAiPolicyPostV276ReconciliationPostgresIntegrationTest {
                         );
             }
 
-            migrateAll(postgres);
+            migrateTo(postgres, "277");
 
             try (Connection connection = connect(postgres)) {
                 assertEquals(
