@@ -50,6 +50,7 @@ const menuItems = [
       "Subjects",
       "Timetable",
       "Assessments",
+      "Assessment Plans",
       "Candidate Scores",
       "Results",
     ],
@@ -199,6 +200,16 @@ export default function Sidebar() {
                               );
 
                             }
+                              else if (
+                                child === "Assessment Plans"
+                              ) {
+
+                                navigate(
+                                  "/academic/assessment-plans"
+                                );
+
+                              }
+
                               else if (
                                 child === "Candidate Scores"
                               ) {
