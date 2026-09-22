@@ -1,5 +1,7 @@
 package africa.growtogether.platform.school.finance.foundation;
 
+
+import africa.growtogether.platform.school.finance.DisposableExistingDatabaseTestSupport;
 import static africa.growtogether.platform.school.finance.foundation.FinanceFoundationDtos.*;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -17,7 +19,7 @@ import java.util.UUID;
 
 
 @SpringBootTest
-class FinanceFoundationExistingDatabaseIntegrationTest {
+class FinanceFoundationExistingDatabaseIntegrationTest extends DisposableExistingDatabaseTestSupport {
 
     @Autowired
     private JdbcTemplate jdbc;

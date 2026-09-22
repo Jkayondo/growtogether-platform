@@ -1,5 +1,7 @@
 package africa.growtogether.platform.school.finance.invoice;
 
+
+import africa.growtogether.platform.school.finance.DisposableExistingDatabaseTestSupport;
 import static africa.growtogether.platform.school.finance.assignment.FinanceFeeAssignmentDtos.*;
 import static africa.growtogether.platform.school.finance.foundation.FinanceFoundationDtos.*;
 import static africa.growtogether.platform.school.finance.invoice.FinanceInvoiceDtos.*;
@@ -20,7 +22,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @SpringBootTest
-class FinanceInvoiceExistingDatabaseIntegrationTest {
+class FinanceInvoiceExistingDatabaseIntegrationTest extends DisposableExistingDatabaseTestSupport {
 
     @Autowired
     JdbcTemplate jdbc;
