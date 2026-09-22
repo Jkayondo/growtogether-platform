@@ -26,6 +26,40 @@ vi.mock("../../services/classGradeService", () => ({
   loadClassGrades: api.grades,
 }));
 
+vi.mock("../../auth/authContext", () => ({
+  useAuth: () => ({
+    hasPermission: () => true
+  })
+}));
+
+vi.mock("../../services/teacherCoverageService", () => ({
+  loadMyTeacherCoverage: async () => ({
+    teacherProfileId: "teacher-regression",
+    teachingAssignmentId: null,
+    summary: {
+      total: 0,
+      notStarted: 0,
+      inProgress: 0,
+      completed: 0,
+      requiresRemediation: 0,
+      aheadOfSchedule: 0
+    },
+    items: []
+  }),
+
+  setMyTeacherCoverageInProgress:
+    async () => undefined,
+
+  completeMyCoverage:
+    async () => undefined,
+
+  setMyTeacherCoverageRequiresRemediation:
+    async () => undefined,
+
+  setMyTeacherCoverageAheadOfSchedule:
+    async () => undefined
+}));
+
 function assignment(id: string, classGradeId: string) {
   return {
     id,

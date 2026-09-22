@@ -23,6 +23,28 @@ public class TenantProvisioningService {
   "eiam.role-permissions.assign","eiam.role-permissions.read",
   "platform.tenants.read","platform.tenants.manage"
  );
+
+ private static final List<String> CONFIGURATION_PERMISSIONS=List.of(
+  "platform.configuration.definition.manage",
+  "platform.configuration.manage",
+  "platform.configuration.read",
+  "platform.configuration.history.read",
+  "platform.configuration.rollback",
+  "platform.configuration.secret.read"
+ );
+
+ /*
+  * Secret configuration read remains a separate high-privilege
+  * authority. TENANT_ADMIN can govern configuration without
+  * automatically receiving decrypted-secret visibility.
+  */
+ private static final Set<String> TENANT_ADMIN_CONFIGURATION_PERMISSIONS=Set.of(
+  "platform.configuration.manage",
+  "platform.configuration.read",
+  "platform.configuration.history.read",
+  "platform.configuration.rollback"
+ );
+
  private static final List<String> EIP_PERMISSIONS=List.of(
   "integration.admin.read",
   "integration.analytics.read",
@@ -127,6 +149,20 @@ public class TenantProvisioningService {
    false
   ),
   new TeacherPermissionDefinition(
+   "school.teacher.coverage.read",
+   "Read Teacher Coverage",
+   "SCHOOL_TEACHER",
+   "Allows an authenticated teacher to view curriculum coverage belonging to their own authorised teaching assignments within their authenticated tenant.",
+   false
+  ),
+  new TeacherPermissionDefinition(
+   "school.teacher.coverage.update",
+   "Update Teacher Coverage",
+   "SCHOOL_TEACHER",
+   "Allows an authenticated teacher to update curriculum coverage status only for records belonging to their own authorised teaching assignments within their authenticated tenant.",
+   false
+  ),
+  new TeacherPermissionDefinition(
    "ai.request.create",
    "AI Request Create",
    "EAIF",
@@ -226,6 +262,7 @@ this.organizations=organizations;this.tenants=tenants;this.users=users;this.role
   roles.save(aiAdminRole);
 
   List<Permission> seeded=seedPermissions(tenantId,ADMIN_PERMISSIONS,"Bootstrap permission seeded during tenant provisioning.");
+  List<Permission> configurationSeeded=seedPermissions(tenantId,CONFIGURATION_PERMISSIONS,"Enterprise configuration permission seeded during tenant provisioning.");
   List<Permission> eipSeeded=seedPermissions(tenantId,EIP_PERMISSIONS,"Enterprise integration permission seeded during tenant provisioning.");
   List<Permission> ensSeeded=seedPermissions(tenantId,ENS_PERMISSIONS,"Enterprise notification permission seeded during tenant provisioning.");
   List<Permission> teacherBaselineSeeded=
@@ -236,6 +273,17 @@ this.organizations=organizations;this.tenants=tenants;this.users=users;this.role
   UserRole ur=new UserRole(admin.getId(),role.getId());ur.setTenantId(tenantId);userRoles.save(ur);
 
   assignPermissions(tenantId,role.getId(),seeded);
+  assignPermissions(
+   tenantId,
+   role.getId(),
+   configurationSeeded.stream()
+    .filter(
+     p->TENANT_ADMIN_CONFIGURATION_PERMISSIONS.contains(
+      p.getCode()
+     )
+    )
+    .toList()
+  );
   assignPermissions(
    tenantId,
    integrationRole.getId(),

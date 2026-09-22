@@ -62,3 +62,182 @@
   }
 
 }
+
+
+.teacher-coverage-card {
+  grid-column: 1 / -1;
+}
+
+.teacher-coverage-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  margin-bottom: 18px;
+}
+
+.teacher-coverage-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 190px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.teacher-coverage-filter select,
+.teacher-coverage-remarks input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: white;
+  padding: 9px 10px;
+  font: inherit;
+}
+
+.teacher-coverage-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin: 18px 0 22px;
+}
+
+.teacher-coverage-summary div {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px;
+  text-align: center;
+}
+
+.teacher-coverage-summary strong {
+  display: block;
+  font-size: 24px;
+}
+
+.teacher-coverage-summary span {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.teacher-coverage-items {
+  display: grid;
+  gap: 16px;
+}
+
+.teacher-coverage-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 18px;
+}
+
+.teacher-coverage-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.teacher-coverage-item-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.teacher-coverage-item-header > div > span {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.teacher-coverage-status {
+  border-radius: 999px;
+  background: #f3f4f6;
+  padding: 5px 9px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.teacher-coverage-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.teacher-coverage-meta dt {
+  margin-bottom: 3px;
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.teacher-coverage-meta dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.teacher-coverage-remarks {
+  display: block;
+  margin-top: 14px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.teacher-coverage-remarks input {
+  display: block;
+  margin-top: 6px;
+  font-weight: 400;
+}
+
+.teacher-coverage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.teacher-coverage-actions button {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: white;
+  padding: 8px 11px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.teacher-coverage-actions button:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.teacher-coverage-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.teacher-coverage-readonly,
+.teacher-coverage-updating {
+  margin-top: 14px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+@media(max-width:900px){
+
+  .teacher-coverage-header,
+  .teacher-coverage-item-header {
+    flex-direction: column;
+  }
+
+  .teacher-coverage-filter {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .teacher-coverage-status {
+    white-space: normal;
+  }
+
+}
