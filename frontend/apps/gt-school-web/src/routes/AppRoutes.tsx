@@ -12,6 +12,7 @@ import Login from "../features/auth/Login";
 import VisitorDashboard from "../features/visitor/VisitorDashboard";
 import AcademicYears from "../features/academic/AcademicYears";
 import AssessmentPlans from "../features/academic/AssessmentPlans";
+import ClassGrades from "../features/academic/ClassGrades";
 import CandidateScores from "../features/academic/CandidateScores";
 import ConnectDashboard from "../features/connect/ConnectDashboard";
 
@@ -89,6 +90,20 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
+
+        <Route
+          path="academic/class-grades"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute
+                permission={Permission.CURRICULUM_READ}
+              >
+                <ClassGrades />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+
 
         <Route
           path="academic/candidate-scores"

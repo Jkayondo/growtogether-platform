@@ -51,6 +51,7 @@ const menuItems = [
       "Timetable",
       "Assessments",
       "Assessment Plans",
+      "Class Grades",
       "Candidate Scores",
       "Results",
     ],
@@ -206,6 +207,14 @@ export default function Sidebar() {
 
                                 navigate(
                                   "/academic/assessment-plans"
+                                );
+                              }
+                              else if (
+                                child === "Class Grades"
+                              ) {
+
+                                navigate(
+                                  "/academic/class-grades"
                                 );
 
                               }
