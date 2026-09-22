@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -63,6 +64,7 @@ class TeacherAiSubmissionPostgresIntegrationTest {
     @Autowired AiRequestRepository requests;
     @Autowired EaifApprovalService approvals;
     @Autowired EaifAuditService audits;
+    @Autowired JdbcTemplate jdbc;
     @Autowired PlatformTransactionManager transactionManager;
 
     @MockitoBean TeacherAiAccessGuard ownership;
@@ -138,6 +140,85 @@ class TeacherAiSubmissionPostgresIntegrationTest {
         assertNotNull(submittedId.get());
         assertPersistedSubmission(submittedId.get());
         verify(ownership).requireOwnedAssignment(tenant, teacher, assignment);
+        verifyNoInteractions(provider);
+    }
+
+    @Test
+    void authenticatedExecutionActorPersistsToPostgresAuditColumn() {
+
+        var submitted =
+                workflow.submit(
+                        tenant,
+                        teacher,
+                        assignment,
+                        MODEL,
+                        INPUT
+                );
+
+        UUID requestId =
+                submitted.requestId();
+
+        UUID before =
+                jdbc.queryForObject(
+                        """
+                        select actor_user_id
+                          from eaif_execution_audits
+                         where tenant_id = ?
+                           and ai_request_id = ?
+                        """,
+                        (rs, rowNum) ->
+                                rs.getObject(
+                                        1,
+                                        UUID.class
+                                ),
+                        tenant,
+                        requestId
+                );
+
+        assertNull(
+                before,
+                "Submission must not be recorded as provider execution."
+        );
+
+        audits.attributeActor(
+                tenant,
+                requestId,
+                actor
+        );
+
+        UUID persisted =
+                jdbc.queryForObject(
+                        """
+                        select actor_user_id
+                          from eaif_execution_audits
+                         where tenant_id = ?
+                           and ai_request_id = ?
+                        """,
+                        (rs, rowNum) ->
+                                rs.getObject(
+                                        1,
+                                        UUID.class
+                                ),
+                        tenant,
+                        requestId
+                );
+
+        assertEquals(
+                actor,
+                persisted
+        );
+
+        var reloaded =
+                audits.get(
+                        tenant,
+                        requestId
+                );
+
+        assertEquals(
+                actor,
+                reloaded.actorUserId()
+        );
+
         verifyNoInteractions(provider);
     }
 

@@ -47,6 +47,7 @@ public class AiTextExecutionService {
         if (!identity.hasPermission("ai.runtime.execute"))
             throw new org.springframework.security.access.AccessDeniedException("AI execution permission required");
         if (!configuration.providerExecutionEnabled()) throw new IllegalStateException("AI execution is disabled");
+        UUID actorUserId = identity.requireUserId();
         if (input == null || input.isBlank() || input.length() > configuration.maximumInputCharacters())
             throw new IllegalArgumentException("Invalid AI input size");
 
@@ -66,6 +67,11 @@ public class AiTextExecutionService {
                 throw new IllegalStateException("Human approval is required");
             var selected = catalogue.resolve(tenantId, request.modelCode());
             var textRequest = new AiTextRequest(selected.model(), input, selected.outputTokens());
+            audit.attributeActor(
+                    tenantId,
+                    requestId,
+                    actorUserId
+            );
             foundation.begin(tenantId, requestId);
             audit.start(tenantId, requestId);
             return new Claim(selected, textRequest);

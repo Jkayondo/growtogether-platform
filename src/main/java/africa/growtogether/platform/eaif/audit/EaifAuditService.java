@@ -58,6 +58,25 @@ public class EaifAuditService {
         return audits.save(audit);
     }
 
+    @Transactional
+    public EaifExecutionAudit attributeActor(
+            UUID tenantId,
+            UUID requestId,
+            UUID actorUserId
+    ) {
+
+        EaifExecutionAudit audit =
+                get(
+                        tenantId,
+                        requestId
+                );
+
+        audit.attributeActor(actorUserId);
+
+        return audit;
+    }
+
+
 
     @Transactional
     public EaifExecutionAudit start(

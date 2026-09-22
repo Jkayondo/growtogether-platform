@@ -121,6 +121,27 @@ public class EaifExecutionAudit extends AuditedTenantEntity {
         this.governanceReason = reason;
     }
 
+    public void attributeActor(
+            UUID actorUserId
+    ) {
+
+        if (actorUserId == null) {
+            throw new IllegalArgumentException(
+                    "Authenticated execution actor is required"
+            );
+        }
+
+        if (this.actorUserId != null
+                && !this.actorUserId.equals(actorUserId)) {
+            throw new IllegalStateException(
+                    "Execution actor cannot change"
+            );
+        }
+
+        this.actorUserId = actorUserId;
+    }
+
+
 
     public void approve() {
 
