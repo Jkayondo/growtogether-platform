@@ -34,4 +34,18 @@ public interface StudentRepository
             UUID tenantId,
             EntityStatus status
     );
+
+    /**
+     * L05C_AUTHENTICATED_LEARNER_SELF_RESOLUTION
+     *
+     * Returns all matching rows deliberately because the existing
+     * schema indexes (tenant_id, eiam_user_id) but does not establish
+     * uniqueness. Learner self-service therefore fails closed when
+     * identity data is ambiguous.
+     */
+    List<Student> findAllByTenantIdAndEiamUserId(
+            UUID tenantId,
+            UUID eiamUserId
+    );
+
 }
