@@ -1,4 +1,5 @@
 import TeacherWorkspace from "../features/teacher/TeacherWorkspace";
+import LearnerWorkspace from "../features/learner/LearnerWorkspace";
 import {
   Routes,
   Route
@@ -165,6 +166,15 @@ export default function AppRoutes() {
               >
                 <TeacherWorkspace />
               </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="learner/workspace"
+          element={
+            <ProtectedRoute>
+              <LearnerWorkspace />
             </ProtectedRoute>
           }
         />
