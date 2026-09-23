@@ -107,7 +107,31 @@ export default function LeadershipOverview() {
           </small>
         </article>
 
+                <article className="gt-card">
+          <p>Active learner records</p>
+          <strong>{overview.learners.activeLearnerRecords}</strong>
+          <small>Active Student records</small>
+        </article>
+
         <article className="gt-card">
+          <p>Active enrolments</p>
+          <strong>{overview.learners.activeEnrollments}</strong>
+          <small>Active current enrolment records</small>
+        </article>
+
+        <article className="gt-card">
+          <p>Active teachers</p>
+          <strong>{overview.teachers.activeTeacherProfiles}</strong>
+          <small>Active teacher profiles</small>
+        </article>
+
+        <article className="gt-card">
+          <p>Active teaching assignments</p>
+          <strong>{overview.teachers.activeTeachingAssignments}</strong>
+          <small>Assignment status: ACTIVE</small>
+        </article>
+
+<article className="gt-card">
           <p>Integration status</p>
           <strong>
             {

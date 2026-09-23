@@ -20,6 +20,8 @@ public record LeadershipOverviewResponse(
         int upcomingEvents,
         CoverageSummary coverage,
         ParentEngagementSummary parentEngagement,
+        LearnerSummary learners,
+        TeacherSummary teachers,
         List<CapabilityState> capabilities
 ) {
 
@@ -29,6 +31,8 @@ public record LeadershipOverviewResponse(
         Objects.requireNonNull(eventWindowEnd, "eventWindowEnd");
         Objects.requireNonNull(coverage, "coverage");
         Objects.requireNonNull(parentEngagement, "parentEngagement");
+        Objects.requireNonNull(learners, "learners");
+        Objects.requireNonNull(teachers, "teachers");
         capabilities = List.copyOf(
                 Objects.requireNonNull(capabilities, "capabilities")
         );
@@ -49,6 +53,18 @@ public record LeadershipOverviewResponse(
             long deliveredNotifications,
             long viewedNotifications,
             long acknowledgedNotifications
+    ) {
+    }
+
+    public record LearnerSummary(
+            long activeLearnerRecords,
+            long activeEnrollments
+    ) {
+    }
+
+    public record TeacherSummary(
+            long activeTeacherProfiles,
+            long activeTeachingAssignments
     ) {
     }
 

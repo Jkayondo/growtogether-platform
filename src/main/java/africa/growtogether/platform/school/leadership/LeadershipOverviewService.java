@@ -5,6 +5,13 @@ import africa.growtogether.platform.school.academic.calendar.AcademicCalendarEve
 import africa.growtogether.platform.school.academic.coverage.TeacherCoverageRepository;
 import africa.growtogether.platform.school.parent.dashboard.ParentEngagementDashboard;
 import africa.growtogether.platform.school.parent.dashboard.ParentEngagementDashboardService;
+import africa.growtogether.platform.school.student.StudentRepository;
+import africa.growtogether.platform.school.enrollment.StudentEnrollment;
+import africa.growtogether.platform.school.enrollment.StudentEnrollmentRepository;
+import africa.growtogether.platform.school.academic.teaching.TeacherProfile;
+import africa.growtogether.platform.school.academic.teaching.TeacherProfileRepository;
+import africa.growtogether.platform.school.academic.teaching.TeachingAssignmentRepository;
+import africa.growtogether.platform.common.persistence.EntityStatus;
 import africa.growtogether.platform.school.visitor.service.VisitorCheckInService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,19 +31,31 @@ public class LeadershipOverviewService {
     private final AcademicCalendarEventService calendarEventService;
     private final TeacherCoverageRepository coverageRepository;
     private final ParentEngagementDashboardService parentEngagementService;
+    private final StudentRepository studentRepository;
+    private final StudentEnrollmentRepository enrollmentRepository;
+    private final TeacherProfileRepository teacherProfileRepository;
+    private final TeachingAssignmentRepository teachingAssignmentRepository;
 
     public LeadershipOverviewService(
             EnterpriseIdentityContext identity,
             VisitorCheckInService visitorCheckInService,
             AcademicCalendarEventService calendarEventService,
             TeacherCoverageRepository coverageRepository,
-            ParentEngagementDashboardService parentEngagementService
+            ParentEngagementDashboardService parentEngagementService,
+            StudentRepository studentRepository,
+            StudentEnrollmentRepository enrollmentRepository,
+            TeacherProfileRepository teacherProfileRepository,
+            TeachingAssignmentRepository teachingAssignmentRepository
     ) {
         this.identity = identity;
         this.visitorCheckInService = visitorCheckInService;
         this.calendarEventService = calendarEventService;
         this.coverageRepository = coverageRepository;
         this.parentEngagementService = parentEngagementService;
+        this.studentRepository = studentRepository;
+        this.enrollmentRepository = enrollmentRepository;
+        this.teacherProfileRepository = teacherProfileRepository;
+        this.teachingAssignmentRepository = teachingAssignmentRepository;
     }
 
     @Transactional(readOnly = true)
@@ -96,6 +115,68 @@ public class LeadershipOverviewService {
                         parent.getAcknowledgedNotifications()
                 );
 
+        long activeLearnerRecords =
+                studentRepository
+                        .findByTenantIdAndStatus(
+                                tenantId,
+                                EntityStatus.ACTIVE
+                        )
+                        .size();
+
+        long activeEnrollments =
+                enrollmentRepository
+                        .findByTenantIdAndEnrollmentStatus(
+                                tenantId,
+                                "ACTIVE"
+                        )
+                        .stream()
+                        .filter(
+                                enrollment ->
+                                        enrollment.getStatus()
+                                                == EntityStatus.ACTIVE
+                        )
+                        .count();
+
+        long activeTeacherProfiles =
+                teacherProfileRepository
+                        .findByTenantIdAndTeachingStatus(
+                                tenantId,
+                                "ACTIVE"
+                        )
+                        .stream()
+                        .filter(
+                                profile ->
+                                        profile.getStatus()
+                                                == EntityStatus.ACTIVE
+                        )
+                        .count();
+
+        long activeTeachingAssignments =
+                teachingAssignmentRepository
+                        .findByTenantIdAndAssignmentStatus(
+                                tenantId,
+                                "ACTIVE"
+                        )
+                        .stream()
+                        .filter(
+                                assignment ->
+                                        assignment.getStatus()
+                                                == EntityStatus.ACTIVE
+                        )
+                        .count();
+
+        LeadershipOverviewResponse.LearnerSummary learners =
+                new LeadershipOverviewResponse.LearnerSummary(
+                        activeLearnerRecords,
+                        activeEnrollments
+                );
+
+        LeadershipOverviewResponse.TeacherSummary teachers =
+                new LeadershipOverviewResponse.TeacherSummary(
+                        activeTeacherProfiles,
+                        activeTeachingAssignments
+                );
+
         return new LeadershipOverviewResponse(
                 tenantId,
                 asOf,
@@ -104,6 +185,8 @@ public class LeadershipOverviewService {
                 upcomingEvents,
                 coverage,
                 parentEngagement,
+                learners,
+                teachers,
                 List.of(
                         available(
                                 "SAFETY_VISITORS",
@@ -113,17 +196,17 @@ public class LeadershipOverviewService {
                                 "EVENTS",
                                 "AcademicCalendarEventService"
                         ),
-                        pending(
+                        available(
                                 "LEARNERS",
-                                "Student/Enrollment authoritative services"
+                                "StudentRepository + StudentEnrollmentRepository"
                         ),
                         pending(
                                 "ATTENDANCE",
                                 "Authoritative attendance source reconciliation"
                         ),
-                        pending(
+                        available(
                                 "TEACHERS",
-                                "Teacher/TeachingAssignment authoritative services"
+                                "TeacherProfileRepository + TeachingAssignmentRepository"
                         ),
                         available(
                                 "CURRICULUM_COVERAGE",

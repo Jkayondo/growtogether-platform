@@ -29,7 +29,30 @@ describe("LeadershipOverview", () => {
         viewedNotifications: 18,
         acknowledgedNotifications: 9
       },
+      learners: {
+        activeLearnerRecords: 320,
+        activeEnrollments: 306
+      },
+      teachers: {
+        activeTeacherProfiles: 27,
+        activeTeachingAssignments: 61
+      },
       capabilities: [
+        {
+          code: "LEARNERS",
+          status: "AVAILABLE",
+          source: "StudentRepository + StudentEnrollmentRepository"
+        },
+        {
+          code: "TEACHERS",
+          status: "AVAILABLE",
+          source: "TeacherProfileRepository + TeachingAssignmentRepository"
+        },
+        {
+          code: "ATTENDANCE",
+          status: "PENDING_AGGREGATION",
+          source: "Authoritative attendance source reconciliation"
+        },
         {
           code: "SAFETY_VISITORS",
           status: "AVAILABLE",
@@ -73,12 +96,45 @@ describe("LeadershipOverview", () => {
     expect(upcomingEventsCard).toBeTruthy();
     expect(upcomingEventsCard?.textContent).toContain("5");
 
+    const activeLearnersCard =
+      screen.getByText("Active learner records").closest("article");
+
+    expect(activeLearnersCard).toBeTruthy();
+    expect(activeLearnersCard?.textContent).toContain("320");
+
+    const activeEnrollmentsCard =
+      screen.getByText("Active enrolments").closest("article");
+
+    expect(activeEnrollmentsCard).toBeTruthy();
+    expect(activeEnrollmentsCard?.textContent).toContain("306");
+
+    const activeTeachersCard =
+      screen.getByText("Active teachers").closest("article");
+
+    expect(activeTeachersCard).toBeTruthy();
+    expect(activeTeachersCard?.textContent).toContain("27");
+
+    const activeAssignmentsCard =
+      screen.getByText("Active teaching assignments").closest("article");
+
+    expect(activeAssignmentsCard).toBeTruthy();
+    expect(activeAssignmentsCard?.textContent).toContain("61");
+
     expect(
       screen.getByText(/FINANCE/)
     ).toBeTruthy();
 
+    const pendingIntegrations =
+      screen.getAllByText(/integration pending/);
+
+    expect(pendingIntegrations).toHaveLength(2);
+
     expect(
-      screen.getByText(/integration pending/)
+      screen.getByText("ATTENDANCE")
+    ).toBeTruthy();
+
+    expect(
+      screen.getByText("FINANCE")
     ).toBeTruthy();
   });
 });

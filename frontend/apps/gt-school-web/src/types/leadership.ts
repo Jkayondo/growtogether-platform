@@ -1,3 +1,13 @@
+export type LeadershipLearnerSummary = {
+  activeLearnerRecords: number;
+  activeEnrollments: number;
+};
+
+export type LeadershipTeacherSummary = {
+  activeTeacherProfiles: number;
+  activeTeachingAssignments: number;
+};
+
 export type LeadershipCapabilityStatus =
   | "AVAILABLE"
   | "PENDING_AGGREGATION";
@@ -32,5 +42,7 @@ export interface LeadershipOverviewData {
   upcomingEvents: number;
   coverage: LeadershipCoverageSummary;
   parentEngagement: LeadershipParentEngagementSummary;
+  learners: LeadershipLearnerSummary;
+  teachers: LeadershipTeacherSummary;
   capabilities: LeadershipCapabilityState[];
 }
