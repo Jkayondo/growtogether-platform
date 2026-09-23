@@ -171,6 +171,9 @@ export const Permission = {
   TIMETABLE_SUSPEND:
     "school.timetable.suspend",
 
+  LEADERSHIP_OVERVIEW_READ:
+    "school.leadership.overview.read",
+
 } as const;
 
 

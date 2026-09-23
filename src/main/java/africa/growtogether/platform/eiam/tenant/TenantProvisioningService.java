@@ -185,6 +185,25 @@ public class TenantProvisioningService {
   )
  );
 
+ private record LeadershipPermissionDefinition(
+  String code,
+  String name,
+  String module,
+  String description,
+  boolean systemPermission
+ ) {}
+
+ private static final List<LeadershipPermissionDefinition>
+  LEADERSHIP_BASELINE_PERMISSIONS=List.of(
+   new LeadershipPermissionDefinition(
+    "school.leadership.overview.read",
+    "Read School Leadership Overview",
+    "SCHOOL_LEADERSHIP",
+    "Allows an authorised school leadership user to read the tenant-scoped GT School Leadership overview and its permitted aggregate indicators.",
+    false
+   )
+  );
+
  private record AiAdminPermissionDefinition(
   String code,
   String name,
@@ -267,6 +286,9 @@ this.organizations=organizations;this.tenants=tenants;this.users=users;this.role
   List<Permission> ensSeeded=seedPermissions(tenantId,ENS_PERMISSIONS,"Enterprise notification permission seeded during tenant provisioning.");
   List<Permission> teacherBaselineSeeded=
    seedTeacherBaselinePermissions(tenantId);
+
+  seedLeadershipBaselinePermissions(tenantId);
+
   List<Permission> aiAdminSeeded=
    seedAiAdminPermissions(tenantId);
 
@@ -388,6 +410,29 @@ this.organizations=organizations;this.tenants=tenants;this.users=users;this.role
   }
   return seeded;
  }
+ private List<Permission> seedLeadershipBaselinePermissions(
+  UUID tenantId
+ ){
+  List<Permission> seeded=new ArrayList<>();
+
+  for(
+   LeadershipPermissionDefinition definition:
+    LEADERSHIP_BASELINE_PERMISSIONS
+  ){
+   Permission p=new Permission(
+    definition.code(),
+    definition.name(),
+    definition.module(),
+    definition.description(),
+    definition.systemPermission()
+   );
+   p.setTenantId(tenantId);
+   seeded.add(permissions.save(p));
+  }
+
+  return seeded;
+ }
+
  private List<Permission> seedPermissions(UUID tenantId,List<String> codes,String description){
   List<Permission> seeded=new ArrayList<>();
   for(String code:codes){

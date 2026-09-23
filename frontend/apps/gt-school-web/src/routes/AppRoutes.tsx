@@ -6,6 +6,7 @@ import {
 
 import MainLayout from "../layouts/MainLayout";
 import Dashboard from "../features/administration/Dashboard";
+import LeadershipOverview from "../features/leadership/LeadershipOverview";
 import ProtectedRoute from "./ProtectedRoute";
 import PermissionRoute from "./PermissionRoute";
 import Login from "../features/auth/Login";
@@ -44,6 +45,19 @@ export default function AppRoutes() {
 
               <Dashboard />
 
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="leadership"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute
+                permission={Permission.LEADERSHIP_OVERVIEW_READ}
+              >
+                <LeadershipOverview />
+              </PermissionRoute>
             </ProtectedRoute>
           }
         />
