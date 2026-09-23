@@ -14,6 +14,7 @@ import VisitorDashboard from "../features/visitor/VisitorDashboard";
 import AcademicYears from "../features/academic/AcademicYears";
 import AssessmentPlans from "../features/academic/AssessmentPlans";
 import ClassGrades from "../features/academic/ClassGrades";
+import TeachingAssignments from "../features/academic/TeachingAssignments";
 import CandidateScores from "../features/academic/CandidateScores";
 import ConnectDashboard from "../features/connect/ConnectDashboard";
 
@@ -118,6 +119,19 @@ export default function AppRoutes() {
           }
         />
 
+
+        <Route
+          path="academic/teaching-assignments"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute
+                permission={Permission.TEACHING_ASSIGNMENT_READ}
+              >
+                <TeachingAssignments />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
 
         <Route
           path="academic/candidate-scores"
