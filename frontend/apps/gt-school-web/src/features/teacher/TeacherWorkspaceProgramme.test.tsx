@@ -16,6 +16,13 @@ import {
 
 import TeacherWorkspace from "./TeacherWorkspace";
 
+vi.mock("../../auth/authContext", () => ({
+  useAuth: () => ({
+    hasPermission: () => false,
+  }),
+}));
+
+
 const api = vi.hoisted(() => ({
   assignments: vi.fn(),
   subjects: vi.fn(),
