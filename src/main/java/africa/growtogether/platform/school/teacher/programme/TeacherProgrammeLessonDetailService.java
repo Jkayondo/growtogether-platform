@@ -1,43 +1,47 @@
 package africa.growtogether.platform.school.teacher.programme;
 
-import africa.growtogether.platform.school.academic.curriculum.ClassGrade;
 import africa.growtogether.platform.school.academic.curriculum.ClassGradeRepository;
-import africa.growtogether.platform.school.academic.curriculum.Stream;
 import africa.growtogether.platform.school.academic.curriculum.StreamRepository;
-import africa.growtogether.platform.school.academic.curriculum.SubjectOffering;
 import africa.growtogether.platform.school.academic.curriculum.SubjectOfferingRepository;
-import africa.growtogether.platform.school.academic.subject.Subject;
 import africa.growtogether.platform.school.academic.subject.SubjectRepository;
-import africa.growtogether.platform.school.timetable.bell.BellPeriod;
+import africa.growtogether.platform.school.programme.ProgrammeLessonDetail;
+import africa.growtogether.platform.school.programme.ProgrammeLessonDetailProjector;
 import africa.growtogether.platform.school.timetable.bell.BellPeriodRepository;
 import africa.growtogether.platform.school.timetable.entry.TimetableEntry;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalTime;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 
+/**
+ * Teacher-specific adapter over the shared school programme lesson
+ * projection. Teacher identity and lesson candidate authorization remain
+ * the responsibility of TeacherProgrammeDayService and
+ * TeacherProgrammeLessonService.
+ */
 @Service
 public class TeacherProgrammeLessonDetailService {
 
     private final TeacherProgrammeDayService days;
-
     private final TeacherProgrammeLessonService lessons;
+    private final ProgrammeLessonDetailProjector projector;
 
-    private final BellPeriodRepository bellPeriods;
+    @Autowired
+    public TeacherProgrammeLessonDetailService(
+            TeacherProgrammeDayService days,
+            TeacherProgrammeLessonService lessons,
+            ProgrammeLessonDetailProjector projector
+    ) {
+        this.days = days;
+        this.lessons = lessons;
+        this.projector = projector;
+    }
 
-    private final SubjectOfferingRepository subjectOfferings;
-
-    private final SubjectRepository subjects;
-
-    private final ClassGradeRepository classGrades;
-
-    private final StreamRepository streams;
-
+    /**
+     * Compatibility constructor retained for existing focused tests and
+     * callers while projection ownership moves to the shared capability.
+     */
     public TeacherProgrammeLessonDetailService(
             TeacherProgrammeDayService days,
             TeacherProgrammeLessonService lessons,
@@ -47,41 +51,29 @@ public class TeacherProgrammeLessonDetailService {
             ClassGradeRepository classGrades,
             StreamRepository streams
     ) {
-
-        this.days = days;
-        this.lessons = lessons;
-        this.bellPeriods = bellPeriods;
-        this.subjectOfferings = subjectOfferings;
-        this.subjects = subjects;
-        this.classGrades = classGrades;
-        this.streams = streams;
+        this(
+                days,
+                lessons,
+                new ProgrammeLessonDetailProjector(
+                        bellPeriods,
+                        subjectOfferings,
+                        subjects,
+                        classGrades,
+                        streams
+                )
+        );
     }
 
-    /**
-     * Builds the display-ready lesson portion of Today Programme.
-     *
-     * All reference-data lookups remain tenant-scoped. The method
-     * reuses the already verified recurrence-filtered lesson service
-     * and resolves ProgrammeDay only once for the complete operation.
-     */
     @Transactional(readOnly = true)
     public List<TeacherProgrammeLessonDetail> currentLessonDetails() {
-
         return currentLessonDetails(
                 days.currentDay()
         );
     }
 
-    /*
-     * Package-private so the Today Programme aggregate can resolve
-     * ProgrammeDay once and reuse exactly the same authenticated
-     * tenant, teacher and school-local date context for lessons and
-     * calendar events.
-     */
     List<TeacherProgrammeLessonDetail> currentLessonDetails(
             TeacherProgrammeDayService.ProgrammeDay day
     ) {
-
         if (day == null) {
             throw new IllegalArgumentException(
                     "programme day must not be null"
@@ -93,267 +85,101 @@ public class TeacherProgrammeLessonDetailService {
                         day
                 );
 
-        if (entries.isEmpty()) {
-            return List.of();
+        try {
+            return projector
+                    .project(
+                            day.tenantId(),
+                            entries
+                    )
+                    .stream()
+                    .map(
+                            TeacherProgrammeLessonDetailService::toTeacherDetail
+                    )
+                    .toList();
+        } catch (IllegalStateException ex) {
+            throw preserveTeacherProgrammeErrorContract(
+                    ex
+            );
         }
-
-        Map<UUID, BellPeriod> bellPeriodCache =
-                new HashMap<>();
-
-        Map<UUID, SubjectOffering> subjectOfferingCache =
-                new HashMap<>();
-
-        Map<UUID, Subject> subjectCache =
-                new HashMap<>();
-
-        Map<UUID, ClassGrade> classGradeCache =
-                new HashMap<>();
-
-        Map<UUID, Stream> streamCache =
-                new HashMap<>();
-
-        return entries.stream()
-                .map(
-                        entry -> enrich(
-                                day.tenantId(),
-                                entry,
-                                bellPeriodCache,
-                                subjectOfferingCache,
-                                subjectCache,
-                                classGradeCache,
-                                streamCache
-                        )
-                )
-                .sorted(
-                        Comparator
-                                .comparing(
-                                        TeacherProgrammeLessonDetail::sequenceNumber,
-                                        Comparator.nullsLast(
-                                                Integer::compareTo
-                                        )
-                                )
-                                .thenComparing(
-                                        TeacherProgrammeLessonDetail::startTime,
-                                        Comparator.nullsLast(
-                                                LocalTime::compareTo
-                                        )
-                                )
-                                .thenComparing(
-                                        TeacherProgrammeLessonDetail::periodCode,
-                                        Comparator.nullsLast(
-                                                String::compareTo
-                                        )
-                                )
-                )
-                .toList();
     }
 
-    private TeacherProgrammeLessonDetail enrich(
-            UUID tenantId,
-            TimetableEntry entry,
-            Map<UUID, BellPeriod> bellPeriodCache,
-            Map<UUID, SubjectOffering> subjectOfferingCache,
-            Map<UUID, Subject> subjectCache,
-            Map<UUID, ClassGrade> classGradeCache,
-            Map<UUID, Stream> streamCache
+    /**
+     * Preserve the established Teacher programme failure contract while
+     * projection internals are shared across Teacher and Learner.
+     */
+    private static IllegalStateException
+    preserveTeacherProgrammeErrorContract(
+            IllegalStateException ex
     ) {
+        String message =
+                ex.getMessage();
 
-        UUID bellPeriodId =
-                requireId(
-                        entry.getBellPeriodId(),
-                        "Teacher programme lesson has no bell period"
-                );
+        if (message == null) {
+            return ex;
+        }
 
-        UUID subjectOfferingId =
-                requireId(
-                        entry.getSubjectOfferingId(),
-                        "Teacher programme lesson has no subject offering"
-                );
+        String teacherMessage =
+                switch (message) {
+                    case "Programme bell period not found for tenant" ->
+                            "Teacher programme bell period not found for tenant";
 
-        UUID classGradeId =
-                requireId(
-                        entry.getClassGradeId(),
-                        "Teacher programme lesson has no class grade"
-                );
+                    case "Programme subject offering not found for tenant" ->
+                            "Teacher programme subject offering not found for tenant";
 
-        BellPeriod bellPeriod =
-                bellPeriodCache.computeIfAbsent(
-                        bellPeriodId,
-                        id -> requireBellPeriod(
-                                tenantId,
-                                id
-                        )
-                );
+                    case "Programme subject not found for tenant" ->
+                            "Teacher programme subject not found for tenant";
 
-        SubjectOffering subjectOffering =
-                subjectOfferingCache.computeIfAbsent(
-                        subjectOfferingId,
-                        id -> requireSubjectOffering(
-                                tenantId,
-                                id
-                        )
-                );
+                    case "Programme class grade not found for tenant" ->
+                            "Teacher programme class grade not found for tenant";
 
-        UUID subjectId =
-                requireId(
-                        subjectOffering.getSubjectId(),
-                        "Teacher programme subject offering has no subject"
-                );
+                    case "Programme stream not found for tenant" ->
+                            "Teacher programme stream not found for tenant";
 
-        Subject subject =
-                subjectCache.computeIfAbsent(
-                        subjectId,
-                        id -> requireSubject(
-                                tenantId,
-                                id
-                        )
-                );
+                    case "Programme lesson has no bell period" ->
+                            "Teacher programme lesson has no bell period";
 
-        ClassGrade classGrade =
-                classGradeCache.computeIfAbsent(
-                        classGradeId,
-                        id -> requireClassGrade(
-                                tenantId,
-                                id
-                        )
-                );
+                    case "Programme lesson has no subject offering" ->
+                            "Teacher programme lesson has no subject offering";
 
-        UUID streamId =
-                entry.getStreamId();
+                    case "Programme lesson has no class grade" ->
+                            "Teacher programme lesson has no class grade";
 
-        Stream stream =
-                streamId == null
-                        ? null
-                        : streamCache.computeIfAbsent(
-                                streamId,
-                                id -> requireStream(
-                                        tenantId,
-                                        id
-                                )
-                        );
+                    default ->
+                            null;
+                };
 
-        return new TeacherProgrammeLessonDetail(
-                entry.getTimetableId(),
-                bellPeriodId,
-                bellPeriod.getPeriodCode(),
-                bellPeriod.getPeriodName(),
-                bellPeriod.getSequenceNumber(),
-                bellPeriod.getStartTime(),
-                bellPeriod.getEndTime(),
-                classGradeId,
-                classGrade.getClassCode(),
-                classGrade.getClassName(),
-                streamId,
-                stream == null
-                        ? null
-                        : stream.getStreamCode(),
-                stream == null
-                        ? null
-                        : stream.getStreamName(),
-                subjectOfferingId,
-                subjectId,
-                subject.getSubjectCode(),
-                subject.getSubjectName(),
-                entry.getActivityName()
+        if (teacherMessage == null) {
+            return ex;
+        }
+
+        return new IllegalStateException(
+                teacherMessage,
+                ex
         );
     }
 
-    private BellPeriod requireBellPeriod(
-            UUID tenantId,
-            UUID id
+    private static TeacherProgrammeLessonDetail toTeacherDetail(
+            ProgrammeLessonDetail detail
     ) {
-
-        return bellPeriods
-                .findByTenantIdAndId(
-                        tenantId,
-                        id
-                )
-                .orElseThrow(
-                        () -> new IllegalStateException(
-                                "Teacher programme bell period not found for tenant"
-                        )
-                );
-    }
-
-    private SubjectOffering requireSubjectOffering(
-            UUID tenantId,
-            UUID id
-    ) {
-
-        return subjectOfferings
-                .findByTenantIdAndId(
-                        tenantId,
-                        id
-                )
-                .orElseThrow(
-                        () -> new IllegalStateException(
-                                "Teacher programme subject offering not found for tenant"
-                        )
-                );
-    }
-
-    private Subject requireSubject(
-            UUID tenantId,
-            UUID id
-    ) {
-
-        return subjects
-                .findByTenantIdAndId(
-                        tenantId,
-                        id
-                )
-                .orElseThrow(
-                        () -> new IllegalStateException(
-                                "Teacher programme subject not found for tenant"
-                        )
-                );
-    }
-
-    private ClassGrade requireClassGrade(
-            UUID tenantId,
-            UUID id
-    ) {
-
-        return classGrades
-                .findByTenantIdAndId(
-                        tenantId,
-                        id
-                )
-                .orElseThrow(
-                        () -> new IllegalStateException(
-                                "Teacher programme class grade not found for tenant"
-                        )
-                );
-    }
-
-    private Stream requireStream(
-            UUID tenantId,
-            UUID id
-    ) {
-
-        return streams
-                .findByTenantIdAndId(
-                        tenantId,
-                        id
-                )
-                .orElseThrow(
-                        () -> new IllegalStateException(
-                                "Teacher programme stream not found for tenant"
-                        )
-                );
-    }
-
-    private UUID requireId(
-            UUID id,
-            String message
-    ) {
-
-        if (id == null) {
-            throw new IllegalStateException(
-                    message
-            );
-        }
-
-        return id;
+        return new TeacherProgrammeLessonDetail(
+                detail.timetableId(),
+                detail.bellPeriodId(),
+                detail.periodCode(),
+                detail.periodName(),
+                detail.sequenceNumber(),
+                detail.startTime(),
+                detail.endTime(),
+                detail.classGradeId(),
+                detail.classCode(),
+                detail.className(),
+                detail.streamId(),
+                detail.streamCode(),
+                detail.streamName(),
+                detail.subjectOfferingId(),
+                detail.subjectId(),
+                detail.subjectCode(),
+                detail.subjectName(),
+                detail.activityName()
+        );
     }
 }
