@@ -17,6 +17,7 @@ import AssessmentPlans from "../features/academic/AssessmentPlans";
 import ClassGrades from "../features/academic/ClassGrades";
 import TeachingAssignments from "../features/academic/TeachingAssignments";
 import Curricula from "../features/academic/Curricula";
+import ClassOfferings from "../features/academic/ClassOfferings";
 import CandidateScores from "../features/academic/CandidateScores";
 import ConnectDashboard from "../features/connect/ConnectDashboard";
 
@@ -130,6 +131,19 @@ export default function AppRoutes() {
                 permission={Permission.CURRICULUM_READ}
               >
                 <Curricula />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="academic/class-offerings"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute
+                permission={Permission.CLASS_OFFERING_READ}
+              >
+                <ClassOfferings />
               </PermissionRoute>
             </ProtectedRoute>
           }
