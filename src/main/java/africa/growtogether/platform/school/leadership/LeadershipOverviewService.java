@@ -1,5 +1,9 @@
 package africa.growtogether.platform.school.leadership;
 
+
+
+import africa.growtogether.platform.school.attendance.AttendanceDailySummaryService;
+import africa.growtogether.platform.school.attendance.AttendanceDailySummary;
 import africa.growtogether.platform.common.security.EnterpriseIdentityContext;
 import africa.growtogether.platform.school.academic.calendar.AcademicCalendarEventService;
 import africa.growtogether.platform.school.academic.coverage.TeacherCoverageRepository;
@@ -36,6 +40,8 @@ public class LeadershipOverviewService {
     private final TeacherProfileRepository teacherProfileRepository;
     private final TeachingAssignmentRepository teachingAssignmentRepository;
 
+    private final AttendanceDailySummaryService attendanceDailySummaryService;
+
     public LeadershipOverviewService(
             EnterpriseIdentityContext identity,
             VisitorCheckInService visitorCheckInService,
@@ -45,7 +51,8 @@ public class LeadershipOverviewService {
             StudentRepository studentRepository,
             StudentEnrollmentRepository enrollmentRepository,
             TeacherProfileRepository teacherProfileRepository,
-            TeachingAssignmentRepository teachingAssignmentRepository
+            TeachingAssignmentRepository teachingAssignmentRepository,
+            AttendanceDailySummaryService attendanceDailySummaryService
     ) {
         this.identity = identity;
         this.visitorCheckInService = visitorCheckInService;
@@ -56,7 +63,13 @@ public class LeadershipOverviewService {
         this.enrollmentRepository = enrollmentRepository;
         this.teacherProfileRepository = teacherProfileRepository;
         this.teachingAssignmentRepository = teachingAssignmentRepository;
-    }
+
+        this.attendanceDailySummaryService =
+                java.util.Objects.requireNonNull(
+                        attendanceDailySummaryService,
+                        "attendanceDailySummaryService"
+                );
+}
 
     @Transactional(readOnly = true)
     public LeadershipOverviewResponse overview(UUID tenantId) {
@@ -177,7 +190,37 @@ public class LeadershipOverviewService {
                         activeTeachingAssignments
                 );
 
-        return new LeadershipOverviewResponse(
+
+        AttendanceDailySummary attendanceDaily =
+                attendanceDailySummaryService.loadToday(
+                        tenantId
+                );
+
+        LeadershipOverviewResponse.AttendanceSummary attendance =
+                new LeadershipOverviewResponse.AttendanceSummary(
+                        attendanceDaily.attendanceDate(),
+                        attendanceDaily.sessionType(),
+                        attendanceDaily.sessionCount(),
+                        attendanceDaily.expectedStudentCount(),
+                        attendanceDaily.recordedAttendanceCount(),
+                        attendanceDaily.unrecordedCount(),
+                        attendanceDaily.presentCount(),
+                        attendanceDaily.absentCount(),
+                        attendanceDaily.lateCount(),
+                        attendanceDaily.excusedAbsenceCount(),
+                        attendanceDaily.unexcusedAbsenceCount(),
+                        attendanceDaily.medicalAbsenceCount(),
+                        attendanceDaily.schoolActivityCount(),
+                        attendanceDaily.remoteLearningCount(),
+                        attendanceDaily.earlyDepartureCount(),
+                        attendanceDaily.suspendedCount(),
+                        attendanceDaily.notRequiredCount(),
+                        attendanceDaily.unknownCount(),
+                        attendanceDaily.registerStarted(),
+                        attendanceDaily.fullyRecorded()
+                );
+
+return new LeadershipOverviewResponse(
                 tenantId,
                 asOf,
                 eventWindowEnd,
@@ -187,6 +230,7 @@ public class LeadershipOverviewService {
                 parentEngagement,
                 learners,
                 teachers,
+                attendance,
                 List.of(
                         available(
                                 "SAFETY_VISITORS",
@@ -200,9 +244,9 @@ public class LeadershipOverviewService {
                                 "LEARNERS",
                                 "StudentRepository + StudentEnrollmentRepository"
                         ),
-                        pending(
+                        available(
                                 "ATTENDANCE",
-                                "Authoritative attendance source reconciliation"
+                                "AttendanceDailySummaryService"
                         ),
                         available(
                                 "TEACHERS",

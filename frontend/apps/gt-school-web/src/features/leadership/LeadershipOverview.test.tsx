@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import LeadershipOverview from "./LeadershipOverview";
+import LeadershipOverview, {
+  attendanceRegisterStatus
+} from "./LeadershipOverview";
 import { getLeadershipOverview } from "../../services/leadershipApi";
 
 vi.mock("../../services/leadershipApi", () => ({
@@ -37,6 +39,28 @@ describe("LeadershipOverview", () => {
         activeTeacherProfiles: 27,
         activeTeachingAssignments: 61
       },
+      attendance: {
+        attendanceDate: "2026-09-24",
+        sessionType: "DAILY_REGISTER",
+        sessionCount: 4,
+        expectedStudentCount: 100,
+        recordedAttendanceCount: 93,
+        unrecordedCount: 7,
+        presentCount: 85,
+        absentCount: 5,
+        lateCount: 3,
+        excusedAbsenceCount: 2,
+        unexcusedAbsenceCount: 3,
+        medicalAbsenceCount: 0,
+        schoolActivityCount: 0,
+        remoteLearningCount: 0,
+        earlyDepartureCount: 0,
+        suspendedCount: 0,
+        notRequiredCount: 0,
+        unknownCount: 0,
+        registerStarted: true,
+        fullyRecorded: false
+      },
       capabilities: [
         {
           code: "LEARNERS",
@@ -50,8 +74,8 @@ describe("LeadershipOverview", () => {
         },
         {
           code: "ATTENDANCE",
-          status: "PENDING_AGGREGATION",
-          source: "Authoritative attendance source reconciliation"
+          status: "AVAILABLE",
+          source: "AttendanceDailySummaryService"
         },
         {
           code: "SAFETY_VISITORS",
@@ -127,14 +151,63 @@ describe("LeadershipOverview", () => {
     const pendingIntegrations =
       screen.getAllByText(/integration pending/);
 
-    expect(pendingIntegrations).toHaveLength(2);
+    expect(pendingIntegrations).toHaveLength(1);
+
+    const attendanceRegisterCard =
+      screen.getByText("Attendance register").closest("article");
+
+    expect(attendanceRegisterCard).toBeTruthy();
+    expect(attendanceRegisterCard?.textContent)
+      .toContain("Recording in progress");
+
+    const attendanceRecordedCard =
+      screen.getByText("Attendance recorded").closest("article");
+
+    expect(attendanceRecordedCard).toBeTruthy();
+    expect(attendanceRecordedCard?.textContent).toContain("93");
+    expect(attendanceRecordedCard?.textContent).toContain("100");
+    expect(attendanceRecordedCard?.textContent).toContain("7");
 
     expect(
-      screen.getByText("ATTENDANCE")
+      screen.getByText("Today's attendance")
     ).toBeTruthy();
+
+    const presentRow =
+      screen.getByText("Present").closest("div");
+
+    expect(presentRow?.textContent).toContain("85");
+
+    const absentRow =
+      screen.getByText("Absent").closest("div");
+
+    expect(absentRow?.textContent).toContain("5");
 
     expect(
       screen.getByText("FINANCE")
     ).toBeTruthy();
+  });
+
+
+  it("classifies all Attendance register states without deriving a rate", () => {
+    expect(
+      attendanceRegisterStatus({
+        registerStarted: false,
+        fullyRecorded: false
+      })
+    ).toBe("Register not started");
+
+    expect(
+      attendanceRegisterStatus({
+        registerStarted: true,
+        fullyRecorded: false
+      })
+    ).toBe("Recording in progress");
+
+    expect(
+      attendanceRegisterStatus({
+        registerStarted: true,
+        fullyRecorded: true
+      })
+    ).toBe("Fully recorded");
   });
 });

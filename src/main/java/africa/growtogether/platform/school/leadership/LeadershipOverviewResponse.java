@@ -1,5 +1,7 @@
 package africa.growtogether.platform.school.leadership;
 
+
+import java.time.LocalDate;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -22,6 +24,8 @@ public record LeadershipOverviewResponse(
         ParentEngagementSummary parentEngagement,
         LearnerSummary learners,
         TeacherSummary teachers,
+
+        AttendanceSummary attendance,
         List<CapabilityState> capabilities
 ) {
 
@@ -67,6 +71,31 @@ public record LeadershipOverviewResponse(
             long activeTeachingAssignments
     ) {
     }
+
+    public record AttendanceSummary(
+            LocalDate attendanceDate,
+            String sessionType,
+            long sessionCount,
+            long expectedStudentCount,
+            long recordedAttendanceCount,
+            long unrecordedCount,
+            long presentCount,
+            long absentCount,
+            long lateCount,
+            long excusedAbsenceCount,
+            long unexcusedAbsenceCount,
+            long medicalAbsenceCount,
+            long schoolActivityCount,
+            long remoteLearningCount,
+            long earlyDepartureCount,
+            long suspendedCount,
+            long notRequiredCount,
+            long unknownCount,
+            boolean registerStarted,
+            boolean fullyRecorded
+    ) {
+    }
+
 
     public record CapabilityState(
             String code,

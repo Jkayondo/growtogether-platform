@@ -8,6 +8,30 @@ export type LeadershipTeacherSummary = {
   activeTeachingAssignments: number;
 };
 
+export type LeadershipAttendanceSummary = {
+  attendanceDate: string;
+  sessionType: string;
+  sessionCount: number;
+  expectedStudentCount: number;
+  recordedAttendanceCount: number;
+  unrecordedCount: number;
+  presentCount: number;
+  absentCount: number;
+  lateCount: number;
+  excusedAbsenceCount: number;
+  unexcusedAbsenceCount: number;
+  medicalAbsenceCount: number;
+  schoolActivityCount: number;
+  remoteLearningCount: number;
+  earlyDepartureCount: number;
+  suspendedCount: number;
+  notRequiredCount: number;
+  unknownCount: number;
+  registerStarted: boolean;
+  fullyRecorded: boolean;
+};
+
+
 export type LeadershipCapabilityStatus =
   | "AVAILABLE"
   | "PENDING_AGGREGATION";
@@ -44,5 +68,6 @@ export interface LeadershipOverviewData {
   parentEngagement: LeadershipParentEngagementSummary;
   learners: LeadershipLearnerSummary;
   teachers: LeadershipTeacherSummary;
+  attendance: LeadershipAttendanceSummary;
   capabilities: LeadershipCapabilityState[];
 }

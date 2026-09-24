@@ -1,5 +1,11 @@
 package africa.growtogether.platform.school.leadership;
 
+
+
+
+import java.time.LocalDate;
+import africa.growtogether.platform.school.attendance.AttendanceDailySummaryService;
+import africa.growtogether.platform.school.attendance.AttendanceDailySummary;
 import africa.growtogether.platform.common.security.EnterpriseIdentityContext;
 import africa.growtogether.platform.school.academic.calendar.AcademicCalendarEventService;
 import africa.growtogether.platform.school.academic.coverage.TeacherCoverage;
@@ -22,6 +28,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -237,7 +244,37 @@ class LeadershipOverviewServiceTest {
                 )
         );
 
-        LeadershipOverviewService service =
+
+        AttendanceDailySummaryService attendance =
+                mock(AttendanceDailySummaryService.class);
+
+        when(
+                attendance.loadToday(tenantId)
+        ).thenReturn(
+                new AttendanceDailySummary(
+                        tenantId,
+                        LocalDate.of(2026, 9, 24),
+                        "DAILY_REGISTER",
+                        4,
+                        100,
+                        93,
+                        7,
+                        85,
+                        5,
+                        3,
+                        2,
+                        3,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                )
+        );
+
+LeadershipOverviewService service =
                 new LeadershipOverviewService(
                         identity,
                         visitors,
@@ -248,12 +285,14 @@ class LeadershipOverviewServiceTest {
                         enrollments,
                         teacherProfiles,
                         teachingAssignments
-                );
+                ,
+                        attendance);
 
         LeadershipOverviewResponse response =
                 service.overview(tenantId);
 
         verify(identity).requireTenant(tenantId);
+        verify(attendance).loadToday(tenantId);
 
         assertEquals(tenantId, response.tenantId());
         assertEquals(0, response.activeVisitors());
@@ -317,12 +356,37 @@ class LeadershipOverviewServiceTest {
                 )
         );
 
+
+        assertEquals(
+                LocalDate.of(2026, 9, 24),
+                response.attendance().attendanceDate()
+        );
+        assertEquals(
+                "DAILY_REGISTER",
+                response.attendance().sessionType()
+        );
+        assertEquals(4, response.attendance().sessionCount());
+        assertEquals(
+                100,
+                response.attendance().expectedStudentCount()
+        );
+        assertEquals(
+                93,
+                response.attendance().recordedAttendanceCount()
+        );
+        assertEquals(7, response.attendance().unrecordedCount());
+        assertEquals(85, response.attendance().presentCount());
+        assertEquals(5, response.attendance().absentCount());
+        assertEquals(3, response.attendance().lateCount());
+        assertTrue(response.attendance().registerStarted());
+        assertFalse(response.attendance().fullyRecorded());
+
         assertTrue(
                 response.capabilities().stream().anyMatch(
                         capability ->
                                 capability.code().equals("ATTENDANCE")
                                         && capability.status()
-                                        .equals("PENDING_AGGREGATION")
+                                        .equals("AVAILABLE")
                 )
         );
 
