@@ -27,9 +27,13 @@ services:
       GT_DB_USER: growtogether
       GT_DB_PASSWORD: growtogether
       GT_REDIS_HOST: redis
+    volumes:
+      - gt_uploads:/app/storage/uploads
     ports: ["8080:8080"]
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
 volumes:
   gt_postgres:
+  gt_uploads:
+    name: gt_uploads

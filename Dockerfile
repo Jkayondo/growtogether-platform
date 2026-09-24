@@ -9,6 +9,7 @@ RUN chmod +x mvnw && ./mvnw -B -ntp clean package -DskipTests
 FROM eclipse-temurin:21-jre-alpine
 RUN addgroup -S gt && adduser -S gt -G gt
 WORKDIR /app
+RUN mkdir -p /app/storage/uploads && chown -R gt:gt /app/storage
 COPY --from=build /workspace/target/gt-platform-*.jar app.jar
 USER gt:gt
 EXPOSE 8080

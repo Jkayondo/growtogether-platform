@@ -7,8 +7,22 @@ spec:
   template:
     metadata: {labels: {app: {{ .Release.Name }}-eds}}
     spec:
+      securityContext:
+        fsGroup: {{ .Values.podSecurityContext.fsGroup }}
+        fsGroupChangePolicy: {{ .Values.podSecurityContext.fsGroupChangePolicy }}
       containers:
         - name: eds
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           ports: [{containerPort: 8080}]
+          {{ if .Values.persistence.enabled }}
+          volumeMounts:
+            - name: file-storage
+              mountPath: {{ .Values.persistence.mountPath }}
+          {{ end }}
           resources: {{- toYaml .Values.resources | nindent 12 }}
+      {{ if .Values.persistence.enabled }}
+      volumes:
+        - name: file-storage
+          persistentVolumeClaim:
+            claimName: {{ if .Values.persistence.existingClaim }}{{ .Values.persistence.existingClaim }}{{ else }}{{ .Release.Name }}-eds-storage{{ end }}
+      {{ end }}

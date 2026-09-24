@@ -5,3 +5,16 @@ image:
 resources:
   requests: {cpu: 250m, memory: 512Mi}
   limits: {cpu: "1", memory: 1Gi}
+
+podSecurityContext:
+  fsGroup: 2000
+  fsGroupChangePolicy: OnRootMismatch
+
+persistence:
+  enabled: true
+  existingClaim: ""
+  accessModes:
+    - ReadWriteMany
+  size: 10Gi
+  storageClassName: ""
+  mountPath: /app/storage/uploads

@@ -19,3 +19,6 @@ dist/
 
 # Frontend tooling
 .npm/
+
+# Runtime file-storage payloads
+storage/

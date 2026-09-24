@@ -7,15 +7,25 @@ spec:
   template:
     metadata: {labels: {app: gt-eds}}
     spec:
-      securityContext: {runAsNonRoot: true}
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 2000
+        fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: eds
           image: ghcr.io/growtogether/growtogether-platform:0.30.0
           ports: [{containerPort: 8080}]
           envFrom: [{configMapRef: {name: gt-eds-config}}, {secretRef: {name: gt-eds-secrets}}]
+          volumeMounts:
+            - name: file-storage
+              mountPath: /app/storage/uploads
           readinessProbe: {httpGet: {path: /actuator/health/readiness, port: 8080}, initialDelaySeconds: 20, periodSeconds: 10}
           livenessProbe: {httpGet: {path: /actuator/health/liveness, port: 8080}, initialDelaySeconds: 40, periodSeconds: 15}
           resources: {requests: {cpu: 250m, memory: 512Mi}, limits: {cpu: "1", memory: 1Gi}}
+      volumes:
+        - name: file-storage
+          persistentVolumeClaim:
+            claimName: gt-file-storage
 ---
 apiVersion: v1
 kind: Service
@@ -32,3 +42,13 @@ spec:
   metrics:
     - type: Resource
       resource: {name: cpu, target: {type: Utilization, averageUtilization: 70}}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata: {name: gt-file-storage}
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
