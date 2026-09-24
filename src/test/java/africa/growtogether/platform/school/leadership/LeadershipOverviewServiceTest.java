@@ -378,6 +378,43 @@ LeadershipOverviewService service =
         assertEquals(85, response.attendance().presentCount());
         assertEquals(5, response.attendance().absentCount());
         assertEquals(3, response.attendance().lateCount());
+
+        assertEquals(
+                2,
+                response.attendance().excusedAbsenceCount()
+        );
+        assertEquals(
+                3,
+                response.attendance().unexcusedAbsenceCount()
+        );
+        assertEquals(
+                0,
+                response.attendance().medicalAbsenceCount()
+        );
+        assertEquals(
+                0,
+                response.attendance().schoolActivityCount()
+        );
+        assertEquals(
+                0,
+                response.attendance().remoteLearningCount()
+        );
+        assertEquals(
+                0,
+                response.attendance().earlyDepartureCount()
+        );
+        assertEquals(
+                0,
+                response.attendance().suspendedCount()
+        );
+        assertEquals(
+                0,
+                response.attendance().notRequiredCount()
+        );
+        assertEquals(
+                0,
+                response.attendance().unknownCount()
+        );
         assertTrue(response.attendance().registerStarted());
         assertFalse(response.attendance().fullyRecorded());
 
@@ -427,5 +464,123 @@ LeadershipOverviewService service =
                                         .equals("AVAILABLE")
                 )
         );
+
+        /*
+         * LD10 zero-summary Leadership proof.
+         *
+         * AttendanceDailySummaryService already owns zero-safe domain
+         * semantics. Leadership must forward that authoritative summary
+         * without inventing values or percentages.
+         */
+        when(
+                attendance.loadToday(tenantId)
+        ).thenReturn(
+                new AttendanceDailySummary(
+                        tenantId,
+                        LocalDate.of(2026, 9, 24),
+                        "DAILY_REGISTER",
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                )
+        );
+
+        LeadershipOverviewResponse zeroAttendanceResponse =
+                service.overview(tenantId);
+
+        assertEquals(
+                LocalDate.of(2026, 9, 24),
+                zeroAttendanceResponse.attendance().attendanceDate()
+        );
+        assertEquals(
+                "DAILY_REGISTER",
+                zeroAttendanceResponse.attendance().sessionType()
+        );
+
+        assertEquals(
+                0,
+                zeroAttendanceResponse.attendance().sessionCount()
+        );
+        assertEquals(
+                0,
+                zeroAttendanceResponse.attendance().expectedStudentCount()
+        );
+        assertEquals(
+                0,
+                zeroAttendanceResponse.attendance().recordedAttendanceCount()
+        );
+        assertEquals(
+                0,
+                zeroAttendanceResponse.attendance().unrecordedCount()
+        );
+        assertEquals(
+                0,
+                zeroAttendanceResponse.attendance().presentCount()
+        );
+        assertEquals(
+                0,
+                zeroAttendanceResponse.attendance().absentCount()
+        );
+        assertEquals(
+                0,
+                zeroAttendanceResponse.attendance().lateCount()
+        );
+        assertEquals(
+                0,
+                zeroAttendanceResponse.attendance().excusedAbsenceCount()
+        );
+        assertEquals(
+                0,
+                zeroAttendanceResponse.attendance().unexcusedAbsenceCount()
+        );
+        assertEquals(
+                0,
+                zeroAttendanceResponse.attendance().medicalAbsenceCount()
+        );
+        assertEquals(
+                0,
+                zeroAttendanceResponse.attendance().schoolActivityCount()
+        );
+        assertEquals(
+                0,
+                zeroAttendanceResponse.attendance().remoteLearningCount()
+        );
+        assertEquals(
+                0,
+                zeroAttendanceResponse.attendance().earlyDepartureCount()
+        );
+        assertEquals(
+                0,
+                zeroAttendanceResponse.attendance().suspendedCount()
+        );
+        assertEquals(
+                0,
+                zeroAttendanceResponse.attendance().notRequiredCount()
+        );
+        assertEquals(
+                0,
+                zeroAttendanceResponse.attendance().unknownCount()
+        );
+
+        assertFalse(
+                zeroAttendanceResponse.attendance().registerStarted()
+        );
+        assertFalse(
+                zeroAttendanceResponse.attendance().fullyRecorded()
+        );
+
     }
 }
