@@ -2,6 +2,7 @@ package africa.growtogether.platform.school.academic.teaching;
 
 import africa.growtogether.platform.common.api.ApiResponse;
 import africa.growtogether.platform.common.api.ApiResponses;
+import africa.growtogether.platform.common.security.EnterpriseIdentityContext;
 
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -17,13 +18,16 @@ public class TeachingAssignmentController {
 
     private final TeachingAssignmentService service;
     private final ApiResponses responses;
+    private final EnterpriseIdentityContext identity;
 
     public TeachingAssignmentController(
             TeachingAssignmentService service,
-            ApiResponses responses
+            ApiResponses responses,
+            EnterpriseIdentityContext identity
     ) {
         this.service = service;
         this.responses = responses;
+        this.identity = identity;
     }
 
     @PostMapping
@@ -47,6 +51,8 @@ public class TeachingAssignmentController {
             @RequestParam(required = false) LocalDate effectiveTo,
             @RequestParam(required = false) String roomReference
     ) {
+
+        identity.requireTenant(tenantId);
 
         return responses.success(
                 "GT-SCHOOL-TEACHING-ASSIGNMENT-001",
@@ -80,6 +86,8 @@ public class TeachingAssignmentController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return responses.success(
                 "GT-SCHOOL-TEACHING-ASSIGNMENT-002",
                 "Teaching assignment retrieved.",
@@ -98,6 +106,8 @@ public class TeachingAssignmentController {
             @PathVariable String assignmentReference,
             @RequestParam UUID tenantId
     ) {
+
+        identity.requireTenant(tenantId);
 
         return responses.success(
                 "GT-SCHOOL-TEACHING-ASSIGNMENT-003",
@@ -118,6 +128,8 @@ public class TeachingAssignmentController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return responses.success(
                 "GT-SCHOOL-TEACHING-ASSIGNMENT-004",
                 "Teaching assignments retrieved by teacher.",
@@ -136,6 +148,8 @@ public class TeachingAssignmentController {
             @PathVariable UUID academicYearId,
             @RequestParam UUID tenantId
     ) {
+
+        identity.requireTenant(tenantId);
 
         return responses.success(
                 "GT-SCHOOL-TEACHING-ASSIGNMENT-005",
@@ -156,6 +170,8 @@ public class TeachingAssignmentController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return responses.success(
                 "GT-SCHOOL-TEACHING-ASSIGNMENT-006",
                 "Teaching assignments retrieved by campus.",
@@ -174,6 +190,8 @@ public class TeachingAssignmentController {
             @PathVariable UUID classGradeId,
             @RequestParam UUID tenantId
     ) {
+
+        identity.requireTenant(tenantId);
 
         return responses.success(
                 "GT-SCHOOL-TEACHING-ASSIGNMENT-007",
@@ -194,6 +212,8 @@ public class TeachingAssignmentController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return responses.success(
                 "GT-SCHOOL-TEACHING-ASSIGNMENT-008",
                 "Teaching assignments retrieved by subject.",
@@ -213,6 +233,8 @@ public class TeachingAssignmentController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return responses.success(
                 "GT-SCHOOL-TEACHING-ASSIGNMENT-009",
                 "Teaching assignments retrieved by status.",
@@ -231,6 +253,8 @@ public class TeachingAssignmentController {
             @PathVariable UUID assignmentId,
             @RequestParam UUID tenantId
     ) {
+
+        identity.requireTenant(tenantId);
 
         return responses.success(
                 "GT-SCHOOL-TEACHING-ASSIGNMENT-010",
@@ -252,6 +276,8 @@ public class TeachingAssignmentController {
             @RequestParam UUID approvedBy
     ) {
 
+        identity.requireTenant(tenantId);
+
         return responses.success(
                 "GT-SCHOOL-TEACHING-ASSIGNMENT-011",
                 "Teaching assignment activated.",
@@ -272,6 +298,8 @@ public class TeachingAssignmentController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return responses.success(
                 "GT-SCHOOL-TEACHING-ASSIGNMENT-012",
                 "Teaching assignment suspended.",
@@ -291,6 +319,8 @@ public class TeachingAssignmentController {
             @RequestParam UUID tenantId
     ) {
 
+        identity.requireTenant(tenantId);
+
         return responses.success(
                 "GT-SCHOOL-TEACHING-ASSIGNMENT-013",
                 "Teaching assignment completed.",
@@ -309,6 +339,8 @@ public class TeachingAssignmentController {
             @PathVariable UUID assignmentId,
             @RequestParam UUID tenantId
     ) {
+
+        identity.requireTenant(tenantId);
 
         return responses.success(
                 "GT-SCHOOL-TEACHING-ASSIGNMENT-014",

@@ -247,8 +247,11 @@ public class TeachingAssignment extends AuditedTenantEntity {
     public void activate(
             UUID approvedBy
     ) {
-        this.approvedBy = approvedBy;
-        this.approvedAt = Instant.now();
+        if (this.approvedAt == null) {
+            this.approvedBy = approvedBy;
+            this.approvedAt = Instant.now();
+        }
+
         this.assignmentStatus = "ACTIVE";
     }
 

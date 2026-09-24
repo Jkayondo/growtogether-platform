@@ -4,6 +4,7 @@ import TeacherWorkspace from "./TeacherWorkspace";
 
 const api = vi.hoisted(() => ({
   assignments: vi.fn(),
+  programme: vi.fn(),
   subjects: vi.fn(),
   levels: vi.fn(),
   grades: vi.fn(),
@@ -11,6 +12,9 @@ const api = vi.hoisted(() => ({
 
 vi.mock("../../services/teachingAssignmentService", () => ({
   loadMyActiveTeachingAssignments: api.assignments,
+}));
+vi.mock("../../services/teacherProgrammeService", () => ({
+  loadMyTodayProgramme: api.programme,
 }));
 vi.mock("../../services/subjectService", () => ({
   loadSubjects: api.subjects,
@@ -20,6 +24,40 @@ vi.mock("../../services/educationLevelService", () => ({
 }));
 vi.mock("../../services/classGradeService", () => ({
   loadClassGrades: api.grades,
+}));
+
+vi.mock("../../auth/authContext", () => ({
+  useAuth: () => ({
+    hasPermission: () => true
+  })
+}));
+
+vi.mock("../../services/teacherCoverageService", () => ({
+  loadMyTeacherCoverage: async () => ({
+    teacherProfileId: "teacher-regression",
+    teachingAssignmentId: null,
+    summary: {
+      total: 0,
+      notStarted: 0,
+      inProgress: 0,
+      completed: 0,
+      requiresRemediation: 0,
+      aheadOfSchedule: 0
+    },
+    items: []
+  }),
+
+  setMyTeacherCoverageInProgress:
+    async () => undefined,
+
+  completeMyCoverage:
+    async () => undefined,
+
+  setMyTeacherCoverageRequiresRemediation:
+    async () => undefined,
+
+  setMyTeacherCoverageAheadOfSchedule:
+    async () => undefined
 }));
 
 function assignment(id: string, classGradeId: string) {
@@ -41,6 +79,12 @@ async function finishLoading() {
 beforeEach(() => {
   for (const mock of Object.values(api)) mock.mockReset();
   api.assignments.mockResolvedValue([]);
+  api.programme.mockResolvedValue({
+    date: "2026-09-19",
+    zone: "Africa/Kampala",
+    lessons: [],
+    calendarEvents: [],
+  });
   api.subjects.mockResolvedValue([
     { id: "subject-1", subjectName: "Mathematics" },
   ]);
