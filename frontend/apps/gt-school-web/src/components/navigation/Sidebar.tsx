@@ -52,6 +52,7 @@ const menuItems = [
       "Assessments",
       "Assessment Plans",
       "Class Grades",
+      "Curricula",
       "Teaching Assignments",
       "Candidate Scores",
       "Results",
@@ -209,6 +210,15 @@ export default function Sidebar() {
                                 navigate(
                                   "/academic/assessment-plans"
                                 );
+                              }
+                              else if (
+                                child === "Curricula"
+                              ) {
+
+                                navigate(
+                                  "/academic/curricula"
+                                );
+
                               }
                               else if (
                                 child === "Class Grades"
