@@ -1,4 +1,6 @@
 import TeacherWorkspace from "../features/teacher/TeacherWorkspace";
+import TeacherAiWorkspace from "../features/teacher-ai-workspace/TeacherAiWorkspace";
+import ParentWorkspace from "../features/parent/ParentWorkspace";
 import LearnerWorkspace from "../features/learner/LearnerWorkspace";
 import {
   Routes,
@@ -20,6 +22,10 @@ import Curricula from "../features/academic/Curricula";
 import ClassOfferings from "../features/academic/ClassOfferings";
 import CandidateScores from "../features/academic/CandidateScores";
 import ConnectDashboard from "../features/connect/ConnectDashboard";
+import Learners from "../features/community/Learners";
+import Admissions from "../features/community/Admissions";
+import StudentEnrollments from "../features/community/StudentEnrollments";
+import TeacherProfiles from "../features/academic/TeacherProfiles";
 
 import {
   Permission
@@ -84,6 +90,59 @@ export default function AppRoutes() {
         />
 
 
+
+        <Route
+          path="community/admissions"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute
+                permission={Permission.MANAGE_LEARNERS}
+              >
+                <Admissions />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="community/learners"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute
+                permission={Permission.MANAGE_LEARNERS}
+              >
+                <Learners />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="community/enrollments"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute
+                permission={Permission.MANAGE_LEARNERS}
+              >
+                <StudentEnrollments />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="community/staff"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute
+                permission={Permission.MANAGE_USERS}
+              >
+                <TeacherProfiles />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+
         <Route
           path="academic/years"
           element={
@@ -94,6 +153,10 @@ export default function AppRoutes() {
               >
 
                 <AcademicYears />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
 
 
         <Route
@@ -121,8 +184,6 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
-
-
         <Route
           path="academic/curricula"
           element={
@@ -141,7 +202,7 @@ export default function AppRoutes() {
           element={
             <ProtectedRoute>
               <PermissionRoute
-                permission={Permission.CLASS_OFFERING_READ}
+                permission={Permission.CURRICULUM_READ}
               >
                 <ClassOfferings />
               </PermissionRoute>
@@ -162,6 +223,9 @@ export default function AppRoutes() {
           }
         />
 
+
+
+
         <Route
           path="academic/candidate-scores"
           element={
@@ -179,11 +243,7 @@ export default function AppRoutes() {
           }
         />
 
-              </PermissionRoute>
 
-            </ProtectedRoute>
-          }
-        />
 
         <Route
           path="teacher/workspace"
@@ -197,12 +257,35 @@ export default function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="teacher/ai"
+          element={
+            <ProtectedRoute>
+              <PermissionRoute
+                permission={Permission.TEACHING_ASSIGNMENT_READ}
+              >
+                <TeacherAiWorkspace />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+
+
 
         <Route
           path="learner/workspace"
           element={
             <ProtectedRoute>
               <LearnerWorkspace />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="parent/workspace"
+          element={
+            <ProtectedRoute>
+              <ParentWorkspace />
             </ProtectedRoute>
           }
         />
